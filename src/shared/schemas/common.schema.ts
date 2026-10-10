@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ApiError } from '../../../shared/errors/api-error.js';
+import { ApiError } from '../errors/api-error.js';
 
 const idSchema = z.coerce.number().int().positive();
 

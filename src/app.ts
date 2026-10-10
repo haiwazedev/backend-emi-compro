@@ -5,6 +5,7 @@ import path from 'node:path';
 import { articleRouter } from './module/article/routes/article.routes.js';
 import { articleCategoryRouter } from './module/article/routes/article-category.routes.js';
 import { authRouter } from './module/auth/auth.routes.js';
+import { mediaRouter } from './module/media/routes/media.routes.js';
 import { frontendOrigin } from './shared/config/session.js';
 import { redisClient, connectRedis } from './shared/db/redis.js';
 import { sessionMiddleware } from './shared/middlewares/session.middleware.js';
@@ -26,6 +27,7 @@ app.use(validateRequestOrigin);
 app.use('/auth', authRouter);
 app.use(articleRouter);
 app.use(articleCategoryRouter);
+app.use(mediaRouter);
 
 app.get('/health', (req: Request, res: Response) => {
   res.send({ message: 'OK' });

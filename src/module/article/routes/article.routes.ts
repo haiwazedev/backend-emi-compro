@@ -4,7 +4,6 @@ import { validateQuery } from '../../../shared/middlewares/validate-query.middle
 import { createAuthMiddleware } from '../../auth/auth.middleware.js';
 import { AuthService } from '../../auth/auth.service.js';
 import { ArticleController } from '../controllers/article.controller.js';
-import { uploadArticlePhoto } from '../middlewares/article-upload.middleware.js';
 import {
   articleListQuerySchema,
   createArticleBodySchema,
@@ -26,14 +25,12 @@ articleRouter.get('/articles/:articleId', controller.get);
 articleRouter.post(
   '/articles',
   requireAuth,
-  uploadArticlePhoto,
   validateBody(createArticleBodySchema),
   controller.create,
 );
 articleRouter.put(
   '/articles/:articleId',
   requireAuth,
-  uploadArticlePhoto,
   validateBody(updateArticleBodySchema),
   controller.update,
 );

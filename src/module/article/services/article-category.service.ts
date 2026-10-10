@@ -1,18 +1,12 @@
 import { ApiError } from '../../../shared/errors/api-error.js';
-import { ArticleRepository } from '../repositories/article.repository.js';
 import { ArticleCategoryRepository } from '../repositories/article-category.repository.js';
 import type {
   CreateArticleCategoryInput,
   UpdateArticleCategoryInput,
 } from '../schemas/article-category.schema.js';
-import { ArticlePhotoService } from './article-photo.service.js';
 
 export class ArticleCategoryService {
-  constructor(
-    private readonly repository = new ArticleCategoryRepository(),
-    private readonly articleRepository = new ArticleRepository(),
-    private readonly photoService = new ArticlePhotoService(),
-  ) {}
+  constructor(private readonly repository = new ArticleCategoryRepository()) {}
 
   list() {
     return this.repository.findMany();
@@ -76,8 +70,6 @@ export class ArticleCategoryService {
 
   async delete(id: number): Promise<void> {
     await this.getById(id);
-    const articlePhotos =
-      await this.articleRepository.findPhotoUrlsByCategoryId(id);
 
     try {
       await this.repository.delete(id);
@@ -88,12 +80,6 @@ export class ArticleCategoryService {
 
       throw error;
     }
-
-    await Promise.all(
-      articlePhotos.map(({ primaryPhotoUrl }) =>
-        this.photoService.removeAfterCommit(primaryPhotoUrl),
-      ),
-    );
   }
 }
 

@@ -20,25 +20,30 @@ const nullableDate = z.preprocess(
   ]),
 );
 
-const articleFormFieldsSchema = z
-  .object({
-    article_category_id: z.coerce.number().int().positive(),
-    title: z.string().trim().min(1).max(120),
-    slug: z.string().trim().min(1).max(255),
-    summary: z.string().trim().min(1),
-    content: z.string().refine((value) => value.trim().length > 0),
-    issue_date: nullableDate.optional(),
-    press_release_number: nullableText(255).optional(),
-    cp_name: nullableText(100).optional(),
-    cp_role: nullableText(100).optional(),
-    cp_phone_number: nullableText(100).optional(),
-    cp_email: nullableText(100).optional(),
-    status: articleStatusSchema.optional(),
+const articleFormFieldsSchema = z.object({
+  article_category_id: z.number().int().positive(),
+  title: z.string().trim().min(1).max(120),
+  slug: z.string().trim().min(1).max(255),
+  summary: z.string().trim().min(1),
+  content: z.string().refine((value) => value.trim().length > 0),
+  issue_date: nullableDate.optional(),
+  press_release_number: nullableText(255).optional(),
+  cp_name: nullableText(100).optional(),
+  cp_role: nullableText(100).optional(),
+  cp_phone_number: nullableText(100).optional(),
+  cp_email: nullableText(100).optional(),
+  status: articleStatusSchema.optional(),
+});
+
+export const createArticleBodySchema = articleFormFieldsSchema
+  .extend({ primary_photo: z.number().int().positive() })
+  .strict();
+export const updateArticleBodySchema = articleFormFieldsSchema
+  .partial()
+  .extend({
+    primary_photo: z.number().int().positive().nullable().optional(),
   })
   .strict();
-
-export const createArticleBodySchema = articleFormFieldsSchema;
-export const updateArticleBodySchema = articleFormFieldsSchema.partial();
 
 export const articleListQuerySchema = z
   .object({

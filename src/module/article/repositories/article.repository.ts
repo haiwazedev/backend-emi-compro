@@ -12,7 +12,7 @@ export class ArticleRepository {
       skip: (query.page - 1) * query.limit,
       take: query.limit,
       orderBy: [{ createdAt: direction }, { id: direction }],
-      include: { articleCategory: true },
+      include: { articleCategory: true, primaryPhotoMedia: true },
     });
   }
 
@@ -23,7 +23,7 @@ export class ArticleRepository {
   findById(id: number, transaction?: Prisma.TransactionClient) {
     return (transaction ?? prisma).article.findUnique({
       where: { id },
-      include: { articleCategory: true },
+      include: { articleCategory: true, primaryPhotoMedia: true },
     });
   }
 
@@ -31,18 +31,11 @@ export class ArticleRepository {
     return prisma.article.findUnique({ where: { slug }, select: { id: true } });
   }
 
-  findPhotoUrlsByCategoryId(articleCategoryId: number) {
-    return prisma.article.findMany({
-      where: { articleCategoryId },
-      select: { primaryPhotoUrl: true },
+  create(data: Prisma.ArticleUncheckedCreateInput) {
+    return prisma.article.create({
+      data,
+      include: { articleCategory: true, primaryPhotoMedia: true },
     });
-  }
-
-  create(
-    data: Prisma.ArticleUncheckedCreateInput,
-    transaction: Prisma.TransactionClient,
-  ) {
-    return transaction.article.create({ data });
   }
 
   update(
@@ -53,7 +46,7 @@ export class ArticleRepository {
     return (transaction ?? prisma).article.update({
       where: { id },
       data,
-      include: { articleCategory: true },
+      include: { articleCategory: true, primaryPhotoMedia: true },
     });
   }
 

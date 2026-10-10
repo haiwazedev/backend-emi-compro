@@ -1,8 +1,8 @@
 import type { Request, Response } from 'express';
 import { ApiError } from '../../../shared/errors/api-error.js';
+import { parseIdParam } from '../../../shared/schemas/common.schema.js';
 import { ArticleService } from '../services/article.service.js';
 import { presentArticle } from '../presenters/article.presenter.js';
-import { parseIdParam } from '../schemas/common.schema.js';
 import type {
   ArticleListQuery,
   CreateArticleInput,
@@ -34,7 +34,6 @@ export class ArticleController {
     const userName = getAuthenticatedUserName(req);
     const article = await this.service.create(
       req.body as CreateArticleInput,
-      req.file,
       userName,
     );
 
@@ -46,7 +45,6 @@ export class ArticleController {
     const article = await this.service.update(
       parseIdParam(req.params.articleId),
       req.body as UpdateArticleInput,
-      req.file,
       userName,
     );
 

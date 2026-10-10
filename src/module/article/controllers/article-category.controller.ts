@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
+import { parseIdParam } from '../../../shared/schemas/common.schema.js';
 import { ArticleCategoryService } from '../services/article-category.service.js';
 import { presentArticleCategory } from '../presenters/article-category.presenter.js';
-import { parseIdParam } from '../schemas/common.schema.js';
 import type {
   CreateArticleCategoryInput,
   UpdateArticleCategoryInput,

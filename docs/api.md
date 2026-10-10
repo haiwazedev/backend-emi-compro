@@ -8,8 +8,8 @@ The default local base URL is `http://localhost:8000`. Replace it with the
 server's deployed URL when integrating with another environment. The port can
 be changed with the `PORT` environment variable.
 
-Send JSON request bodies with the `Content-Type: application/json` header. Article
-create and update requests use `multipart/form-data` for the photo upload.
+Send JSON request bodies with the `Content-Type: application/json` header. Media
+uploads use `multipart/form-data`.
 Errors use this shape:
 
 ```json
@@ -268,8 +268,8 @@ frontend `Origin` or `Referer` as described under [Browser Sessions](#browser-se
 
 `GET /articles`
 
-Returns a page of articles with the related category in each result. Results
-are sorted by `created_at` descending by default, with `id` as a stable
+Returns a page of articles with their related category and primary photo media.
+Results are sorted by `created_at` descending by default, with `id` as a stable
 tie-breaker.
 
 | Query parameter       | Type   | Rules                                                   |
@@ -297,7 +297,8 @@ Request`.
       "content": "Full article content.",
       "issue_date": "2026-10-10",
       "press_release_number": null,
-      "primary_photo_url": "/public/articles/12.webp",
+      "primary_photo": 18,
+      "primary_photo_url": "/public/media/company-news.jpg",
       "cp_name": null,
       "cp_role": null,
       "cp_phone_number": null,
@@ -329,52 +330,108 @@ Request`.
 - `POST /articles` creates an article and returns `{ "article": ... }` with
   `201 Created`.
 - `PUT /articles/:articleId` partially updates an article and returns
-  `{ "article": ... }` with `200 OK`. Omitted fields remain unchanged. Empty
-  values clear nullable fields; omit `primary_photo` to keep the current photo.
+  `{ "article": ... }` with `200 OK`. Omitted fields remain unchanged. Send
+  `null` for `primary_photo` to clear its media relation.
 - `DELETE /articles/:articleId` deletes an article and returns `204 No Content`.
 
-Article POST and PUT bodies use `multipart/form-data`. Send article values as
-form fields and attach the image under `primary_photo`.
+Article POST and PUT bodies use JSON.
 
-| Field                  | Type   | Rules                                                    |
-| ---------------------- | ------ | -------------------------------------------------------- |
-| `article_category_id`  | number | Required on create; positive ID of an existing category. |
-| `title`                | string | Required on create; maximum 120 characters.              |
-| `slug`                 | string | Required on create; maximum 255 characters; unique.      |
-| `summary`              | string | Required on create.                                      |
-| `content`              | string | Required on create.                                      |
-| `primary_photo`        | file   | Required on create; optional on update; max 2 MiB.       |
-| `issue_date`           | date   | Optional; `YYYY-MM-DD`.                                  |
-| `press_release_number` | string | Optional; maximum 255 characters.                        |
-| `cp_name`              | string | Optional; maximum 100 characters.                        |
-| `cp_role`              | string | Optional; maximum 100 characters.                        |
-| `cp_phone_number`      | string | Optional; maximum 100 characters.                        |
-| `cp_email`             | string | Optional; maximum 100 characters.                        |
-| `status`               | string | Optional; `DRAFT` or `PUBLISHED`; defaults to `DRAFT`.   |
+| Field                  | Type           | Rules                                                               |
+| ---------------------- | -------------- | ------------------------------------------------------------------- |
+| `article_category_id`  | number         | Required on create; positive ID of an existing category.            |
+| `title`                | string         | Required on create; maximum 120 characters.                         |
+| `slug`                 | string         | Required on create; maximum 255 characters; unique.                 |
+| `summary`              | string         | Required on create.                                                 |
+| `content`              | string         | Required on create.                                                 |
+| `primary_photo`        | number or null | Picture media ID; required on create; optional or `null` on update. |
+| `issue_date`           | date or null   | Optional; `YYYY-MM-DD`.                                             |
+| `press_release_number` | string or null | Optional; maximum 255 characters.                                   |
+| `cp_name`              | string or null | Optional; maximum 100 characters.                                   |
+| `cp_role`              | string or null | Optional; maximum 100 characters.                                   |
+| `cp_phone_number`      | string or null | Optional; maximum 100 characters.                                   |
+| `cp_email`             | string or null | Optional; maximum 100 characters.                                   |
+| `status`               | string         | Optional; `DRAFT` or `PUBLISHED`; defaults to `DRAFT`.              |
+
+The referenced media record must exist and have type `PICTURE`. Article
+responses include its ID in `primary_photo` and its public path in
+`primary_photo_url`. Both response fields are `null` when no media is linked,
+including after the media record is deleted.
 
 On create, omitted nullable text/date fields are stored as `null`. On update,
-omit a field to keep its current value; send an empty value to clear a nullable
-field. The authenticated user's name is stored in `created_by`; updates set
+omit a field to keep its current value; send `null` to clear nullable fields.
+The authenticated user's name is stored in `created_by`; updates set
 `updated_by` and `updated_at`.
 
-Only PNG, JPG, JPEG, and WebP photos are accepted. The server checks the file
-extension, media type, and image signature. Photos are stored as
-`public/articles/{articleId}.{extension}` and their public path is returned in
-`primary_photo_url`, for example `/public/articles/12.webp`.
+Example request:
+
+```js
+const response = await fetch(`${API_BASE_URL}/articles`, {
+  method: 'POST',
+  credentials: 'include',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    article_category_id: 3,
+    title: 'New service center opens',
+    slug: 'new-service-center-opens',
+    summary: 'A short summary.',
+    content: 'Full article content.',
+    issue_date: '2026-10-10',
+    primary_photo: 18,
+  }),
+});
+
+const data = await response.json();
+if (!response.ok) throw new Error(data.message);
+```
+
+## Media
+
+Media list and detail reads are public. Upload and delete requests require an
+authenticated session and the configured frontend `Origin` or `Referer`.
+Uploaded files are publicly available under `/public/media/`.
+
+### Upload media
+
+`POST /media` accepts `multipart/form-data` with a `type` field (`PICTURE` or
+`DOCUMENT`) and a file field named `file`. The original filename is preserved
+on disk and must not already exist. Its URL-encoded form is stored in `path`.
+
+| Type       | Accepted extensions  | Maximum size |
+| ---------- | -------------------- | ------------ |
+| `PICTURE`  | `png`, `jpg`, `jpeg` | 2 MiB        |
+| `DOCUMENT` | `pdf`                | 5 MiB        |
+
+The server checks file content against the extension. Picture metadata contains
+its pixel `width` and `height`; document metadata is `null`. `size` is the file
+size rounded up to an integer number of KB (1024 bytes). `created_by` is the authenticated
+user's name.
+
+A successful upload returns `201 Created`:
+
+```json
+{
+  "media": {
+    "id": 18,
+    "filename": "company-news.jpg",
+    "path": "/public/media/company-news.jpg",
+    "extension": "jpg",
+    "type": "PICTURE",
+    "size": 184,
+    "metadata": { "width": 1600, "height": 900 },
+    "created_by": "Ari Putra",
+    "created_at": "2026-10-10T10:30:00.000Z"
+  }
+}
+```
 
 Example browser request:
 
 ```js
 const formData = new FormData();
-formData.append('article_category_id', '3');
-formData.append('title', 'New service center opens');
-formData.append('slug', 'new-service-center-opens');
-formData.append('summary', 'A short summary.');
-formData.append('content', 'Full article content.');
-formData.append('issue_date', '2026-10-10');
-formData.append('primary_photo', photoFile);
+formData.append('type', 'PICTURE');
+formData.append('file', imageFile);
 
-const response = await fetch(`${API_BASE_URL}/articles`, {
+const response = await fetch(`${API_BASE_URL}/media`, {
   method: 'POST',
   credentials: 'include',
   body: formData,
@@ -386,6 +443,45 @@ if (!response.ok) throw new Error(data.message);
 
 Do not set the multipart `Content-Type` header manually; the browser adds its
 boundary.
+
+### List and get media
+
+- `GET /media` returns `{ "media": [...] }` with `200 OK`.
+- `GET /media/:mediaId` returns `{ "media": ... }` with `200 OK`.
+
+`GET /media` is unpaginated and accepts these optional query parameters:
+
+| Query parameter | Type   | Rules                                           |
+| --------------- | ------ | ----------------------------------------------- |
+| `type`          | string | `PICTURE` or `DOCUMENT`.                        |
+| `sort_by`       | string | Must be `created_at`; defaults to `created_at`. |
+| `sort_order`    | string | `asc` or `desc`; defaults to `desc`.            |
+
+Results use `id` as a stable tie-breaker in the selected sort direction.
+
+### Delete media
+
+- `DELETE /media/:mediaId` deletes one record and returns `204 No Content`.
+- `POST /media/bulk_delete` accepts a JSON `ids` array of positive integers,
+  deletes matching records in a database transaction, and returns the number
+  removed. Missing IDs are ignored.
+
+```json
+{
+  "ids": [18, 19, 20]
+}
+```
+
+The bulk delete response is:
+
+```json
+{
+  "deleted_count": 3
+}
+```
+
+Deleting media also clears any Article `primary_photo` relation that references
+it. The stored file is removed after the database deletion commits.
 
 ## Article Categories
 
@@ -401,7 +497,8 @@ an authenticated session. Category requests use JSON.
 - `PUT /article_categories/:articleCategoryId` partially updates a category
   and returns `{ "articleCategory": ... }` with `200 OK`.
 - `DELETE /article_categories/:articleCategoryId` returns `204 No Content`.
-  Deleting a category also deletes its articles and their stored photos.
+  Deleting a category also deletes its articles; media records remain in the
+  media library.
 
 Category create and update bodies accept `name` (up to 100 characters) and
 `slug` (up to 100 characters, unique). Both fields are required on create;
@@ -418,19 +515,19 @@ omitted fields remain unchanged on update.
 
 Files in the project `public/` directory are served without authentication at
 the matching `/public/*` path and allow cross-origin reads. For example,
-`public/articles/12.webp` is available at
-`http://localhost:8000/public/articles/12.webp`.
+`public/media/company-news.jpg` is available at
+`http://localhost:8000/public/media/company-news.jpg`.
 
-## Article and Category Errors
+## Article, Category, and Media Errors
 
-| Status                  | Description                                                                |
-| ----------------------- | -------------------------------------------------------------------------- |
-| `400 Bad Request`       | Invalid ID, request field, query value, category reference, or image type. |
-| `401 Unauthorized`      | A write request does not have a valid session.                             |
-| `403 Forbidden`         | A write request has a missing or disallowed `Origin`/`Referer`.            |
-| `404 Not Found`         | The requested article or category does not exist.                          |
-| `409 Conflict`          | Article or category slug is already in use.                                |
-| `413 Payload Too Large` | The uploaded photo exceeds 2 MiB.                                          |
+| Status                  | Description                                                                                |
+| ----------------------- | ------------------------------------------------------------------------------------------ |
+| `400 Bad Request`       | Invalid ID, request field, query value, category reference, media reference, or file type. |
+| `401 Unauthorized`      | A write request does not have a valid session.                                             |
+| `403 Forbidden`         | A write request has a missing or disallowed `Origin`/`Referer`.                            |
+| `404 Not Found`         | The requested article, category, or media record does not exist.                           |
+| `409 Conflict`          | Article/category slug or media filename is already in use.                                 |
+| `413 Payload Too Large` | An uploaded file exceeds the limit for its media type.                                     |
 
 ## Health Check
 

@@ -14,6 +14,13 @@ enum ArticleStatus {
   @@map("article_status")
 }
 
+enum MediaType {
+  PICTURE
+  DOCUMENT
+
+  @@map("media_type")
+}
+
 model User {
   id       Int    @id @default(autoincrement())
   name     String
@@ -32,27 +39,46 @@ model ArticleCategory {
   @@map("article_categories")
 }
 
+model Media {
+  id        Int       @id @default(autoincrement())
+  filename  String    @unique @db.VarChar(255)
+  path      String    @db.VarChar(255)
+  extension String    @db.VarChar(20)
+  type      MediaType
+  size      Int
+  metadata  Json?     @db.JsonB
+  createdBy String    @map("created_by") @db.VarChar(100)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  articles  Article[]
+
+  @@index([type])
+  @@index([createdAt])
+  @@map("media")
+}
+
 model Article {
-  id                 Int             @id @default(autoincrement())
-  articleCategoryId  Int             @map("article_category_id")
-  title              String          @db.VarChar(120)
-  slug               String          @unique @db.VarChar(255)
-  summary            String          @db.Text
-  content            String          @db.Text
-  issueDate          DateTime?       @map("issue_date") @db.Date
-  pressReleaseNumber String?         @map("press_release_number") @db.VarChar(255)
-  primaryPhotoUrl    String          @map("primary_photo_url") @db.VarChar(255)
-  cpName             String?         @map("cp_name") @db.VarChar(100)
-  cpRole             String?         @map("cp_role") @db.VarChar(100)
-  cpPhoneNumber      String?         @map("cp_phone_number") @db.VarChar(100)
-  cpEmail            String?         @map("cp_email") @db.VarChar(100)
-  status             ArticleStatus   @default(DRAFT)
-  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  createdBy          String          @map("created_by") @db.VarChar(100)
-  updatedAt          DateTime?       @map("updated_at") @db.Timestamptz(6)
-  updatedBy          String?         @map("updated_by") @db.VarChar(100)
-  articleCategory    ArticleCategory @relation(fields: [articleCategoryId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  id                  Int             @id @default(autoincrement())
+  articleCategoryId   Int             @map("article_category_id")
+  title               String          @db.VarChar(120)
+  slug                String          @unique @db.VarChar(255)
+  summary             String          @db.Text
+  content             String          @db.Text
+  issueDate           DateTime?       @map("issue_date") @db.Date
+  pressReleaseNumber  String?         @map("press_release_number") @db.VarChar(255)
+  primaryPhotoMediaId Int?            @map("primary_photo_media_id")
+  cpName              String?         @map("cp_name") @db.VarChar(100)
+  cpRole              String?         @map("cp_role") @db.VarChar(100)
+  cpPhoneNumber       String?         @map("cp_phone_number") @db.VarChar(100)
+  cpEmail             String?         @map("cp_email") @db.VarChar(100)
+  status              ArticleStatus   @default(DRAFT)
+  createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy           String          @map("created_by") @db.VarChar(100)
+  updatedAt           DateTime?       @map("updated_at") @db.Timestamptz(6)
+  updatedBy           String?         @map("updated_by") @db.VarChar(100)
+  articleCategory     ArticleCategory @relation(fields: [articleCategoryId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  primaryPhotoMedia   Media?          @relation(fields: [primaryPhotoMediaId], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
   @@index([articleCategoryId])
+  @@index([primaryPhotoMediaId])
   @@map("articles")
 }

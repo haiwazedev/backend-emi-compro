@@ -4,5 +4,5 @@ node_modules
 dist/
 .pnpm-store/
 src/generated/prisma/
-/public/articles/*
-!/public/articles/.gitkeep
+/public/media/*
+!/public/media/.gitkeep

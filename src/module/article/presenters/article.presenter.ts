@@ -1,7 +1,7 @@
 import type { Prisma } from '../../../generated/prisma/client.js';
 
 export type ArticleWithCategory = Prisma.ArticleGetPayload<{
-  include: { articleCategory: true };
+  include: { articleCategory: true; primaryPhotoMedia: true };
 }>;
 
 export function presentArticle(article: ArticleWithCategory) {
@@ -14,7 +14,8 @@ export function presentArticle(article: ArticleWithCategory) {
     content: article.content,
     issue_date: article.issueDate?.toISOString().slice(0, 10) ?? null,
     press_release_number: article.pressReleaseNumber,
-    primary_photo_url: article.primaryPhotoUrl,
+    primary_photo: article.primaryPhotoMediaId,
+    primary_photo_url: article.primaryPhotoMedia?.path ?? null,
     cp_name: article.cpName,
     cp_role: article.cpRole,
     cp_phone_number: article.cpPhoneNumber,

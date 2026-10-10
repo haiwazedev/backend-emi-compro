@@ -17,7 +17,7 @@ export const errorHandler: ErrorRequestHandler = (
     const isFileTooLarge = error.code === 'LIMIT_FILE_SIZE';
     res.status(isFileTooLarge ? 413 : 400).json({
       message: isFileTooLarge
-        ? 'Primary photo must not exceed 2 MB.'
+        ? 'Uploaded file exceeds the maximum upload size.'
         : 'Invalid multipart form data.',
     });
     return;

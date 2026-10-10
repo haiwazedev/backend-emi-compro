@@ -50,6 +50,7 @@ model Media {
   createdBy String    @map("created_by") @db.VarChar(100)
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   articles  Article[]
+  contents  Content[]
 
   @@index([type])
   @@index([createdAt])
@@ -81,4 +82,22 @@ model Article {
   @@index([articleCategoryId])
   @@index([primaryPhotoMediaId])
   @@map("articles")
+}
+
+model Content {
+  id        Int       @id @default(autoincrement())
+  page      String    @db.VarChar(100)
+  blockKey  String    @map("block_key") @db.VarChar(100)
+  blockType String    @map("block_type") @db.VarChar(100)
+  sortOrder Int       @default(1) @map("sort_order")
+  data      Json?     @db.JsonB
+  mediaId   Int?      @map("media_id")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy String    @map("created_by") @db.VarChar(100)
+  updatedAt DateTime? @default(now()) @map("updated_at") @db.Timestamptz(6)
+  updatedBy String?   @map("updated_by") @db.VarChar(100)
+  media     Media?    @relation(fields: [mediaId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@unique([page, blockKey, blockType, sortOrder])
+  @@map("contents")
 }

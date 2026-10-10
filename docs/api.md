@@ -258,6 +258,141 @@ curl -i -X POST http://localhost:8000/auth/logout \
   -b cookies.txt
 ```
 
+## Content Blocks
+
+Content reads are public. Updating a content row requires an authenticated
+session and the configured frontend `Origin` or `Referer`, as described under
+[Browser Sessions](#browser-sessions).
+
+### List content
+
+`GET /contents`
+
+Returns all content rows, ordered by `page`, `block_key`, `block_type`, and
+`sort_order`. The optional filters can be combined:
+
+For example, filtering by page=home, block_key=statistic, and
+block_type=statistic-item returns the ordered home statistics.
+
+| Query parameter | Type   | Rules                     |
+| --------------- | ------ | ------------------------- |
+| `page`          | string | Optional page identifier. |
+| `block_key`     | string | Optional block key.       |
+| `block_type`    | string | Optional block type.      |
+
+Example response:
+
+```json
+{
+  "contents": [
+    {
+      "id": 1,
+      "page": "home",
+      "block_key": "statistic",
+      "block_type": "statistic-item",
+      "sort_order": 1,
+      "data": {
+        "label": "Customers",
+        "number": "250",
+        "description": "Across Indonesia"
+      },
+      "media_id": null,
+      "created_at": "2026-10-10T10:30:00.000Z",
+      "created_by": "Ari Putra",
+      "updated_at": "2026-10-10T10:30:00.000Z",
+      "updated_by": "Ari Putra"
+    }
+  ]
+}
+```
+
+### Replace content lists
+
+`PUT /contents`
+
+The request body must be a non-empty JSON array. Each item selects an available
+page/block combination and describes one content row. Non-sortable items are
+upserted at `sort_order` 1.
+
+For each sortable combination represented in the request, include its complete
+desired list. Its `sort_order` values must be exactly `1..N`. The server deletes
+the stored list for that combination and recreates it from the request. A
+sortable combination absent from the request is left unchanged. Recreated rows
+receive new IDs and create metadata. If a sortable item omits `media_id`, its
+media link is cleared. For non-sortable upserts, an omitted `media_id` leaves an
+existing link unchanged.
+
+The complete request is validated before writing and applied in one database
+transaction. If any item fails, the request is rejected and no changes are
+applied. Item-specific error messages include the item’s zero-based array index.
+
+| Field        | Type           | Rules                                                                                        |
+| ------------ | -------------- | -------------------------------------------------------------------------------------------- |
+| `page`       | string         | Required; must be an available page/block combination.                                       |
+| `block_key`  | string         | Required; must match the selected combination.                                               |
+| `block_type` | string         | Required; must match the selected combination.                                               |
+| `sort_order` | number         | Required for sortable combinations; positive integer and contiguous from 1 within each list. |
+| `data`       | object or null | Required object for data blocks; omitted or null for pictures.                               |
+| `media_id`   | number or null | Optional; existing media ID, only for combinations that support media.                       |
+
+Every data object must contain exactly the listed fields. Each value must be a
+string.
+
+| Page       | Block key          | Block type        | Sortable | Media | Data fields                      |
+| ---------- | ------------------ | ----------------- | -------- | ----- | -------------------------------- |
+| `home`     | `hero-carousel`    | `carousel-slide`  | Yes      | Yes   | `title_1`, `title_2`, `subtitle` |
+| `home`     | `statistic`        | `statistic-item`  | Yes      | No    | `label`, `number`, `description` |
+| `home`     | `teaser`           | `teaser-title`    | No       | No    | `title`                          |
+| `home`     | `teaser`           | `cta-title`       | No       | No    | `title`                          |
+| `home`     | `teaser`           | `teaser-content`  | No       | No    | `content`                        |
+| `about-us` | `company-profile`  | `profile-content` | No       | No    | `content`                        |
+| `about-us` | `company-profile`  | `company-picture` | No       | Yes   | None                             |
+| `about-us` | `mission-vision`   | `vision`          | No       | No    | `content`                        |
+| `about-us` | `mission-vision`   | `mission-item`    | Yes      | No    | `title`, `description`           |
+| `about-us` | `history_timeline` | `timeline-item`   | Yes      | No    | `period`, `description`          |
+
+Example request containing a complete two-item carousel list:
+
+```json
+[
+  {
+    "page": "home",
+    "block_key": "hero-carousel",
+    "block_type": "carousel-slide",
+    "sort_order": 1,
+    "data": {
+      "title_1": "First slide",
+      "title_2": "First highlight",
+      "subtitle": "First description"
+    },
+    "media_id": 12
+  },
+  {
+    "page": "home",
+    "block_key": "hero-carousel",
+    "block_type": "carousel-slide",
+    "sort_order": 2,
+    "data": {
+      "title_1": "Second slide",
+      "title_2": "Second highlight",
+      "subtitle": "Second description"
+    },
+    "media_id": 13
+  }
+]
+```
+
+A successful request returns `200 OK` with `{ "contents": [...] }` in request
+order. Recreated rows set `created_by` and `updated_by` to the authenticated
+user's name, and `updated_at` defaults to the current time. Updating an existing
+non-sortable row refreshes `updated_at` and `updated_by`. Send `null` for
+`media_id` to clear a non-sortable row's reference. Any existing media type is
+accepted for supported combinations.
+
+Invalid combinations, data fields, sort order, duplicate rows, or media
+references return `400 Bad Request`. Missing authentication returns `401
+Unauthorized`; a missing or disallowed request origin returns `403 Forbidden`.
+
 ## Articles
 
 Article reads are public. Creating, updating, and deleting articles require an

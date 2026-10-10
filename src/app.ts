@@ -1,15 +1,41 @@
 import 'dotenv/config';
+import cors from 'cors';
 import express, { Request, Response } from 'express';
+import { authRouter } from './module/auth/auth.routes.js';
+import { frontendOrigin } from './shared/config/session.js';
+import { redisClient, connectRedis } from './shared/db/redis.js';
+import { sessionMiddleware } from './shared/middlewares/session.middleware.js';
+import { validateRequestOrigin } from './shared/middlewares/csrf.middleware.js';
+import { errorHandler } from './shared/middlewares/error.middleware.js';
 
 const app = express();
 const PORT = process.env.PORT || 8000;
 
+app.use(cors({ origin: frontendOrigin, credentials: true }));
 app.use(express.json());
+app.use(sessionMiddleware);
+app.use(validateRequestOrigin);
+app.use('/auth', authRouter);
 
 app.get('/health', (req: Request, res: Response) => {
   res.send({ message: 'OK' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
-});
+app.use(errorHandler);
+
+async function startServer(): Promise<void> {
+  try {
+    await connectRedis();
+  } catch (error) {
+    console.error('Unable to connect to Redis; server startup aborted.', error);
+    redisClient.destroy();
+    process.exitCode = 1;
+    return;
+  }
+
+  app.listen(PORT, () => {
+    console.log(`Server is running on http://localhost:${PORT}`);
+  });
+}
+
+void startServer();

@@ -8,7 +8,8 @@ The default local base URL is `http://localhost:8000`. Replace it with the
 server's deployed URL when integrating with another environment. The port can
 be changed with the `PORT` environment variable.
 
-Send JSON request bodies with the `Content-Type: application/json` header.
+Send JSON request bodies with the `Content-Type: application/json` header. Article
+create and update requests use `multipart/form-data` for the photo upload.
 Errors use this shape:
 
 ```json
@@ -256,6 +257,180 @@ curl -i -X POST http://localhost:8000/auth/logout \
   -H 'Origin: http://localhost:3000' \
   -b cookies.txt
 ```
+
+## Articles
+
+Article reads are public. Creating, updating, and deleting articles require an
+authenticated session. State-changing requests must include the configured
+frontend `Origin` or `Referer` as described under [Browser Sessions](#browser-sessions).
+
+### List articles
+
+`GET /articles`
+
+Returns a page of articles with the related category in each result. Results
+are sorted by `created_at` descending by default, with `id` as a stable
+tie-breaker.
+
+| Query parameter       | Type   | Rules                                                   |
+| --------------------- | ------ | ------------------------------------------------------- |
+| `page`                | number | Optional, 1-based; default `1`.                         |
+| `limit`               | number | Optional; default `20`, minimum `1`, maximum `100`.     |
+| `search`              | string | Optional, case-insensitive substring search in `title`. |
+| `article_category_id` | number | Optional positive category ID filter.                   |
+| `status`              | string | Optional; `DRAFT` or `PUBLISHED`.                       |
+| `sort_by`             | string | Optional; must be `created_at`, default `created_at`.   |
+| `sort_order`          | string | Optional; `asc` or `desc`, default `desc`.              |
+
+Provided filters are combined using AND. Invalid query values return `400 Bad
+Request`.
+
+```json
+{
+  "articles": [
+    {
+      "id": 12,
+      "article_category_id": 3,
+      "title": "New service center opens",
+      "slug": "new-service-center-opens",
+      "summary": "A short summary.",
+      "content": "Full article content.",
+      "issue_date": "2026-10-10",
+      "press_release_number": null,
+      "primary_photo_url": "/public/articles/12.webp",
+      "cp_name": null,
+      "cp_role": null,
+      "cp_phone_number": null,
+      "cp_email": null,
+      "status": "DRAFT",
+      "created_at": "2026-10-10T10:30:00.000Z",
+      "created_by": "Ari Putra",
+      "updated_at": null,
+      "updated_by": null,
+      "article_category": {
+        "id": 3,
+        "name": "Company News",
+        "slug": "company-news"
+      }
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "totalItems": 1,
+    "totalPages": 1
+  }
+}
+```
+
+### Get, create, update, and delete an article
+
+- `GET /articles/:articleId` returns `{ "article": ... }` with `200 OK`.
+- `POST /articles` creates an article and returns `{ "article": ... }` with
+  `201 Created`.
+- `PUT /articles/:articleId` partially updates an article and returns
+  `{ "article": ... }` with `200 OK`. Omitted fields remain unchanged. Empty
+  values clear nullable fields; omit `primary_photo` to keep the current photo.
+- `DELETE /articles/:articleId` deletes an article and returns `204 No Content`.
+
+Article POST and PUT bodies use `multipart/form-data`. Send article values as
+form fields and attach the image under `primary_photo`.
+
+| Field                  | Type   | Rules                                                    |
+| ---------------------- | ------ | -------------------------------------------------------- |
+| `article_category_id`  | number | Required on create; positive ID of an existing category. |
+| `title`                | string | Required on create; maximum 120 characters.              |
+| `slug`                 | string | Required on create; maximum 255 characters; unique.      |
+| `summary`              | string | Required on create.                                      |
+| `content`              | string | Required on create.                                      |
+| `primary_photo`        | file   | Required on create; optional on update; max 2 MiB.       |
+| `issue_date`           | date   | Optional; `YYYY-MM-DD`.                                  |
+| `press_release_number` | string | Optional; maximum 255 characters.                        |
+| `cp_name`              | string | Optional; maximum 100 characters.                        |
+| `cp_role`              | string | Optional; maximum 100 characters.                        |
+| `cp_phone_number`      | string | Optional; maximum 100 characters.                        |
+| `cp_email`             | string | Optional; maximum 100 characters.                        |
+| `status`               | string | Optional; `DRAFT` or `PUBLISHED`; defaults to `DRAFT`.   |
+
+On create, omitted nullable text/date fields are stored as `null`. On update,
+omit a field to keep its current value; send an empty value to clear a nullable
+field. The authenticated user's name is stored in `created_by`; updates set
+`updated_by` and `updated_at`.
+
+Only PNG, JPG, JPEG, and WebP photos are accepted. The server checks the file
+extension, media type, and image signature. Photos are stored as
+`public/articles/{articleId}.{extension}` and their public path is returned in
+`primary_photo_url`, for example `/public/articles/12.webp`.
+
+Example browser request:
+
+```js
+const formData = new FormData();
+formData.append('article_category_id', '3');
+formData.append('title', 'New service center opens');
+formData.append('slug', 'new-service-center-opens');
+formData.append('summary', 'A short summary.');
+formData.append('content', 'Full article content.');
+formData.append('issue_date', '2026-10-10');
+formData.append('primary_photo', photoFile);
+
+const response = await fetch(`${API_BASE_URL}/articles`, {
+  method: 'POST',
+  credentials: 'include',
+  body: formData,
+});
+
+const data = await response.json();
+if (!response.ok) throw new Error(data.message);
+```
+
+Do not set the multipart `Content-Type` header manually; the browser adds its
+boundary.
+
+## Article Categories
+
+Category reads are public. Creating, updating, and deleting categories require
+an authenticated session. Category requests use JSON.
+
+- `GET /article_categories` returns `{ "articleCategories": [...] }` with
+  `200 OK`.
+- `GET /article_categories/:articleCategoryId` returns
+  `{ "articleCategory": ... }` with `200 OK`.
+- `POST /article_categories` creates a category and returns
+  `{ "articleCategory": ... }` with `201 Created`.
+- `PUT /article_categories/:articleCategoryId` partially updates a category
+  and returns `{ "articleCategory": ... }` with `200 OK`.
+- `DELETE /article_categories/:articleCategoryId` returns `204 No Content`.
+  Deleting a category also deletes its articles and their stored photos.
+
+Category create and update bodies accept `name` (up to 100 characters) and
+`slug` (up to 100 characters, unique). Both fields are required on create;
+omitted fields remain unchanged on update.
+
+```json
+{
+  "name": "Company News",
+  "slug": "company-news"
+}
+```
+
+## Public Static Assets
+
+Files in the project `public/` directory are served without authentication at
+the matching `/public/*` path and allow cross-origin reads. For example,
+`public/articles/12.webp` is available at
+`http://localhost:8000/public/articles/12.webp`.
+
+## Article and Category Errors
+
+| Status                  | Description                                                                |
+| ----------------------- | -------------------------------------------------------------------------- |
+| `400 Bad Request`       | Invalid ID, request field, query value, category reference, or image type. |
+| `401 Unauthorized`      | A write request does not have a valid session.                             |
+| `403 Forbidden`         | A write request has a missing or disallowed `Origin`/`Referer`.            |
+| `404 Not Found`         | The requested article or category does not exist.                          |
+| `409 Conflict`          | Article or category slug is already in use.                                |
+| `413 Payload Too Large` | The uploaded photo exceeds 2 MiB.                                          |
 
 ## Health Check
 

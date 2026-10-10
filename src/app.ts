@@ -1,6 +1,9 @@
 import 'dotenv/config';
 import cors from 'cors';
 import express, { Request, Response } from 'express';
+import path from 'node:path';
+import { articleRouter } from './module/article/routes/article.routes.js';
+import { articleCategoryRouter } from './module/article/routes/article-category.routes.js';
 import { authRouter } from './module/auth/auth.routes.js';
 import { frontendOrigin } from './shared/config/session.js';
 import { redisClient, connectRedis } from './shared/db/redis.js';
@@ -11,11 +14,18 @@ import { errorHandler } from './shared/middlewares/error.middleware.js';
 const app = express();
 const PORT = process.env.PORT || 8000;
 
+app.use(
+  '/public',
+  cors(),
+  express.static(path.resolve(process.cwd(), 'public')),
+);
 app.use(cors({ origin: frontendOrigin, credentials: true }));
 app.use(express.json());
 app.use(sessionMiddleware);
 app.use(validateRequestOrigin);
 app.use('/auth', authRouter);
+app.use(articleRouter);
+app.use(articleCategoryRouter);
 
 app.get('/health', (req: Request, res: Response) => {
   res.send({ message: 'OK' });

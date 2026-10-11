@@ -6,6 +6,8 @@ import { articleRouter } from './module/article/routes/article.routes.js';
 import { articleCategoryRouter } from './module/article/routes/article-category.routes.js';
 import { authRouter } from './module/auth/auth.routes.js';
 import { contentRouter } from './module/content/routes/content.routes.js';
+import { documentCommitmentCategoryRouter } from './module/document_commitment/routes/document-commitment-category.routes.js';
+import { documentCommitmentRouter } from './module/document_commitment/routes/document-commitment.routes.js';
 import { divisionRouter } from './module/division/routes/division.routes.js';
 import { mediaRouter } from './module/media/routes/media.routes.js';
 import { serviceRouter } from './module/service/routes/service.routes.js';
@@ -32,6 +34,8 @@ app.use(articleRouter);
 app.use(articleCategoryRouter);
 app.use(mediaRouter);
 app.use(contentRouter);
+app.use(documentCommitmentCategoryRouter);
+app.use(documentCommitmentRouter);
 app.use(divisionRouter);
 app.use(serviceRouter);
 

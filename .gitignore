@@ -6,3 +6,5 @@ dist/
 src/generated/prisma/
 /public/media/*
 !/public/media/.gitkeep
+/public/document_commitment/*
+!/public/document_commitment/.gitkeep

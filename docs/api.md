@@ -799,23 +799,152 @@ omitted fields remain unchanged on update.
 }
 ```
 
+## Document Commitments
+
+Document commitment reads are public. Creating, updating, and deleting
+categories or documents require an authenticated session and the configured
+frontend `Origin` or `Referer`, as described under [Browser Sessions](#browser-sessions).
+
+### Categories
+
+- `GET /document_commitment_categories` returns
+  `{ "documentCommitmentCategories": [...] }` with `200 OK`.
+- `GET /document_commitment_categories/:categoryId` returns
+  `{ "documentCommitmentCategory": ... }` with `200 OK`.
+- `POST /document_commitment_categories` creates a category and returns
+  `{ "documentCommitmentCategory": ... }` with `201 Created`.
+- `PUT /document_commitment_categories/:categoryId` partially updates a
+  category and returns `{ "documentCommitmentCategory": ... }` with `200 OK`.
+- `DELETE /document_commitment_categories/:categoryId` returns
+  `204 No Content`. Deleting a category also deletes its document records and
+  stored PDF files.
+
+Category create and update requests use JSON with a `name` field, trimmed to
+1–100 characters. The name is required on create; omitted fields remain
+unchanged on update.
+
+```json
+{ "name": "Board Decisions" }
+```
+
+### Documents
+
+- `GET /document_commitments` returns
+  `{ "documentCommitments": [...], "pagination": ... }` with `200 OK`.
+- `GET /document_commitments/:documentId` returns
+  `{ "documentCommitment": ... }` with `200 OK`.
+- `POST /document_commitments` creates a document commitment and returns
+  `{ "documentCommitment": ... }` with `201 Created`.
+- `PUT /document_commitments/:documentId` partially updates a document and
+  returns `{ "documentCommitment": ... }` with `200 OK`.
+- `DELETE /document_commitments/:documentId` returns `204 No Content` and
+  removes its stored PDF after the database deletion commits.
+
+Create requests use `multipart/form-data` with a `file` field and these text
+fields:
+
+| Field                             | Type   | Rules                                                  |
+| --------------------------------- | ------ | ------------------------------------------------------ |
+| `document_commitment_category_id` | number | Required; positive ID of an existing category.         |
+| `title`                           | string | Required; trimmed; 1–200 characters.                   |
+| `status`                          | string | Optional; `DRAFT` or `PUBLISHED`; defaults to `DRAFT`. |
+| `file`                            | file   | Required; valid PDF, maximum 50 MiB.                   |
+
+The server stores each file at `public/document_commitment/{filename}`, using
+the original uploaded filename. `file_path` contains the URL-encoded public
+path, and `size` is rounded up to KiB (1024 bytes). Filenames must be safe
+basenames and unique across document commitments. Reusing a filename returns
+`409 Conflict`; the server never overwrites an unrelated file.
+The authenticated user's name is stored in `uploaded_by`; `uploaded_at`
+defaults to the current time.
+
+Updates are partial. Send JSON to update metadata only, or use
+`multipart/form-data` to replace the PDF and optionally update metadata. When
+no file is sent, the existing PDF is kept. Replacing a PDF keeps the same
+filename replaces that document's file in place. A filename used by another
+document returns `409 Conflict`. A new filename moves the document to the new
+path and removes the old file after the database update commits. Every update
+sets `updated_at` and `updated_by` to the current time and authenticated user's
+name.
+
+```js
+const formData = new FormData();
+formData.append('document_commitment_category_id', '2');
+formData.append('title', 'Board decision 2026-10');
+formData.append('status', 'PUBLISHED');
+formData.append('file', pdfFile);
+
+const response = await fetch(`${API_BASE_URL}/document_commitments`, {
+  method: 'POST',
+  credentials: 'include',
+  body: formData,
+});
+
+const data = await response.json();
+if (!response.ok) throw new Error(data.message);
+```
+
+`GET /document_commitments` accepts these optional query parameters:
+
+| Query parameter                   | Type   | Rules                                                   |
+| --------------------------------- | ------ | ------------------------------------------------------- |
+| `page`                            | number | Optional, 1-based; default `1`.                         |
+| `limit`                           | number | Optional; default `20`, minimum `1`, maximum `100`.     |
+| `search`                          | string | Optional, case-insensitive substring search in `title`. |
+| `document_commitment_category_id` | number | Optional positive category ID filter.                   |
+| `status`                          | string | Optional; `DRAFT` or `PUBLISHED`.                       |
+
+Filters are combined using AND. Results are ordered by `uploaded_at` descending
+with ID as a stable tie-breaker. Invalid query values return `400 Bad Request`.
+
+A document response has this shape:
+
+```json
+{
+  "documentCommitment": {
+    "id": 21,
+    "document_commitment_category_id": 2,
+    "title": "Board decision 2026-10",
+    "file_path": "/public/document_commitment/board-decision-2026-10.pdf",
+    "filename": "board-decision-2026-10.pdf",
+    "size": 420,
+    "status": "PUBLISHED",
+    "uploaded_at": "2026-10-11T10:30:00.000Z",
+    "uploaded_by": "Ari Putra",
+    "updated_at": null,
+    "updated_by": null,
+    "document_commitment_category": {
+      "id": 2,
+      "name": "Board Decisions"
+    }
+  }
+}
+```
+
+Invalid fields, category references, or PDF files return `400 Bad Request`;
+missing document or category IDs return `404 Not Found`. Uploads over 50 MiB
+return `413 Payload Too Large`.
+
 ## Public Static Assets
 
 Files in the project `public/` directory are served without authentication at
 the matching `/public/*` path and allow cross-origin reads. For example,
 `public/media/company-news.jpg` is available at
-`http://localhost:8000/public/media/company-news.jpg`.
+`http://localhost:8000/public/media/company-news.jpg`. A document commitment
+PDF such as `public/document_commitment/board-decision-2026-10.pdf` is
+available at
+`http://localhost:8000/public/document_commitment/board-decision-2026-10.pdf`.
 
-## Article, Category, and Media Errors
+## Article, Category, Media, and Document Commitment Errors
 
-| Status                  | Description                                                                                |
-| ----------------------- | ------------------------------------------------------------------------------------------ |
-| `400 Bad Request`       | Invalid ID, request field, query value, category reference, media reference, or file type. |
-| `401 Unauthorized`      | A write request does not have a valid session.                                             |
-| `403 Forbidden`         | A write request has a missing or disallowed `Origin`/`Referer`.                            |
-| `404 Not Found`         | The requested article, category, or media record does not exist.                           |
-| `409 Conflict`          | Article/category slug or media filename is already in use.                                 |
-| `413 Payload Too Large` | An uploaded file exceeds the limit for its media type.                                     |
+| Status                  | Description                                                                    |
+| ----------------------- | ------------------------------------------------------------------------------ |
+| `400 Bad Request`       | Invalid ID, body or query value, category or media reference, or uploaded PDF. |
+| `401 Unauthorized`      | A write request does not have a valid session.                                 |
+| `403 Forbidden`         | A write request has a missing or disallowed `Origin`/`Referer`.                |
+| `404 Not Found`         | The requested article, category, media, or document commitment does not exist. |
+| `409 Conflict`          | Article/category slug, media filename, or document filename is already in use. |
+| `413 Payload Too Large` | An uploaded file exceeds the limit for its media type or document commitment.  |
 
 ## Health Check
 

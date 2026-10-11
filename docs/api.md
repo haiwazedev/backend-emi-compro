@@ -519,6 +519,159 @@ const data = await response.json();
 if (!response.ok) throw new Error(data.message);
 ```
 
+## Divisions and Services
+
+Division and service reads are public. Creating, updating, deleting, and
+reordering require an authenticated session and the configured frontend
+`Origin` or `Referer`, as described under [Browser Sessions](#browser-sessions).
+Requests use JSON.
+
+### Divisions
+
+- `GET /divisions` returns `{ "divisions": [...] }` with `200 OK`, ordered by
+  `sort_order` and then ID. The optional `status` query parameter filters the
+  results to `DRAFT` or `PUBLISHED`; omitting it returns all divisions.
+- `GET /divisions/:divisionId` returns `{ "division": ... }` with `200 OK`.
+- `POST /divisions` creates a division and returns `{ "division": ... }` with
+  `201 Created`. The division is appended to the current list.
+- `PUT /divisions/:divisionId` partially updates a division and returns
+  `{ "division": ... }` with `200 OK`.
+- `POST /divisions/reorder` reorders all divisions and returns
+  `{ "divisions": [...] }` with `200 OK`.
+- `DELETE /divisions/:divisionId` returns `204 No Content`. Deleting a division
+  also deletes its services and compacts the remaining divisions' order.
+
+Create and update bodies accept these fields:
+
+| Field      | Type           | Rules                                                            |
+| ---------- | -------------- | ---------------------------------------------------------------- |
+| `name`     | string         | Required on create; trimmed; 1–200 characters.                   |
+| `abbr`     | string         | Required on create; trimmed; 1–50 characters.                    |
+| `icon_svg` | string or null | Optional; omitted on update to keep the current value.           |
+| `status`   | string         | Optional; `DRAFT` or `PUBLISHED`; defaults to `DRAFT` on create. |
+
+On update, omitted fields remain unchanged. Send `null` for `icon_svg` to clear
+it. The authenticated user's name is stored in `created_by`; updates set
+`updated_by` and `updated_at`.
+
+Example create request:
+
+```json
+{
+  "name": "Customer Services",
+  "abbr": "CS",
+  "icon_svg": "<svg></svg>",
+  "status": "PUBLISHED"
+}
+```
+
+The response shape is:
+
+```json
+{
+  "division": {
+    "id": 1,
+    "name": "Customer Services",
+    "abbr": "CS",
+    "icon_svg": "<svg></svg>",
+    "status": "PUBLISHED",
+    "sort_order": 1,
+    "created_at": "2026-10-11T10:30:00.000Z",
+    "created_by": "Ari Putra",
+    "updated_at": null,
+    "updated_by": null
+  }
+}
+```
+
+`POST /divisions/reorder` accepts the complete current division ID list in the
+desired order. Every existing ID must appear exactly once; duplicate, missing,
+or unknown IDs return `400 Bad Request` without changing the order. An empty
+array succeeds only when there are no divisions. A successful reorder assigns
+`sort_order` values starting at 1 in the submitted order.
+
+```json
+{ "division_ids": [4, 1, 3] }
+```
+
+For example, `GET /divisions?status=PUBLISHED` returns only published
+divisions. Invalid status values and unknown query parameters return
+`400 Bad Request`.
+
+### Services
+
+- `GET /services` returns `{ "services": [...] }` with `200 OK`, ordered by
+  `division_id`, `sort_order`, and ID.
+- `GET /services/:serviceId` returns `{ "service": ... }` with `200 OK`.
+- `POST /services` creates a service and returns `{ "service": ... }` with
+  `201 Created`. The service is appended to its division's list.
+- `PUT /services/:serviceId` partially updates a service and returns
+  `{ "service": ... }` with `200 OK`. Moving a service appends it to the
+  destination division and compacts its former division.
+- `POST /services/reorder` reorders all services for one division and returns
+  `{ "services": [...] }` with `200 OK`.
+- `DELETE /services/:serviceId` returns `204 No Content`.
+
+Service create and update bodies accept `division_id` (positive integer ID of
+an existing division) and `name` (required on create; trimmed; 1–200
+characters). Updates are partial; omitted fields remain unchanged. New
+services append after the division's current maximum `sort_order`. The
+authenticated user's name is stored in `created_by`; updates set `updated_by`
+and `updated_at`.
+
+For example, `GET /services/:serviceId` returns:
+
+```json
+{
+  "service": {
+    "id": 12,
+    "division_id": 1,
+    "name": "Customer Support",
+    "sort_order": 1,
+    "created_at": "2026-10-11T10:30:00.000Z",
+    "created_by": "Ari Putra",
+    "updated_at": null,
+    "updated_by": null,
+    "division": {
+      "id": 1,
+      "name": "Customer Services",
+      "abbr": "CS",
+      "icon_svg": null,
+      "status": "PUBLISHED",
+      "sort_order": 1,
+      "created_at": "2026-10-11T10:00:00.000Z",
+      "created_by": "Ari Putra",
+      "updated_at": null,
+      "updated_by": null
+    }
+  }
+}
+```
+
+`POST /services/reorder` accepts the complete current service ID list for the
+specified division in the desired order. Every service in that division must
+appear exactly once; duplicate, missing, unknown, or out-of-division IDs
+return `400 Bad Request` without changing any order. A nonexistent division
+returns `400 Bad Request`. An empty array succeeds only if the division has no
+services. A successful reorder assigns `sort_order` values starting at 1 in
+the submitted order. IDs and other service fields are preserved.
+
+```json
+{
+  "division_id": 1,
+  "service_ids": [12, 15, 13]
+}
+```
+
+Deleting a service compacts the remaining services in its division while
+preserving their relative order (existing `sort_order`, then ID). Deleting a
+division cascades to its services and compacts the remaining divisions.
+
+Invalid fields or references return `400 Bad Request`; missing division or
+service IDs on detail, update, and delete routes return `404 Not Found`.
+Unauthenticated writes return `401 Unauthorized`; missing or disallowed request
+origins return `403 Forbidden`.
+
 ## Media
 
 Media list and detail reads are public. Upload and delete requests require an

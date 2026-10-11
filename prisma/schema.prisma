@@ -14,6 +14,13 @@ enum ArticleStatus {
   @@map("article_status")
 }
 
+enum DivisionStatus {
+  DRAFT
+  PUBLISHED
+
+  @@map("division_status")
+}
+
 enum MediaType {
   PICTURE
   DOCUMENT
@@ -37,6 +44,37 @@ model ArticleCategory {
   articles Article[]
 
   @@map("article_categories")
+}
+
+model Division {
+  id        Int            @id @default(autoincrement())
+  name      String         @db.VarChar(200)
+  abbr      String         @db.VarChar(50)
+  iconSvg   String?        @map("icon_svg") @db.Text
+  status    DivisionStatus @default(DRAFT)
+  sortOrder Int            @default(1) @map("sort_order")
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy String         @map("created_by") @db.VarChar(100)
+  updatedAt DateTime?      @map("updated_at") @db.Timestamptz(6)
+  updatedBy String?        @map("updated_by") @db.VarChar(100)
+  services  Service[]
+
+  @@map("divisions")
+}
+
+model Service {
+  id         Int       @id @default(autoincrement())
+  divisionId Int       @map("division_id")
+  name       String    @db.VarChar(200)
+  sortOrder  Int       @default(1) @map("sort_order")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy  String    @map("created_by") @db.VarChar(100)
+  updatedAt  DateTime? @map("updated_at") @db.Timestamptz(6)
+  updatedBy  String?   @map("updated_by") @db.VarChar(100)
+  division   Division  @relation(fields: [divisionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([divisionId, sortOrder])
+  @@map("services")
 }
 
 model Media {

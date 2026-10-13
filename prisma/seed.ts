@@ -110,6 +110,17 @@ const faqSeedData = [
   },
 ] as const;
 
+const clientSeedNames = [
+  'Accenture',
+  'ASTRA Otoparts',
+  'Cargill',
+  'H&M',
+  'PT Golden Tekstil Indonesia',
+  'Pupuk Iskandar Muda',
+  'The Ritz-Carlton',
+  'UNIQLO',
+] as const;
+
 function getSeedData(definition: ContentDefinition) {
   return (
     contentSeedData.find(
@@ -172,9 +183,24 @@ async function seedFaqs(): Promise<void> {
   });
 }
 
+async function seedClients(): Promise<void> {
+  if ((await prisma.client.count()) > 0) {
+    return;
+  }
+
+  await prisma.client.createMany({
+    data: clientSeedNames.map((name, index) => ({
+      name,
+      sortOrder: index + 1,
+      createdBy: 'system',
+    })),
+  });
+}
+
 async function seed(): Promise<void> {
   await seedContent();
   await seedFaqs();
+  await seedClients();
 }
 
 seed()

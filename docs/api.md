@@ -1012,6 +1012,106 @@ const response = await fetch(`${API_BASE_URL}/faqs/reorder`, {
 const { faqs } = await response.json();
 ```
 
+## Clients
+
+Client reads are public. Creating, updating, deleting, and reordering require an
+authenticated session and the configured frontend `Origin` or `Referer`, as
+described under [Browser Sessions](#browser-sessions). Requests use JSON.
+Clients are the partner logos shown in the "Klien Kami" section of the home
+page.
+
+- `GET /clients` returns `{ "clients": [...] }` with `200 OK`, ordered by
+  `sort_order` and then ID.
+- `GET /clients/:clientId` returns `{ "client": ... }` with `200 OK`.
+- `POST /clients` creates a client and returns `{ "client": ... }` with
+  `201 Created`. The client is appended to the current list.
+- `PUT /clients/:clientId` partially updates a client and returns
+  `{ "client": ... }` with `200 OK`.
+- `POST /clients/reorder` reorders all clients and returns
+  `{ "clients": [...] }` with `200 OK`.
+- `DELETE /clients/:clientId` returns `204 No Content` and compacts the
+  remaining clients' order.
+
+Create and update bodies accept these fields:
+
+| Field      | Type           | Rules                                                                                  |
+| ---------- | -------------- | -------------------------------------------------------------------------------------- |
+| `name`     | string         | Required on create; trimmed; 1–200 characters.                                         |
+| `media_id` | integer / null | Optional; the logo; must reference an existing `PICTURE` media item; `null` clears it. |
+
+On update, omitted fields remain unchanged; an empty body returns
+`400 Bad Request`. The authenticated user's name is stored in `created_by`;
+updates set `updated_by` and `updated_at`. Deleting a media item that is used as
+a logo sets that client's `media_id` and `media` to `null`.
+
+Each client embeds its logo as `media`, using the same shape as the media
+endpoints, or `null` when no logo is set. Build the logo URL from
+`media.path`, as described under [Public Static Assets](#public-static-assets).
+Upload logos as transparent PNG files; the public site shows them in grayscale
+and in color on hover.
+
+Example create request:
+
+```json
+{
+  "name": "Accenture",
+  "media_id": 12
+}
+```
+
+The response shape is:
+
+```json
+{
+  "client": {
+    "id": 1,
+    "name": "Accenture",
+    "media_id": 12,
+    "media": {
+      "id": 12,
+      "filename": "logo-accenture.png",
+      "path": "/public/media/logo-accenture.png",
+      "extension": "png",
+      "type": "PICTURE",
+      "size": 18342,
+      "metadata": { "width": 400, "height": 160 },
+      "created_by": "Ari Putra",
+      "created_at": "2026-10-13T10:00:00.000Z"
+    },
+    "sort_order": 1,
+    "created_at": "2026-10-13T10:30:00.000Z",
+    "created_by": "Ari Putra",
+    "updated_at": null,
+    "updated_by": null
+  }
+}
+```
+
+`POST /clients/reorder` accepts the complete current client ID list in the
+desired order. Every existing ID must appear exactly once; duplicate, missing,
+or unknown IDs return `400 Bad Request` without changing the order. An empty
+array succeeds only when there are no clients. A successful reorder assigns
+`sort_order` values starting at 1 in the submitted order.
+
+```json
+{ "client_ids": [3, 1, 2, 4] }
+```
+
+Invalid IDs, fields, or media references return `400 Bad Request`; a missing
+client returns `404 Not Found`.
+
+### Fetch example
+
+```ts
+const response = await fetch(`${API_BASE_URL}/clients/reorder`, {
+  method: 'POST',
+  credentials: 'include',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ client_ids: [3, 1, 2, 4] }),
+});
+const { clients } = await response.json();
+```
+
 ## Public Static Assets
 
 Files in the project `public/` directory are served without authentication at

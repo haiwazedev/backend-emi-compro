@@ -925,6 +925,93 @@ Invalid fields, category references, or PDF files return `400 Bad Request`;
 missing document or category IDs return `404 Not Found`. Uploads over 50 MiB
 return `413 Payload Too Large`.
 
+## FAQs
+
+FAQ reads are public. Creating, updating, deleting, and reordering require an
+authenticated session and the configured frontend `Origin` or `Referer`, as
+described under [Browser Sessions](#browser-sessions). Requests use JSON.
+
+- `GET /faqs` returns `{ "faqs": [...] }` with `200 OK`, ordered by
+  `sort_order` and then ID. The optional `status` query parameter filters the
+  results to `DRAFT` or `PUBLISHED`; omitting it returns all FAQs. The public
+  site should request `GET /faqs?status=PUBLISHED`.
+- `GET /faqs/:faqId` returns `{ "faq": ... }` with `200 OK`.
+- `POST /faqs` creates an FAQ and returns `{ "faq": ... }` with
+  `201 Created`. The FAQ is appended to the current list. To duplicate an FAQ,
+  send its copied fields to this endpoint.
+- `PUT /faqs/:faqId` partially updates an FAQ and returns `{ "faq": ... }` with
+  `200 OK`.
+- `POST /faqs/reorder` reorders all FAQs and returns `{ "faqs": [...] }` with
+  `200 OK`.
+- `DELETE /faqs/:faqId` returns `204 No Content` and compacts the remaining
+  FAQs' order.
+
+Create and update bodies accept these fields:
+
+| Field      | Type   | Rules                                                            |
+| ---------- | ------ | ---------------------------------------------------------------- |
+| `question` | string | Required on create; trimmed; 1–500 characters.                   |
+| `answer`   | string | Required on create; HTML from the rich-text editor; not empty.   |
+| `status`   | string | Optional; `DRAFT` or `PUBLISHED`; defaults to `DRAFT` on create. |
+
+On update, omitted fields remain unchanged; an empty body returns
+`400 Bad Request`. The authenticated user's name is stored in `created_by`;
+updates set `updated_by` and `updated_at`. The `answer` HTML is stored as sent,
+so clients rendering it on the public site should sanitize it.
+
+Example create request:
+
+```json
+{
+  "question": "Apa itu REC dan SPE?",
+  "answer": "<p>REC adalah instrumen berupa sertifikat...</p>",
+  "status": "PUBLISHED"
+}
+```
+
+The response shape is:
+
+```json
+{
+  "faq": {
+    "id": 1,
+    "question": "Apa itu REC dan SPE?",
+    "answer": "<p>REC adalah instrumen berupa sertifikat...</p>",
+    "status": "PUBLISHED",
+    "sort_order": 1,
+    "created_at": "2026-10-13T10:30:00.000Z",
+    "created_by": "Ari Putra",
+    "updated_at": null,
+    "updated_by": null
+  }
+}
+```
+
+`POST /faqs/reorder` accepts the complete current FAQ ID list in the desired
+order. Every existing ID must appear exactly once; duplicate, missing, or
+unknown IDs return `400 Bad Request` without changing the order. An empty array
+succeeds only when there are no FAQs. A successful reorder assigns `sort_order`
+values starting at 1 in the submitted order.
+
+```json
+{ "faq_ids": [3, 1, 2, 4] }
+```
+
+Invalid IDs, fields, status values, and unknown query parameters return
+`400 Bad Request`; a missing FAQ returns `404 Not Found`.
+
+### Fetch example
+
+```ts
+const response = await fetch(`${API_BASE_URL}/faqs/reorder`, {
+  method: 'POST',
+  credentials: 'include',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ faq_ids: [3, 1, 2, 4] }),
+});
+const { faqs } = await response.json();
+```
+
 ## Public Static Assets
 
 Files in the project `public/` directory are served without authentication at

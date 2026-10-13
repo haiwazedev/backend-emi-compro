@@ -672,6 +672,114 @@ service IDs on detail, update, and delete routes return `404 Not Found`.
 Unauthenticated writes return `401 Unauthorized`; missing or disallowed request
 origins return `403 Forbidden`.
 
+## Board members
+
+Board member type and member reads are public. Creating, updating, and deleting
+types or members require an authenticated session and the configured frontend
+`Origin` or `Referer`.
+
+### Board member types
+
+- `GET /board_member_types` returns `{ "board_member_types": [...] }` with
+  `200 OK`.
+- `GET /board_member_types/:typeId` returns `{ "board_member_type": ... }` with
+  `200 OK`.
+- `POST /board_member_types` creates a type and returns
+  `{ "board_member_type": ... }` with `201 Created`.
+- `PUT /board_member_types/:typeId` partially updates a type and returns
+  `{ "board_member_type": ... }` with `200 OK`.
+- `DELETE /board_member_types/:typeId` returns `204 No Content`. Deleting a
+  type also deletes its members and their stored photos.
+
+Create and update requests use JSON with a `type` string of 1–100 characters.
+Updates require at least one field. A type response contains `id` and `type`.
+
+### Board members
+
+- `GET /board_members` returns `{ "board_members": [...] }` with `200 OK`.
+- `GET /board_members/:memberId` returns `{ "board_member": ... }` with
+  `200 OK`.
+- `POST /board_members` creates a member and returns `{ "board_member": ... }`
+  with `201 Created`.
+- `PUT /board_members/:memberId` partially updates a member and returns
+  `{ "board_member": ... }` with `200 OK`.
+- `DELETE /board_members/:memberId` returns `204 No Content` and removes its
+  stored photo, if present.
+
+The list is ordered by `board_member_type_id`, `sort_order`, then ID. The
+optional query parameters can be combined:
+
+| Query parameter        | Type   | Rules                                             |
+| ---------------------- | ------ | ------------------------------------------------- |
+| `search`               | string | Case-insensitive substring search in member name. |
+| `board_member_type_id` | number | Positive ID of the board member type.             |
+
+Create requests require `name` (1–200 characters), `role` (1–100 characters),
+and `board_member_type_id` (positive ID of an existing type). Updates accept
+the same fields optionally and require at least one field or a photo upload.
+Both requests may include `sort_order`, a positive integer position within the
+member's type.
+
+New members append to their type when `sort_order` is omitted. A supplied
+position inserts the member and shifts the following members. Updating a
+member's type appends it to the new type if `sort_order` is omitted, and
+compacts the previous type. Deleting a member also compacts its type. Positions
+must be between 1 and the resulting list length; invalid positions return
+`400 Bad Request`.
+
+Requests without a photo use JSON. To upload or replace a photo, send
+`multipart/form-data` with the same fields and an optional file field named
+`photo`. Photos may be PNG, JPG, or JPEG files up to 5 MiB. The server checks
+the image content and stores the file at
+`/public/board_member/{memberId}.{extension}`. The `photo` response field
+contains this public path. Omitting `photo` during an update keeps the current
+photo.
+
+A member response has this shape:
+
+```json
+{
+  "board_member": {
+    "id": 12,
+    "name": "Ari Putra",
+    "role": "President Director",
+    "board_member_type_id": 1,
+    "photo": "/public/board_member/12.jpg",
+    "sort_order": 1,
+    "created_at": "2026-10-11T10:30:00.000Z",
+    "created_by": "Ari Putra",
+    "updated_at": null,
+    "updated_by": null,
+    "board_member_type": { "id": 1, "type": "Dewan Direksi" }
+  }
+}
+```
+
+Example browser upload:
+
+```js
+const formData = new FormData();
+formData.append('name', 'Ari Putra');
+formData.append('role', 'President Director');
+formData.append('board_member_type_id', '1');
+formData.append('photo', imageFile);
+
+const response = await fetch(`${API_BASE_URL}/board_members`, {
+  method: 'POST',
+  credentials: 'include',
+  body: formData,
+});
+
+const data = await response.json();
+if (!response.ok) throw new Error(data.message);
+```
+
+Do not set the multipart `Content-Type` header manually; the browser adds its
+boundary. Invalid fields, type references, or image files return
+`400 Bad Request`; missing IDs return `404 Not Found`; oversized uploads return
+`413 Payload Too Large`. Unauthenticated writes return `401 Unauthorized`, and
+missing or disallowed request origins return `403 Forbidden`.
+
 ## Media
 
 Media list and detail reads are public. Upload and delete requests require an

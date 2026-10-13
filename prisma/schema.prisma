@@ -102,6 +102,21 @@ model Division {
   @@map("divisions")
 }
 
+model Client {
+  id        Int       @id @default(autoincrement())
+  name      String    @db.VarChar(200)
+  mediaId   Int?      @map("media_id")
+  sortOrder Int       @default(1) @map("sort_order")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy String    @map("created_by") @db.VarChar(100)
+  updatedAt DateTime? @map("updated_at") @db.Timestamptz(6)
+  updatedBy String?   @map("updated_by") @db.VarChar(100)
+  media     Media?    @relation(fields: [mediaId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([sortOrder])
+  @@map("clients")
+}
+
 model Faq {
   id        Int       @id @default(autoincrement())
   question  String    @db.VarChar(500)
@@ -143,6 +158,7 @@ model Media {
   createdBy String    @map("created_by") @db.VarChar(100)
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   articles  Article[]
+  clients   Client[]
   contents  Content[]
 
   @@index([type])

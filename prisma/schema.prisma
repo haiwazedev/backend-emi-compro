@@ -147,6 +147,31 @@ model Service {
   @@map("services")
 }
 
+model BoardMemberType {
+  id      Int           @id @default(autoincrement())
+  type    String        @db.VarChar(100)
+  members BoardMember[]
+
+  @@map("board_member_types")
+}
+
+model BoardMember {
+  id                Int             @id @default(autoincrement())
+  name              String          @db.VarChar(200)
+  role              String          @db.VarChar(100)
+  boardMemberTypeId Int             @map("board_member_type_id")
+  photo             String?         @db.VarChar(255)
+  sortOrder         Int             @default(1) @map("sort_order")
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy         String          @map("created_by") @db.VarChar(100)
+  updatedAt         DateTime?       @map("updated_at") @db.Timestamptz(6)
+  updatedBy         String?         @map("updated_by") @db.VarChar(100)
+  boardMemberType   BoardMemberType @relation(fields: [boardMemberTypeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([boardMemberTypeId, sortOrder])
+  @@map("board_members")
+}
+
 model Media {
   id        Int       @id @default(autoincrement())
   filename  String    @unique @db.VarChar(255)

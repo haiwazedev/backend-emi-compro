@@ -29,7 +29,51 @@ export function getPictureDimensions(
     return { width, height };
   }
 
+  if (extension === 'webp') return readWebpDimensions(buffer);
+
   return readJpegDimensions(buffer);
+}
+
+function readWebpDimensions(buffer: Buffer): { width: number; height: number } {
+  if (
+    buffer.length < 30 ||
+    buffer.toString('ascii', 0, 4) !== 'RIFF' ||
+    buffer.toString('ascii', 8, 12) !== 'WEBP'
+  ) {
+    throw new ApiError(
+      400,
+      'Picture content does not match its file extension.',
+    );
+  }
+
+  const chunk = buffer.toString('ascii', 12, 16);
+  let width = 0;
+  let height = 0;
+
+  if (chunk === 'VP8X') {
+    width = buffer.readUIntLE(24, 3) + 1;
+    height = buffer.readUIntLE(27, 3) + 1;
+  } else if (chunk === 'VP8L' && buffer[20] === 0x2f) {
+    const bits = buffer.readUInt32LE(21);
+    width = (bits & 0x3fff) + 1;
+    height = ((bits >>> 14) & 0x3fff) + 1;
+  } else if (
+    chunk === 'VP8 ' &&
+    buffer[23] === 0x9d &&
+    buffer[24] === 0x01 &&
+    buffer[25] === 0x2a
+  ) {
+    width = buffer.readUInt16LE(26) & 0x3fff;
+    height = buffer.readUInt16LE(28) & 0x3fff;
+  } else {
+    throw new ApiError(400, 'Picture content is not a valid WebP file.');
+  }
+
+  if (width === 0 || height === 0) {
+    throw new ApiError(400, 'Picture dimensions are invalid.');
+  }
+
+  return { width, height };
 }
 
 function readJpegDimensions(buffer: Buffer): { width: number; height: number } {

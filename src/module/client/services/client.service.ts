@@ -1,17 +1,20 @@
 import { Prisma } from '../../../generated/prisma/client.js';
 import { ApiError } from '../../../shared/errors/api-error.js';
-import { MediaRepository } from '../../media/repositories/media.repository.js';
 import { ClientRepository } from '../repositories/client.repository.js';
 import type {
   CreateClientInput,
   ReorderClientsInput,
   UpdateClientInput,
 } from '../schemas/client.schema.js';
+import {
+  ClientLogoFileService,
+  type ClientLogo,
+} from './client-logo-file.service.js';
 
 export class ClientService {
   constructor(
     private readonly repository = new ClientRepository(),
-    private readonly mediaRepository = new MediaRepository(),
+    private readonly logoFileService = new ClientLogoFileService(),
   ) {}
 
   list() {
@@ -41,70 +44,99 @@ export class ClientService {
     return clients;
   }
 
-  async create(input: CreateClientInput, userName: string) {
-    await this.requirePictureMedia(input.media_id);
-
-    return this.repository.create({
-      name: input.name,
-      mediaId: input.media_id ?? null,
-      createdBy: getAuditName(userName),
-    });
-  }
-
-  async update(id: number, input: UpdateClientInput, userName: string) {
-    await this.getById(id);
-
-    if (Object.keys(input).length === 0) {
-      throw new ApiError(400, 'At least one client field is required.');
+  async create(
+    input: CreateClientInput,
+    logoFile: Express.Multer.File | undefined,
+    userName: string,
+  ) {
+    if (!logoFile) {
+      throw new ApiError(400, 'logo is required.');
     }
 
-    await this.requirePictureMedia(input.media_id);
+    const createdBy = getAuditName(userName);
+    const logo = await this.storeLogo(logoFile);
+
+    try {
+      return await this.repository.create({
+        name: input.name,
+        ...toLogoFields(logo),
+        createdBy,
+      });
+    } catch (error) {
+      await this.logoFileService.removeAfterCommit(logo.filepath);
+      throw error;
+    }
+  }
+
+  async update(
+    id: number,
+    input: UpdateClientInput,
+    logoFile: Express.Multer.File | undefined,
+    userName: string,
+  ) {
+    const current = await this.getById(id);
+
+    if (Object.keys(input).length === 0 && !logoFile) {
+      throw new ApiError(400, 'At least one client field is required.');
+    }
 
     const data: Prisma.ClientUncheckedUpdateInput = {
       updatedAt: new Date(),
       updatedBy: getAuditName(userName),
     };
-
     if (input.name !== undefined) data.name = input.name;
-    if (input.media_id !== undefined) data.mediaId = input.media_id;
 
+    const logo = logoFile ? await this.storeLogo(logoFile) : undefined;
+    if (logo) Object.assign(data, toLogoFields(logo));
+
+    let client;
     try {
-      return await this.repository.update(id, data);
+      client = await this.repository.update(id, data);
     } catch (error) {
-      if (isPrismaError(error, 'P2025')) {
-        throw new ApiError(404, 'Client was not found.');
-      }
-
-      throw error;
+      if (logo) await this.logoFileService.removeAfterCommit(logo.filepath);
+      throw mapClientError(error);
     }
+
+    if (logo) {
+      await this.logoFileService.removeAfterCommit(current.logoFilepath);
+    }
+
+    return client;
   }
 
   async delete(id: number): Promise<void> {
-    await this.getById(id);
+    const current = await this.getById(id);
 
     try {
       await this.repository.delete(id);
     } catch (error) {
-      if (isPrismaError(error, 'P2025')) {
-        throw new ApiError(404, 'Client was not found.');
-      }
-
-      throw error;
+      throw mapClientError(error);
     }
+
+    await this.logoFileService.removeAfterCommit(current.logoFilepath);
   }
 
-  private async requirePictureMedia(id: number | null | undefined) {
-    if (id === undefined || id === null) return;
-
-    const media = await this.mediaRepository.findById(id);
-
-    if (!media || media.type !== 'PICTURE') {
-      throw new ApiError(
-        400,
-        'media_id must reference an existing picture media item.',
-      );
-    }
+  private storeLogo(file: Express.Multer.File): Promise<ClientLogo> {
+    return this.logoFileService.store(file.originalname, file.buffer);
   }
+}
+
+function toLogoFields(logo: ClientLogo) {
+  return {
+    logoFilename: logo.filename,
+    logoFilepath: logo.filepath,
+    logoExtension: logo.extension,
+    logoSize: logo.size,
+    logoMetadata: logo.metadata,
+  };
+}
+
+function mapClientError(error: unknown): unknown {
+  if (isPrismaError(error, 'P2025')) {
+    return new ApiError(404, 'Client was not found.');
+  }
+
+  return error;
 }
 
 function getAuditName(name: string): string {

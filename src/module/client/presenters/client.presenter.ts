@@ -1,16 +1,14 @@
-import type { Prisma } from '../../../generated/prisma/client.js';
-import { presentMedia } from '../../media/presenters/media.presenter.js';
+import type { Client } from '../../../generated/prisma/client.js';
 
-export type ClientRecord = Prisma.ClientGetPayload<{
-  include: { media: true };
-}>;
-
-export function presentClient(client: ClientRecord) {
+export function presentClient(client: Client) {
   return {
     id: client.id,
     name: client.name,
-    media_id: client.mediaId,
-    media: client.media ? presentMedia(client.media) : null,
+    logo_filename: client.logoFilename,
+    logo_filepath: client.logoFilepath,
+    logo_extension: client.logoExtension,
+    logo_size: client.logoSize,
+    logo_metadata: client.logoMetadata,
     sort_order: client.sortOrder,
     created_at: client.createdAt.toISOString(),
     created_by: client.createdBy,

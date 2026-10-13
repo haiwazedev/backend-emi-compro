@@ -1,16 +1,15 @@
 import { Prisma } from '../../../generated/prisma/client.js';
 import { prisma } from '../../../shared/db/prisma.js';
 
-const include = { media: true } as const;
 const orderBy = [{ sortOrder: 'asc' }, { id: 'asc' }] as const;
 
 export class ClientRepository {
   findMany() {
-    return prisma.client.findMany({ include, orderBy: [...orderBy] });
+    return prisma.client.findMany({ orderBy: [...orderBy] });
   }
 
   findById(id: number) {
-    return prisma.client.findUnique({ where: { id }, include });
+    return prisma.client.findUnique({ where: { id } });
   }
 
   create(data: Prisma.ClientUncheckedCreateInput) {
@@ -21,13 +20,12 @@ export class ClientRepository {
 
       return transaction.client.create({
         data: { ...data, sortOrder: (current._max.sortOrder ?? 0) + 1 },
-        include,
       });
     });
   }
 
   update(id: number, data: Prisma.ClientUncheckedUpdateInput) {
-    return prisma.client.update({ where: { id }, data, include });
+    return prisma.client.update({ where: { id }, data });
   }
 
   delete(id: number) {
@@ -59,7 +57,7 @@ export class ClientRepository {
         });
       }
 
-      return transaction.client.findMany({ include, orderBy: [...orderBy] });
+      return transaction.client.findMany({ orderBy: [...orderBy] });
     });
   }
 }

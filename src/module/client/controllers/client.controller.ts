@@ -35,6 +35,7 @@ export class ClientController {
   create = async (req: Request, res: Response): Promise<void> => {
     const client = await this.service.create(
       req.body as CreateClientInput,
+      req.file,
       getAuthenticatedUserName(req),
     );
 
@@ -45,6 +46,7 @@ export class ClientController {
     const client = await this.service.update(
       parseIdParam(req.params.clientId),
       req.body as UpdateClientInput,
+      req.file,
       getAuthenticatedUserName(req),
     );
 

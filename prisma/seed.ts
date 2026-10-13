@@ -4,6 +4,7 @@ import {
   contentDefinitions,
   type ContentDefinition,
 } from '../src/module/content/content-definitions.js';
+import { ClientLogoFileService } from '../src/module/client/services/client-logo-file.service.js';
 
 type ContentSeedData = Pick<
   ContentDefinition,
@@ -121,6 +122,12 @@ const clientSeedNames = [
   'UNIQLO',
 ] as const;
 
+// 1x1 transparent PNG; replace the real logos through the CMS.
+const placeholderLogo = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGNgAAIAAAUAAXpeqz8AAAAASUVORK5CYII=',
+  'base64',
+);
+
 function getSeedData(definition: ContentDefinition) {
   return (
     contentSeedData.find(
@@ -188,13 +195,24 @@ async function seedClients(): Promise<void> {
     return;
   }
 
-  await prisma.client.createMany({
-    data: clientSeedNames.map((name, index) => ({
-      name,
-      sortOrder: index + 1,
-      createdBy: 'system',
-    })),
-  });
+  const logoFileService = new ClientLogoFileService();
+
+  for (const [index, name] of clientSeedNames.entries()) {
+    const logo = await logoFileService.store(`${name}.png`, placeholderLogo);
+
+    await prisma.client.create({
+      data: {
+        name,
+        logoFilename: logo.filename,
+        logoFilepath: logo.filepath,
+        logoExtension: logo.extension,
+        logoSize: logo.size,
+        logoMetadata: logo.metadata,
+        sortOrder: index + 1,
+        createdBy: 'system',
+      },
+    });
+  }
 }
 
 async function seed(): Promise<void> {

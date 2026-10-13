@@ -3,7 +3,6 @@ import { z } from 'zod';
 const clientFieldsSchema = z
   .object({
     name: z.string().trim().min(1).max(200),
-    media_id: z.number().int().positive().nullable().optional(),
   })
   .strict();
 

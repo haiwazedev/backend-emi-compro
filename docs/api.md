@@ -1058,7 +1058,7 @@ Create and update bodies accept these fields:
 
 | Field      | Type   | Rules                                                            |
 | ---------- | ------ | ---------------------------------------------------------------- |
-| `question` | string | Required on create; trimmed; 1–500 characters.                   |
+| `question` | string | Required on create; trimmed; 1–200 characters.                   |
 | `answer`   | string | Required on create; HTML from the rich-text editor; not empty.   |
 | `status`   | string | Optional; `DRAFT` or `PUBLISHED`; defaults to `DRAFT` on create. |
 
@@ -1124,9 +1124,8 @@ const { faqs } = await response.json();
 
 Client reads are public. Creating, updating, deleting, and reordering require an
 authenticated session and the configured frontend `Origin` or `Referer`, as
-described under [Browser Sessions](#browser-sessions). Requests use JSON.
-Clients are the partner logos shown in the "Klien Kami" section of the home
-page.
+described under [Browser Sessions](#browser-sessions). Clients are the partner
+logos shown in the "Klien Kami" section of the home page.
 
 - `GET /clients` returns `{ "clients": [...] }` with `200 OK`, ordered by
   `sort_order` and then ID.
@@ -1137,35 +1136,55 @@ page.
   `{ "client": ... }` with `200 OK`.
 - `POST /clients/reorder` reorders all clients and returns
   `{ "clients": [...] }` with `200 OK`.
-- `DELETE /clients/:clientId` returns `204 No Content` and compacts the
-  remaining clients' order.
+- `DELETE /clients/:clientId` returns `204 No Content`, removes the logo file,
+  and compacts the remaining clients' order.
 
-Create and update bodies accept these fields:
+Create and update requests use `multipart/form-data` with these fields:
 
-| Field      | Type           | Rules                                                                                  |
-| ---------- | -------------- | -------------------------------------------------------------------------------------- |
-| `name`     | string         | Required on create; trimmed; 1–200 characters.                                         |
-| `media_id` | integer / null | Optional; the logo; must reference an existing `PICTURE` media item; `null` clears it. |
+| Field  | Type   | Rules                                                                        |
+| ------ | ------ | ---------------------------------------------------------------------------- |
+| `name` | string | Required on create; trimmed; 1–200 characters.                               |
+| `logo` | file   | Required on create; PNG, JPG, JPEG, or WEBP; maximum 5 MiB; content-checked. |
 
-On update, omitted fields remain unchanged; an empty body returns
-`400 Bad Request`. The authenticated user's name is stored in `created_by`;
-updates set `updated_by` and `updated_at`. Deleting a media item that is used as
-a logo sets that client's `media_id` and `media` to `null`.
+On update, omitted fields remain unchanged; a request with neither `name` nor
+`logo` returns `400 Bad Request`. Uploading a new `logo` replaces the previous
+file. The authenticated user's name is stored in `created_by`; updates set
+`updated_by` and `updated_at`.
 
-Each client embeds its logo as `media`, using the same shape as the media
-endpoints, or `null` when no logo is set. Build the logo URL from
-`media.path`, as described under [Public Static Assets](#public-static-assets).
-Upload logos as transparent PNG files; the public site shows them in grayscale
-and in color on hover.
+Logos are uploaded directly and are not part of the media library. The server
+stores each logo at `/public/clients/{name}-{timestamp}.{extension}`, where
+`{name}` is the uploaded filename lowercased with non-alphanumeric characters
+replaced by `-`, and `{timestamp}` is the upload time in milliseconds. The
+response includes:
 
-Example create request:
+- `logo_filename`: the stored filename.
+- `logo_filepath`: the public path; build the logo URL from it, as described
+  under [Public Static Assets](#public-static-assets).
+- `logo_extension`: `png`, `jpg`, `jpeg`, or `webp`.
+- `logo_size`: the file size rounded up to KiB (1024 bytes).
+- `logo_metadata`: the pixel `width` and `height`.
 
-```json
-{
-  "name": "Accenture",
-  "media_id": 12
-}
+Upload logos as transparent PNG or WEBP files.
+
+Example browser upload:
+
+```js
+const formData = new FormData();
+formData.append('name', 'Accenture');
+formData.append('logo', logoFile);
+
+const response = await fetch(`${API_BASE_URL}/clients`, {
+  method: 'POST',
+  credentials: 'include',
+  body: formData,
+});
+
+const data = await response.json();
+if (!response.ok) throw new Error(data.message);
 ```
+
+Do not set the multipart `Content-Type` header manually; the browser adds its
+boundary.
 
 The response shape is:
 
@@ -1174,18 +1193,11 @@ The response shape is:
   "client": {
     "id": 1,
     "name": "Accenture",
-    "media_id": 12,
-    "media": {
-      "id": 12,
-      "filename": "logo-accenture.png",
-      "path": "/public/media/logo-accenture.png",
-      "extension": "png",
-      "type": "PICTURE",
-      "size": 18342,
-      "metadata": { "width": 400, "height": 160 },
-      "created_by": "Ari Putra",
-      "created_at": "2026-10-13T10:00:00.000Z"
-    },
+    "logo_filename": "logo-accenture-1791913320264.png",
+    "logo_filepath": "/public/clients/logo-accenture-1791913320264.png",
+    "logo_extension": "png",
+    "logo_size": 18,
+    "logo_metadata": { "width": 400, "height": 160 },
     "sort_order": 1,
     "created_at": "2026-10-13T10:30:00.000Z",
     "created_by": "Ari Putra",
@@ -1205,8 +1217,8 @@ array succeeds only when there are no clients. A successful reorder assigns
 { "client_ids": [3, 1, 2, 4] }
 ```
 
-Invalid IDs, fields, or media references return `400 Bad Request`; a missing
-client returns `404 Not Found`.
+Invalid IDs, fields, or logo files return `400 Bad Request`; a missing client
+returns `404 Not Found`; logos over 5 MiB return `413 Payload Too Large`.
 
 ### Fetch example
 
@@ -1229,6 +1241,9 @@ the matching `/public/*` path and allow cross-origin reads. For example,
 PDF such as `public/document_commitment/board-decision-2026-10.pdf` is
 available at
 `http://localhost:8000/public/document_commitment/board-decision-2026-10.pdf`.
+A client logo such as `public/clients/logo-accenture-1791913320264.png` is
+available at
+`http://localhost:8000/public/clients/logo-accenture-1791913320264.png`.
 
 ## Article, Category, Media, and Document Commitment Errors
 

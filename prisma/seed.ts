@@ -89,6 +89,27 @@ const contentSeedData = [
   },
 ] satisfies readonly ContentSeedData[];
 
+const faqSeedData = [
+  {
+    question: 'Apa itu REC dan SPE?',
+    answer:
+      '<p>REC adalah instrumen berupa sertifikat yang membuktikan bahwa setiap 1 MWh listrik yang dikonsumsi oleh operasional perusahaan berasal dari pembangkit energi terbarukan yang tersertifikasi.</p><p>Sedangkan SPE adalah instrumen berupa sertifikat yang membuktikan bahwa perusahaan telah mendanai atau mengkompensasi proyek penurunan emisi karbon secara nyata di tempat lain (carbon offset).</p>',
+  },
+  {
+    question: 'Apa hubungannya REC dan SPE ini dengan GHG Accounting?',
+    answer: '<p>-</p>',
+  },
+  {
+    question:
+      'Berapa harga 1 unit REC dan 1 unit SPE? Dan bagaimana cara perhitungannya?',
+    answer: '<p>-</p>',
+  },
+  {
+    question: 'Bagaimana skema pembelian REC atau SPE di PLN EMI?',
+    answer: '<p>-</p>',
+  },
+] as const;
+
 function getSeedData(definition: ContentDefinition) {
   return (
     contentSeedData.find(
@@ -136,9 +157,29 @@ async function seedContent(): Promise<void> {
   }
 }
 
-seedContent()
+async function seedFaqs(): Promise<void> {
+  if ((await prisma.faq.count()) > 0) {
+    return;
+  }
+
+  await prisma.faq.createMany({
+    data: faqSeedData.map((faq, index) => ({
+      ...faq,
+      status: 'PUBLISHED',
+      sortOrder: index + 1,
+      createdBy: 'system',
+    })),
+  });
+}
+
+async function seed(): Promise<void> {
+  await seedContent();
+  await seedFaqs();
+}
+
+seed()
   .catch((error: unknown) => {
-    console.error('Content seeding failed.', error);
+    console.error('Seeding failed.', error);
     process.exitCode = 1;
   })
   .finally(async () => {

@@ -4,7 +4,7 @@ const faqStatusSchema = z.enum(['DRAFT', 'PUBLISHED']);
 
 const faqFieldsSchema = z
   .object({
-    question: z.string().trim().min(1).max(500),
+    question: z.string().trim().min(1).max(200),
     answer: z.string().trim().min(1),
     status: faqStatusSchema.optional(),
   })

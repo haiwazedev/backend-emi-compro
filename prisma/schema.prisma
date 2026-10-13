@@ -119,7 +119,7 @@ model Client {
 
 model Faq {
   id        Int       @id @default(autoincrement())
-  question  String    @db.VarChar(500)
+  question  String    @db.VarChar(200)
   answer    String    @db.Text
   status    FaqStatus @default(DRAFT)
   sortOrder Int       @default(1) @map("sort_order")

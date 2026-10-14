@@ -1033,6 +1033,205 @@ Invalid fields, category references, or PDF files return `400 Bad Request`;
 missing document or category IDs return `404 Not Found`. Uploads over 50 MiB
 return `413 Payload Too Large`.
 
+## FAQs
+
+FAQ reads are public. Creating, updating, deleting, and reordering require an
+authenticated session and the configured frontend `Origin` or `Referer`, as
+described under [Browser Sessions](#browser-sessions). Requests use JSON.
+
+- `GET /faqs` returns `{ "faqs": [...] }` with `200 OK`, ordered by
+  `sort_order` and then ID. The optional `status` query parameter filters the
+  results to `DRAFT` or `PUBLISHED`; omitting it returns all FAQs. The public
+  site should request `GET /faqs?status=PUBLISHED`.
+- `GET /faqs/:faqId` returns `{ "faq": ... }` with `200 OK`.
+- `POST /faqs` creates an FAQ and returns `{ "faq": ... }` with
+  `201 Created`. The FAQ is appended to the current list. To duplicate an FAQ,
+  send its copied fields to this endpoint.
+- `PUT /faqs/:faqId` partially updates an FAQ and returns `{ "faq": ... }` with
+  `200 OK`.
+- `POST /faqs/reorder` reorders all FAQs and returns `{ "faqs": [...] }` with
+  `200 OK`.
+- `DELETE /faqs/:faqId` returns `204 No Content` and compacts the remaining
+  FAQs' order.
+
+Create and update bodies accept these fields:
+
+| Field      | Type   | Rules                                                            |
+| ---------- | ------ | ---------------------------------------------------------------- |
+| `question` | string | Required on create; trimmed; 1–200 characters.                   |
+| `answer`   | string | Required on create; HTML from the rich-text editor; not empty.   |
+| `status`   | string | Optional; `DRAFT` or `PUBLISHED`; defaults to `DRAFT` on create. |
+
+On update, omitted fields remain unchanged; an empty body returns
+`400 Bad Request`. The authenticated user's name is stored in `created_by`;
+updates set `updated_by` and `updated_at`. The `answer` HTML is stored as sent,
+so clients rendering it on the public site should sanitize it.
+
+Example create request:
+
+```json
+{
+  "question": "Apa itu REC dan SPE?",
+  "answer": "<p>REC adalah instrumen berupa sertifikat...</p>",
+  "status": "PUBLISHED"
+}
+```
+
+The response shape is:
+
+```json
+{
+  "faq": {
+    "id": 1,
+    "question": "Apa itu REC dan SPE?",
+    "answer": "<p>REC adalah instrumen berupa sertifikat...</p>",
+    "status": "PUBLISHED",
+    "sort_order": 1,
+    "created_at": "2026-10-13T10:30:00.000Z",
+    "created_by": "Ari Putra",
+    "updated_at": null,
+    "updated_by": null
+  }
+}
+```
+
+`POST /faqs/reorder` accepts the complete current FAQ ID list in the desired
+order. Every existing ID must appear exactly once; duplicate, missing, or
+unknown IDs return `400 Bad Request` without changing the order. An empty array
+succeeds only when there are no FAQs. A successful reorder assigns `sort_order`
+values starting at 1 in the submitted order.
+
+```json
+{ "faq_ids": [3, 1, 2, 4] }
+```
+
+Invalid IDs, fields, status values, and unknown query parameters return
+`400 Bad Request`; a missing FAQ returns `404 Not Found`.
+
+### Fetch example
+
+```ts
+const response = await fetch(`${API_BASE_URL}/faqs/reorder`, {
+  method: 'POST',
+  credentials: 'include',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ faq_ids: [3, 1, 2, 4] }),
+});
+const { faqs } = await response.json();
+```
+
+## Clients
+
+Client reads are public. Creating, updating, deleting, and reordering require an
+authenticated session and the configured frontend `Origin` or `Referer`, as
+described under [Browser Sessions](#browser-sessions). Clients are the partner
+logos shown in the "Klien Kami" section of the home page.
+
+- `GET /clients` returns `{ "clients": [...] }` with `200 OK`, ordered by
+  `sort_order` and then ID.
+- `GET /clients/:clientId` returns `{ "client": ... }` with `200 OK`.
+- `POST /clients` creates a client and returns `{ "client": ... }` with
+  `201 Created`. The client is appended to the current list.
+- `PUT /clients/:clientId` partially updates a client and returns
+  `{ "client": ... }` with `200 OK`.
+- `POST /clients/reorder` reorders all clients and returns
+  `{ "clients": [...] }` with `200 OK`.
+- `DELETE /clients/:clientId` returns `204 No Content`, removes the logo file,
+  and compacts the remaining clients' order.
+
+Create and update requests use `multipart/form-data` with these fields:
+
+| Field  | Type   | Rules                                                                        |
+| ------ | ------ | ---------------------------------------------------------------------------- |
+| `name` | string | Required on create; trimmed; 1–200 characters.                               |
+| `logo` | file   | Required on create; PNG, JPG, JPEG, or WEBP; maximum 5 MiB; content-checked. |
+
+On update, omitted fields remain unchanged; a request with neither `name` nor
+`logo` returns `400 Bad Request`. Uploading a new `logo` replaces the previous
+file. The authenticated user's name is stored in `created_by`; updates set
+`updated_by` and `updated_at`.
+
+Logos are uploaded directly and are not part of the media library. The server
+stores each logo at `/public/clients/{name}-{timestamp}.{extension}`, where
+`{name}` is the uploaded filename lowercased with non-alphanumeric characters
+replaced by `-`, and `{timestamp}` is the upload time in milliseconds. The
+response includes:
+
+- `logo_filename`: the stored filename.
+- `logo_filepath`: the public path; build the logo URL from it, as described
+  under [Public Static Assets](#public-static-assets).
+- `logo_extension`: `png`, `jpg`, `jpeg`, or `webp`.
+- `logo_size`: the file size rounded up to KiB (1024 bytes).
+- `logo_metadata`: the pixel `width` and `height`.
+
+Upload logos as transparent PNG or WEBP files.
+
+Example browser upload:
+
+```js
+const formData = new FormData();
+formData.append('name', 'Accenture');
+formData.append('logo', logoFile);
+
+const response = await fetch(`${API_BASE_URL}/clients`, {
+  method: 'POST',
+  credentials: 'include',
+  body: formData,
+});
+
+const data = await response.json();
+if (!response.ok) throw new Error(data.message);
+```
+
+Do not set the multipart `Content-Type` header manually; the browser adds its
+boundary.
+
+The response shape is:
+
+```json
+{
+  "client": {
+    "id": 1,
+    "name": "Accenture",
+    "logo_filename": "logo-accenture-1791913320264.png",
+    "logo_filepath": "/public/clients/logo-accenture-1791913320264.png",
+    "logo_extension": "png",
+    "logo_size": 18,
+    "logo_metadata": { "width": 400, "height": 160 },
+    "sort_order": 1,
+    "created_at": "2026-10-13T10:30:00.000Z",
+    "created_by": "Ari Putra",
+    "updated_at": null,
+    "updated_by": null
+  }
+}
+```
+
+`POST /clients/reorder` accepts the complete current client ID list in the
+desired order. Every existing ID must appear exactly once; duplicate, missing,
+or unknown IDs return `400 Bad Request` without changing the order. An empty
+array succeeds only when there are no clients. A successful reorder assigns
+`sort_order` values starting at 1 in the submitted order.
+
+```json
+{ "client_ids": [3, 1, 2, 4] }
+```
+
+Invalid IDs, fields, or logo files return `400 Bad Request`; a missing client
+returns `404 Not Found`; logos over 5 MiB return `413 Payload Too Large`.
+
+### Fetch example
+
+```ts
+const response = await fetch(`${API_BASE_URL}/clients/reorder`, {
+  method: 'POST',
+  credentials: 'include',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ client_ids: [3, 1, 2, 4] }),
+});
+const { clients } = await response.json();
+```
+
 ## Public Static Assets
 
 Files in the project `public/` directory are served without authentication at
@@ -1042,6 +1241,9 @@ the matching `/public/*` path and allow cross-origin reads. For example,
 PDF such as `public/document_commitment/board-decision-2026-10.pdf` is
 available at
 `http://localhost:8000/public/document_commitment/board-decision-2026-10.pdf`.
+A client logo such as `public/clients/logo-accenture-1791913320264.png` is
+available at
+`http://localhost:8000/public/clients/logo-accenture-1791913320264.png`.
 
 ## Article, Category, Media, and Document Commitment Errors
 

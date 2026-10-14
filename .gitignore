@@ -8,3 +8,5 @@ src/generated/prisma/
 !/public/media/.gitkeep
 /public/document_commitment/*
 !/public/document_commitment/.gitkeep
+/public/clients/*
+!/public/clients/.gitkeep

@@ -28,6 +28,13 @@ enum DocumentCommitmentStatus {
   @@map("document_commitment_status")
 }
 
+enum FaqStatus {
+  DRAFT
+  PUBLISHED
+
+  @@map("faq_status")
+}
+
 enum MediaType {
   PICTURE
   DOCUMENT
@@ -93,6 +100,39 @@ model Division {
   services  Service[]
 
   @@map("divisions")
+}
+
+model Client {
+  id            Int       @id @default(autoincrement())
+  name          String    @db.VarChar(200)
+  logoFilename  String    @map("logo_filename") @db.VarChar(500)
+  logoFilepath  String    @map("logo_filepath") @db.VarChar(500)
+  logoExtension String    @map("logo_extension") @db.VarChar(10)
+  logoSize      Int       @map("logo_size")
+  logoMetadata  Json      @map("logo_metadata") @db.JsonB
+  sortOrder     Int       @default(1) @map("sort_order")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy     String    @map("created_by") @db.VarChar(100)
+  updatedAt     DateTime? @map("updated_at") @db.Timestamptz(6)
+  updatedBy     String?   @map("updated_by") @db.VarChar(100)
+
+  @@index([sortOrder])
+  @@map("clients")
+}
+
+model Faq {
+  id        Int       @id @default(autoincrement())
+  question  String    @db.VarChar(200)
+  answer    String    @db.Text
+  status    FaqStatus @default(DRAFT)
+  sortOrder Int       @default(1) @map("sort_order")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy String    @map("created_by") @db.VarChar(100)
+  updatedAt DateTime? @map("updated_at") @db.Timestamptz(6)
+  updatedBy String?   @map("updated_by") @db.VarChar(100)
+
+  @@index([status, sortOrder])
+  @@map("faqs")
 }
 
 model Service {

@@ -4,6 +4,7 @@ import {
   contentDefinitions,
   type ContentDefinition,
 } from '../src/module/content/content-definitions.js';
+import { ClientLogoFileService } from '../src/module/client/services/client-logo-file.service.js';
 
 type ContentSeedData = Pick<
   ContentDefinition,
@@ -89,6 +90,44 @@ const contentSeedData = [
   },
 ] satisfies readonly ContentSeedData[];
 
+const faqSeedData = [
+  {
+    question: 'Apa itu REC dan SPE?',
+    answer:
+      '<p>REC adalah instrumen berupa sertifikat yang membuktikan bahwa setiap 1 MWh listrik yang dikonsumsi oleh operasional perusahaan berasal dari pembangkit energi terbarukan yang tersertifikasi.</p><p>Sedangkan SPE adalah instrumen berupa sertifikat yang membuktikan bahwa perusahaan telah mendanai atau mengkompensasi proyek penurunan emisi karbon secara nyata di tempat lain (carbon offset).</p>',
+  },
+  {
+    question: 'Apa hubungannya REC dan SPE ini dengan GHG Accounting?',
+    answer: '<p>-</p>',
+  },
+  {
+    question:
+      'Berapa harga 1 unit REC dan 1 unit SPE? Dan bagaimana cara perhitungannya?',
+    answer: '<p>-</p>',
+  },
+  {
+    question: 'Bagaimana skema pembelian REC atau SPE di PLN EMI?',
+    answer: '<p>-</p>',
+  },
+] as const;
+
+const clientSeedNames = [
+  'Accenture',
+  'ASTRA Otoparts',
+  'Cargill',
+  'H&M',
+  'PT Golden Tekstil Indonesia',
+  'Pupuk Iskandar Muda',
+  'The Ritz-Carlton',
+  'UNIQLO',
+] as const;
+
+// 1x1 transparent PNG; replace the real logos through the CMS.
+const placeholderLogo = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGNgAAIAAAUAAXpeqz8AAAAASUVORK5CYII=',
+  'base64',
+);
+
 function getSeedData(definition: ContentDefinition) {
   return (
     contentSeedData.find(
@@ -136,9 +175,55 @@ async function seedContent(): Promise<void> {
   }
 }
 
-seedContent()
+async function seedFaqs(): Promise<void> {
+  if ((await prisma.faq.count()) > 0) {
+    return;
+  }
+
+  await prisma.faq.createMany({
+    data: faqSeedData.map((faq, index) => ({
+      ...faq,
+      status: 'PUBLISHED',
+      sortOrder: index + 1,
+      createdBy: 'system',
+    })),
+  });
+}
+
+async function seedClients(): Promise<void> {
+  if ((await prisma.client.count()) > 0) {
+    return;
+  }
+
+  const logoFileService = new ClientLogoFileService();
+
+  for (const [index, name] of clientSeedNames.entries()) {
+    const logo = await logoFileService.store(`${name}.png`, placeholderLogo);
+
+    await prisma.client.create({
+      data: {
+        name,
+        logoFilename: logo.filename,
+        logoFilepath: logo.filepath,
+        logoExtension: logo.extension,
+        logoSize: logo.size,
+        logoMetadata: logo.metadata,
+        sortOrder: index + 1,
+        createdBy: 'system',
+      },
+    });
+  }
+}
+
+async function seed(): Promise<void> {
+  await seedContent();
+  await seedFaqs();
+  await seedClients();
+}
+
+seed()
   .catch((error: unknown) => {
-    console.error('Content seeding failed.', error);
+    console.error('Seeding failed.', error);
     process.exitCode = 1;
   })
   .finally(async () => {

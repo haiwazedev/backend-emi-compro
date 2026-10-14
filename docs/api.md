@@ -1232,6 +1232,102 @@ const response = await fetch(`${API_BASE_URL}/clients/reorder`, {
 const { clients } = await response.json();
 ```
 
+## Inboxes
+
+Inboxes store messages sent from the public site's contact form. Listing
+subjects and submitting a message are public. Listing, counting, updating,
+marking all as read, and deleting require an authenticated session and the
+configured frontend `Origin` or `Referer`, as described under
+[Browser Sessions](#browser-sessions). Requests use JSON.
+
+> The public submit endpoint is still subject to the `Origin` check, so the
+> landing page cannot call it yet. It also has no rate limiting or spam
+> protection yet.
+
+- `GET /inbox-subjects` returns `{ "inbox_subjects": [...] }` with `200 OK`,
+  ordered by ID. Subjects are seeded and cannot be managed through the API.
+- `POST /inboxes` submits a contact-form message and returns `{ "inbox": ... }`
+  with `201 Created`. New messages are unread.
+- `GET /inboxes` returns `{ "inboxes": [...], "pagination": ... }` with
+  `200 OK`, newest first.
+- `GET /inboxes/counts` returns `{ "unreadCount": 2, "readCount": 3 }` with
+  `200 OK`.
+- `PUT /inboxes/:inboxId` updates the read status and returns
+  `{ "inbox": ... }` with `200 OK`.
+- `POST /inboxes/read-all` marks every inbox as read and returns
+  `204 No Content`.
+- `DELETE /inboxes/:inboxId` permanently deletes an inbox and returns
+  `204 No Content`.
+
+`POST /inboxes` accepts these fields:
+
+| Field              | Type           | Rules                                                     |
+| ------------------ | -------------- | --------------------------------------------------------- |
+| `name`             | string         | Required; trimmed; 1–100 characters.                      |
+| `email`            | string         | Required; trimmed; valid email; up to 254 characters.     |
+| `company`          | string \| null | Optional; trimmed; up to 200 characters; blank is `null`. |
+| `phone`            | string \| null | Optional; trimmed; up to 30 characters; blank is `null`.  |
+| `inbox_subject_id` | integer        | Required; must be an existing inbox subject ID.           |
+| `message`          | string         | Required; trimmed; 1–5000 characters.                     |
+
+`PUT /inboxes/:inboxId` accepts only `{ "is_read": true }` or
+`{ "is_read": false }`.
+
+`GET /inboxes` accepts these query parameters:
+
+| Parameter          | Default | Rules                                                      |
+| ------------------ | ------- | ---------------------------------------------------------- |
+| `page`             | `1`     | Positive integer.                                          |
+| `limit`            | `20`    | Integer from 1 to 100.                                     |
+| `search`           | none    | Case-insensitive match on the sender name or subject name. |
+| `inbox_subject_id` | none    | Returns only inboxes with this subject.                    |
+
+Example create request:
+
+```json
+{
+  "name": "Budi Santoso",
+  "email": "budi.santoso@example.com",
+  "company": "PT Nusantara Data Center",
+  "phone": "+62 812 3456 7890",
+  "inbox_subject_id": 2,
+  "message": "Kami ingin menanyakan layanan audit energi."
+}
+```
+
+The inbox shape is:
+
+```json
+{
+  "inbox": {
+    "id": 1,
+    "name": "Budi Santoso",
+    "email": "budi.santoso@example.com",
+    "company": "PT Nusantara Data Center",
+    "phone": "+62 812 3456 7890",
+    "message": "Kami ingin menanyakan layanan audit energi.",
+    "is_read": false,
+    "inbox_subject": { "id": 2, "name": "Services" },
+    "created_at": "2026-10-14T10:30:00.000Z"
+  }
+}
+```
+
+The list response's `pagination` has `page`, `limit`, `totalItems`, and
+`totalPages`, as for articles.
+
+An unknown `inbox_subject_id` on create, invalid IDs, fields, or query
+parameters return `400 Bad Request`; a missing inbox returns `404 Not Found`.
+
+### Fetch example
+
+```ts
+const response = await fetch(`${API_BASE_URL}/inboxes?page=1&search=budi`, {
+  credentials: 'include',
+});
+const { inboxes, pagination } = await response.json();
+```
+
 ## Public Static Assets
 
 Files in the project `public/` directory are served without authentication at

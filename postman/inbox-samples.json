@@ -1,0 +1,202 @@
+[
+  {
+    "name": "Budi Santoso",
+    "email": "budi.santoso@nusantaradc.co.id",
+    "company": "PT Nusantara Data Center",
+    "phone": "+62 812 3456 7890",
+    "inbox_subject_id": 2,
+    "message": "Kami ingin menanyakan skema pembelian REC untuk data center kami di Cikarang dengan konsumsi sekitar 850 MWh per bulan."
+  },
+  {
+    "name": "Rina Kusuma",
+    "email": "rina.kusuma@grandhotel.co.id",
+    "company": "Grand Hotel Bandung",
+    "phone": "+62 813 2222 1100",
+    "inbox_subject_id": 2,
+    "message": "Kami tertarik dengan layanan audit energi untuk gedung hotel kami. Mohon info jadwal dan ruang lingkup audit."
+  },
+  {
+    "name": "Ahmad Fauzi",
+    "email": "ahmad.fauzi@industrimaju.co.id",
+    "company": "PT Industri Maju",
+    "phone": "+62 811 7654 3210",
+    "inbox_subject_id": 2,
+    "message": "Mohon informasi layanan pengurusan persetujuan teknis limbah B3 beserta estimasi waktunya."
+  },
+  {
+    "name": "Siti Nurhaliza",
+    "email": "siti.nurhaliza@energihijau.co.id",
+    "company": "PT Energi Hijau",
+    "phone": "+62 821 9876 5432",
+    "inbox_subject_id": 4,
+    "message": "Menindaklanjuti pertemuan minggu lalu, kami ingin membahas peluang kerja sama pengadaan REC jangka panjang."
+  },
+  {
+    "name": "Dedi Prasetyo",
+    "email": "dedi.prasetyo@semennusantara.co.id",
+    "company": "PT Semen Nusantara",
+    "phone": "+62 822 1234 5678",
+    "inbox_subject_id": 2,
+    "message": "Perusahaan kami memiliki stok FABA cukup besar dan ingin mengetahui opsi pemanfaatannya."
+  },
+  {
+    "name": "Maya Anggraini",
+    "email": "maya.anggraini@gmail.com",
+    "company": null,
+    "phone": null,
+    "inbox_subject_id": 1,
+    "message": "Apakah PLN EMI membuka program magang untuk mahasiswa teknik elektro?"
+  },
+  {
+    "name": "Hendra Wijaya",
+    "email": "hendra@tekstilsejahtera.co.id",
+    "company": "PT Tekstil Sejahtera",
+    "phone": "+62 817 5550 1212",
+    "inbox_subject_id": 2,
+    "message": "Kami membutuhkan konsultasi efisiensi energi untuk pabrik tekstil kami di Karawang."
+  },
+  {
+    "name": "Lestari Putri",
+    "email": "lestari.putri@kompas.id",
+    "company": "Kompas",
+    "phone": "+62 812 9000 4545",
+    "inbox_subject_id": 3,
+    "message": "Kami ingin melakukan wawancara mengenai program transisi energi PLN EMI untuk liputan khusus."
+  },
+  {
+    "name": "Agus Salim",
+    "email": "agus.salim@yahoo.com",
+    "company": null,
+    "phone": "+62 856 1234 0000",
+    "inbox_subject_id": 1,
+    "message": "Bagaimana cara mendapatkan sertifikat REC untuk usaha kecil?"
+  },
+  {
+    "name": "Dewi Lestari",
+    "email": "dewi.lestari@retailindo.co.id",
+    "company": "PT Retail Indo",
+    "phone": "",
+    "inbox_subject_id": 2,
+    "message": "Mohon penawaran untuk pemasangan PLTS atap di 12 gerai kami di Jabodetabek."
+  },
+  {
+    "name": "Rizky Ramadhan",
+    "email": "rizky.ramadhan@startupgreen.id",
+    "company": "Startup Green",
+    "phone": "+62 878 7777 1234",
+    "inbox_subject_id": 4,
+    "message": "Kami startup energi terbarukan dan ingin menjajaki kemitraan distribusi solusi IoT monitoring energi."
+  },
+  {
+    "name": "Fitri Handayani",
+    "email": "fitri.handayani@univ.ac.id",
+    "company": "Universitas Indonesia",
+    "phone": null,
+    "inbox_subject_id": 3,
+    "message": "Kami mengundang perwakilan PLN EMI sebagai pembicara seminar energi berkelanjutan bulan depan."
+  },
+  {
+    "name": "Yusuf Hidayat",
+    "email": "yusuf.hidayat@logistikcepat.co.id",
+    "company": "PT Logistik Cepat",
+    "phone": "+62 811 2020 3030",
+    "inbox_subject_id": 2,
+    "message": "Apakah tersedia layanan perhitungan emisi GRK untuk armada logistik kami?"
+  },
+  {
+    "name": "Nadia Safitri",
+    "email": "nadia.safitri@hotmail.com",
+    "company": null,
+    "phone": null,
+    "inbox_subject_id": 1,
+    "message": "Saya ingin mengetahui alamat kantor cabang PLN EMI di Surabaya."
+  },
+  {
+    "name": "Bambang Sutrisno",
+    "email": "bambang@kontraktorjaya.co.id",
+    "company": "CV Kontraktor Jaya",
+    "phone": "+62 813 4444 5555",
+    "inbox_subject_id": 4,
+    "message": "Kami tertarik menjadi vendor instalasi panel surya untuk proyek PLN EMI."
+  },
+  {
+    "name": "Putri Ayu",
+    "email": "putri.ayu@detik.com",
+    "company": "Detik.com",
+    "phone": "+62 812 6666 7777",
+    "inbox_subject_id": 3,
+    "message": "Mohon konfirmasi data kapasitas pembangkit EBT yang dikelola PLN EMI untuk artikel kami."
+  },
+  {
+    "name": "Irfan Maulana",
+    "email": "irfan.maulana@pabrikgula.co.id",
+    "company": "PT Pabrik Gula Manis",
+    "phone": "+62 821 3131 4141",
+    "inbox_subject_id": 2,
+    "message": "Kami ingin konsultasi pemanfaatan biomassa ampas tebu sebagai sumber energi."
+  },
+  {
+    "name": "Sari Wulandari",
+    "email": "sari.wulandari@gmail.com",
+    "company": null,
+    "phone": "+62 857 2222 3333",
+    "inbox_subject_id": 1,
+    "message": "Website Anda tidak menampilkan dokumen kebijakan anti korupsi, apakah bisa dibantu?"
+  },
+  {
+    "name": "Teguh Santoso",
+    "email": "teguh.santoso@mallcentral.co.id",
+    "company": "Mall Central Semarang",
+    "phone": "+62 815 8080 9090",
+    "inbox_subject_id": 2,
+    "message": "Kami membutuhkan audit energi untuk sistem HVAC mall kami."
+  },
+  {
+    "name": "Anisa Rahma",
+    "email": "anisa.rahma@ngo-iklim.org",
+    "company": "Yayasan Iklim Lestari",
+    "phone": null,
+    "inbox_subject_id": 4,
+    "message": "Kami ingin berkolaborasi dalam program edukasi energi bersih untuk sekolah."
+  },
+  {
+    "name": "Fajar Nugroho",
+    "email": "fajar.nugroho@datacenterasia.com",
+    "company": "Data Center Asia",
+    "phone": "+62 812 1111 2222",
+    "inbox_subject_id": 2,
+    "message": "Mohon informasi harga SPE dan mekanisme kompensasi karbon untuk tahun 2027."
+  },
+  {
+    "name": "Linda Kartika",
+    "email": "linda.kartika@bank.co.id",
+    "company": "PT Bank Nusantara",
+    "phone": "+62 811 9090 8080",
+    "inbox_subject_id": 4,
+    "message": "Kami menjajaki skema pembiayaan hijau bersama PLN EMI untuk nasabah korporasi."
+  },
+  {
+    "name": "Joko Widodo",
+    "email": "joko.w@example.com",
+    "company": null,
+    "phone": null,
+    "inbox_subject_id": 1,
+    "message": "Terima kasih atas pelayanan yang baik saat kunjungan kami minggu lalu."
+  },
+  {
+    "name": "Melati Sukma",
+    "email": "melati.sukma@tempo.co",
+    "company": "Tempo",
+    "phone": "+62 813 3030 4040",
+    "inbox_subject_id": 3,
+    "message": "Kami meminta rilis pers terkait penandatanganan kerja sama REC terbaru."
+  },
+  {
+    "name": "Kevin Tanoto",
+    "email": "kevin.tanoto@manufaktur.co.id",
+    "company": "PT Manufaktur Prima",
+    "phone": "+62 817 1212 3434",
+    "inbox_subject_id": 2,
+    "message": "Kami ingin mengetahui proses sertifikasi ISO 50001 dan layanan pendampingannya."
+  }
+]

@@ -12,6 +12,7 @@ import { documentCommitmentCategoryRouter } from './module/document_commitment/r
 import { documentCommitmentRouter } from './module/document_commitment/routes/document-commitment.routes.js';
 import { divisionRouter } from './module/division/routes/division.routes.js';
 import { faqRouter } from './module/faq/routes/faq.routes.js';
+import { inboxRouter } from './module/inbox/routes/inbox.routes.js';
 import { mediaRouter } from './module/media/routes/media.routes.js';
 import { serviceRouter } from './module/service/routes/service.routes.js';
 import { frontendOrigin } from './shared/config/session.js';
@@ -44,6 +45,7 @@ app.use(divisionRouter);
 app.use(serviceRouter);
 app.use(faqRouter);
 app.use(clientRouter);
+app.use(inboxRouter);
 
 app.get('/health', (req: Request, res: Response) => {
   res.send({ message: 'OK' });

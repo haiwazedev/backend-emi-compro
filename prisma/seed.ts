@@ -122,6 +122,13 @@ const clientSeedNames = [
   'UNIQLO',
 ] as const;
 
+const inboxSubjectSeedNames = [
+  'General Inquiry',
+  'Services',
+  'Media & Information',
+  'Partnerships',
+] as const;
+
 // 1x1 transparent PNG; replace the real logos through the CMS.
 const placeholderLogo = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGNgAAIAAAUAAXpeqz8AAAAASUVORK5CYII=',
@@ -215,10 +222,18 @@ async function seedClients(): Promise<void> {
   }
 }
 
+async function seedInboxSubjects(): Promise<void> {
+  await prisma.inboxSubject.createMany({
+    data: inboxSubjectSeedNames.map((name) => ({ name, createdBy: 'system' })),
+    skipDuplicates: true,
+  });
+}
+
 async function seed(): Promise<void> {
   await seedContent();
   await seedFaqs();
   await seedClients();
+  await seedInboxSubjects();
 }
 
 seed()

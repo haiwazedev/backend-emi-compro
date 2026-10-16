@@ -10,3 +10,6 @@ src/generated/prisma/
 !/public/document_commitment/.gitkeep
 /public/clients/*
 !/public/clients/.gitkeep
+/public/site-social-medias/*
+!/public/site-social-medias/.gitkeep
+/public/site-logo-*

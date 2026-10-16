@@ -267,3 +267,53 @@ model Inbox {
   @@index([createdAt])
   @@map("inboxes")
 }
+
+model SiteSetting {
+  id                     Int       @id @default(1)
+  companyName            String    @map("company_name") @db.VarChar(200)
+  companyShortName       String?   @map("company_short_name") @db.VarChar(50)
+  danantaraLogoFilename  String?   @map("danantara_logo_filename") @db.VarChar(500)
+  danantaraLogoFilepath  String?   @map("danantara_logo_filepath") @db.VarChar(500)
+  danantaraLogoExtension String?   @map("danantara_logo_extension") @db.VarChar(10)
+  danantaraLogoSize      Int?      @map("danantara_logo_size")
+  danantaraLogoMetadata  Json?     @map("danantara_logo_metadata") @db.JsonB
+  plnLogoFilename        String?   @map("pln_logo_filename") @db.VarChar(500)
+  plnLogoFilepath        String?   @map("pln_logo_filepath") @db.VarChar(500)
+  plnLogoExtension       String?   @map("pln_logo_extension") @db.VarChar(10)
+  plnLogoSize            Int?      @map("pln_logo_size")
+  plnLogoMetadata        Json?     @map("pln_logo_metadata") @db.JsonB
+  companyAddress         String    @map("company_address") @db.VarChar(500)
+  companyPhoneNumber     String?   @map("company_phone_number") @db.VarChar(30)
+  companyWhatsappNumber  String?   @map("company_whatsapp_number") @db.VarChar(30)
+  mainEmail              String?   @map("main_email") @db.VarChar(254)
+  marketingEmail         String?   @map("marketing_email") @db.VarChar(254)
+  operationalDay         String?   @map("operational_day") @db.VarChar(100)
+  operationalStartTime   String?   @map("operational_start_time") @db.VarChar(5)
+  operationalEndTime     String?   @map("operational_end_time") @db.VarChar(5)
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy              String    @map("created_by") @db.VarChar(100)
+  updatedAt              DateTime? @map("updated_at") @db.Timestamptz(6)
+  updatedBy              String?   @map("updated_by") @db.VarChar(100)
+
+  @@map("site_settings")
+}
+
+model SiteSocialMedia {
+  id                       Int       @id @default(autoincrement())
+  platformName             String    @map("platform_name") @db.VarChar(50)
+  platformUrlOrAccountName String    @map("platform_url_or_account_name") @db.VarChar(255)
+  iconFilename             String?   @map("icon_filename") @db.VarChar(500)
+  iconFilepath             String?   @map("icon_filepath") @db.VarChar(500)
+  iconExtension            String?   @map("icon_extension") @db.VarChar(10)
+  iconSize                 Int?      @map("icon_size")
+  iconMetadata             Json?     @map("icon_metadata") @db.JsonB
+  status                   FaqStatus @default(DRAFT)
+  sortOrder                Int       @default(1) @map("sort_order")
+  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy                String    @map("created_by") @db.VarChar(100)
+  updatedAt                DateTime? @map("updated_at") @db.Timestamptz(6)
+  updatedBy                String?   @map("updated_by") @db.VarChar(100)
+
+  @@index([status, sortOrder])
+  @@map("site_social_medias")
+}

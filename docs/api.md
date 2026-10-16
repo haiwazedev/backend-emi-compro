@@ -1328,10 +1328,177 @@ const response = await fetch(`${API_BASE_URL}/inboxes?page=1&search=budi`, {
 const { inboxes, pagination } = await response.json();
 ```
 
+## Site Settings
+
+Site settings hold the company identity, contact details, and social media
+links shown in the landing page navbar, footer, and "Hubungi Kami" page. There
+is a single settings record (`id` is always `1`).
+
+- `GET /site_settings` is public and returns `{ "site_settings": ... }` with
+  `200 OK`, or `{ "site_settings": null }` before the first save. Signed-in
+  users receive every social media item; everyone else receives only
+  `PUBLISHED` items.
+- `PUT /site_settings` requires an authenticated session and the configured
+  frontend `Origin` or `Referer`. It creates or replaces the settings and the
+  whole social media list, and returns `{ "site_settings": ... }` with
+  `200 OK`.
+
+`PUT /site_settings` uses `multipart/form-data`:
+
+| Field            | Type        | Rules                                                                                 |
+| ---------------- | ----------- | ------------------------------------------------------------------------------------- |
+| `data`           | JSON string | Required; the settings payload below.                                                 |
+| `danantara_logo` | file        | Optional; PNG, JPG, JPEG, WEBP, or SVG; maximum 2 MiB. Omit to keep the current logo. |
+| `pln_logo`       | file        | Optional; same rules as `danantara_logo`.                                             |
+| `social_icons`   | file[]      | Optional; SVG only; maximum 1 MiB each; up to 20. Each must be referenced by an item. |
+
+The `data` payload:
+
+| Field                     | Type           | Rules                                                       |
+| ------------------------- | -------------- | ----------------------------------------------------------- |
+| `company_name`            | string         | Required; trimmed; 1–200 characters.                        |
+| `company_short_name`      | string \| null | Optional; up to 50 characters; blank is `null`.             |
+| `company_address`         | string         | Required; trimmed; 1–500 characters.                        |
+| `company_phone_number`    | string \| null | Optional; up to 30 characters; blank is `null`.             |
+| `company_whatsapp_number` | string \| null | Optional; up to 30 characters; blank is `null`.             |
+| `main_email`              | string \| null | Optional; valid email; blank is `null`.                     |
+| `marketing_email`         | string \| null | Optional; valid email; blank is `null`.                     |
+| `operational_day`         | string \| null | Optional; up to 100 characters, e.g. `"Senin - Jumat"`.     |
+| `operational_start_time`  | string \| null | Optional; `HH:mm`. Must be sent together with the end time. |
+| `operational_end_time`    | string \| null | Optional; `HH:mm`; must be after the start time.            |
+| `social_medias`           | array          | Required (may be empty); up to 20 items, in display order.  |
+
+Each `social_medias` item:
+
+| Field                          | Type    | Rules                                                                                  |
+| ------------------------------ | ------- | -------------------------------------------------------------------------------------- |
+| `id`                           | integer | Omit to create a new item; send an existing ID to update it.                           |
+| `platform_name`                | string  | Required; trimmed; 1–50 characters.                                                    |
+| `platform_url_or_account_name` | string  | Required; trimmed; 1–255 characters.                                                   |
+| `status`                       | string  | `DRAFT` (hidden on the landing page) or `PUBLISHED`.                                   |
+| `icon_index`                   | integer | Optional; index into the uploaded `social_icons` files. Omit to keep the current icon. |
+
+The list is synced to the request: existing items missing from
+`social_medias` are deleted with their icon files, and `sort_order` follows the
+array position starting at 1. Replaced logos and icons are removed after the
+save succeeds.
+
+Uploaded SVG files are sanitized: scripts, event handlers, `foreignObject`, and
+`javascript:` links are removed, and a file with no valid `<svg>` left returns
+`400 Bad Request`. Logos are stored at `/public/site-logo-{name}-{timestamp}.{extension}`
+and icons at `/public/site-social-medias/site-social-media-{name}-{timestamp}.svg`.
+`*_metadata` is the pixel `width` and `height` for raster images and `{}` for
+SVG.
+
+Example browser request:
+
+```js
+const formData = new FormData();
+formData.append(
+  'data',
+  JSON.stringify({
+    company_name: 'PT Energy Management Indonesia (Persero)',
+    company_short_name: 'PLN EMI',
+    company_address: 'Menara Sentraya Lt. 17, Jakarta Selatan 12160',
+    company_phone_number: '021-27881925',
+    company_whatsapp_number: '0821-1779-291',
+    main_email: 'emi@pln.co.id',
+    marketing_email: 'pemasaran@emipersero.co.id',
+    operational_day: 'Senin - Jumat',
+    operational_start_time: '08:00',
+    operational_end_time: '17:00',
+    social_medias: [
+      {
+        id: 1,
+        platform_name: 'Instagram',
+        platform_url_or_account_name: '@ptemi_id',
+        status: 'PUBLISHED',
+      },
+      {
+        platform_name: 'YouTube',
+        platform_url_or_account_name: '@EnergyManagementIndonesia',
+        status: 'PUBLISHED',
+        icon_index: 0,
+      },
+    ],
+  }),
+);
+formData.append('pln_logo', plnLogoFile);
+formData.append('social_icons', youtubeIconFile);
+
+const response = await fetch(`${API_BASE_URL}/site_settings`, {
+  method: 'PUT',
+  credentials: 'include',
+  body: formData,
+});
+
+const data = await response.json();
+if (!response.ok) throw new Error(data.message);
+```
+
+The response shape is:
+
+```json
+{
+  "site_settings": {
+    "id": 1,
+    "company_name": "PT Energy Management Indonesia (Persero)",
+    "company_short_name": "PLN EMI",
+    "danantara_logo_filename": null,
+    "danantara_logo_filepath": null,
+    "danantara_logo_extension": null,
+    "danantara_logo_size": null,
+    "danantara_logo_metadata": null,
+    "pln_logo_filename": "site-logo-pln-emi-1792136400000.svg",
+    "pln_logo_filepath": "/public/site-logo-pln-emi-1792136400000.svg",
+    "pln_logo_extension": "svg",
+    "pln_logo_size": 6,
+    "pln_logo_metadata": {},
+    "company_address": "Menara Sentraya Lt. 17, Jakarta Selatan 12160",
+    "company_phone_number": "021-27881925",
+    "company_whatsapp_number": "0821-1779-291",
+    "main_email": "emi@pln.co.id",
+    "marketing_email": "pemasaran@emipersero.co.id",
+    "operational_day": "Senin - Jumat",
+    "operational_start_time": "08:00",
+    "operational_end_time": "17:00",
+    "social_medias": [
+      {
+        "id": 2,
+        "platform_name": "YouTube",
+        "platform_url_or_account_name": "@EnergyManagementIndonesia",
+        "icon_filename": "site-social-media-youtube-1792136400001.svg",
+        "icon_filepath": "/public/site-social-medias/site-social-media-youtube-1792136400001.svg",
+        "icon_extension": "svg",
+        "icon_size": 1,
+        "icon_metadata": {},
+        "status": "PUBLISHED",
+        "sort_order": 1,
+        "created_at": "2026-10-16T10:30:00.000Z",
+        "created_by": "Ari Putra",
+        "updated_at": null,
+        "updated_by": null
+      }
+    ],
+    "created_at": "2026-10-16T10:30:00.000Z",
+    "created_by": "Ari Putra",
+    "updated_at": null,
+    "updated_by": null
+  }
+}
+```
+
+Invalid fields, files, or `icon_index` references return `400 Bad Request`; an
+unknown social media `id` returns `404 Not Found`; files over their size limit
+return `413 Payload Too Large`.
+
 ## Public Static Assets
 
 Files in the project `public/` directory are served without authentication at
-the matching `/public/*` path and allow cross-origin reads. For example,
+the matching `/public/*` path and allow cross-origin reads. SVG files are
+served with `Content-Security-Policy: default-src 'none'; style-src
+'unsafe-inline'; sandbox` and `X-Content-Type-Options: nosniff`, so an SVG
+opened directly cannot run scripts. For example,
 `public/media/company-news.jpg` is available at
 `http://localhost:8000/public/media/company-news.jpg`. A document commitment
 PDF such as `public/document_commitment/board-decision-2026-10.pdf` is

@@ -41,10 +41,26 @@ export class ArticleRepository {
     });
   }
 
-  findContentBySlug(languageId: string, slug: string) {
+  // Public view: only published content in active languages.
+  findPublishedBySlug(slug: string) {
+    const publicContent = {
+      status: 'PUBLISHED',
+      language: { isActive: true },
+    } satisfies Prisma.ArticleContentWhereInput;
+
+    return prisma.article.findFirst({
+      where: { contents: { some: { ...publicContent, slug } } },
+      include: {
+        ...articleInclude,
+        contents: { ...articleInclude.contents, where: publicContent },
+      },
+    });
+  }
+
+  findContentBySlug(slug: string) {
     return prisma.articleContent.findUnique({
-      where: { languageId_slug: { languageId, slug } },
-      select: { articleId: true },
+      where: { slug },
+      select: { articleId: true, languageId: true },
     });
   }
 

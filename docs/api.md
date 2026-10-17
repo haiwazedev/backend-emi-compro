@@ -442,7 +442,8 @@ frontend `Origin` or `Referer` as described under [Browser Sessions](#browser-se
 
 An article is a shared header (category, dates, photo, contact person) plus at
 most one content row per language in `contents`. Title, slug, summary, content,
-and status belong to a language. Slugs are unique per language.
+and status belong to a language. Slugs are unique across all languages, so a slug identifies one article and
+one language; an article's languages cannot share a slug.
 
 Each content has a server-computed `read_time` in whole minutes: the visible
 characters of `content` (HTML tags removed, whitespace collapsed) divided by
@@ -523,6 +524,11 @@ language's content status, or `null` when the article has no content in it.
 
 ### Get, create, update, and delete an article
 
+- `GET /articles/slug/:slug` is for the landing page and returns
+  `{ "article": ... }` with `200 OK`, in the same shape as the detail response.
+  `contents` holds only `PUBLISHED` content in active languages. A slug that is
+  unknown, a draft, or in an inactive language returns `404 Not Found` with
+  `Article was not found.`
 - `GET /articles/:articleId` returns `{ "article": ... }` with `200 OK`. The
   article has the shared header fields and every language's content in
   `contents`, ordered by language `sort_order`, then `language_id`.
@@ -541,7 +547,7 @@ Article POST and PUT bodies use JSON. Each request writes one language.
 | ---------------------- | -------------- | ------------------------------------------------------------------- |
 | `language_id`          | string         | Required; ID of an active language.                                 |
 | `title`                | string         | Required; maximum 120 characters.                                   |
-| `slug`                 | string         | Required; maximum 255 characters; unique within the language.       |
+| `slug`                 | string         | Required; maximum 255 characters; unique across all languages.      |
 | `summary`              | string         | Required.                                                           |
 | `content`              | string         | Required.                                                           |
 | `status`               | string         | Required; `DRAFT` or `PUBLISHED`; applies to this language only.    |
@@ -1633,14 +1639,14 @@ available at
 
 ## Article, Category, Media, and Document Commitment Errors
 
-| Status                  | Description                                                                                         |
-| ----------------------- | --------------------------------------------------------------------------------------------------- |
-| `400 Bad Request`       | Invalid ID, body or query value, category, media or language reference, or uploaded PDF.            |
-| `401 Unauthorized`      | A write request does not have a valid session.                                                      |
-| `403 Forbidden`         | A write request has a missing or disallowed `Origin`/`Referer`.                                     |
-| `404 Not Found`         | The requested article, category, media, or document commitment does not exist.                      |
-| `409 Conflict`          | Article slug (per language), category slug, media filename, or document filename is already in use. |
-| `413 Payload Too Large` | An uploaded file exceeds the limit for its media type or document commitment.                       |
+| Status                  | Description                                                                              |
+| ----------------------- | ---------------------------------------------------------------------------------------- |
+| `400 Bad Request`       | Invalid ID, body or query value, category, media or language reference, or uploaded PDF. |
+| `401 Unauthorized`      | A write request does not have a valid session.                                           |
+| `403 Forbidden`         | A write request has a missing or disallowed `Origin`/`Referer`.                          |
+| `404 Not Found`         | The requested article, category, media, or document commitment does not exist.           |
+| `409 Conflict`          | Article slug, category slug, media filename, or document filename is already in use.     |
+| `413 Payload Too Large` | An uploaded file exceeds the limit for its media type or document commitment.            |
 
 ## Health Check
 

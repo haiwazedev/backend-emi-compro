@@ -239,7 +239,7 @@ model ArticleContent {
   articleId  Int           @map("article_id")
   languageId String        @map("language_id") @db.VarChar(10)
   title     String        @db.VarChar(120)
-  slug       String        @db.VarChar(255)
+  slug       String        @unique @db.VarChar(255)
   summary    String        @db.Text
   content    String        @db.Text
   status     ArticleStatus @default(DRAFT)
@@ -252,7 +252,6 @@ model ArticleContent {
   language   Language      @relation(fields: [languageId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@unique([articleId, languageId])
-  @@unique([languageId, slug])
   @@map("article_contents")
 }
 

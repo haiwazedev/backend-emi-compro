@@ -21,6 +21,7 @@ articleRouter.get(
   validateQuery(articleListQuerySchema, 'articleListQuery'),
   controller.list,
 );
+articleRouter.get('/articles/slug/:slug', controller.getBySlug);
 articleRouter.get('/articles/:articleId', controller.get);
 articleRouter.post(
   '/articles',

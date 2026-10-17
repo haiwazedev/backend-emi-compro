@@ -11,6 +11,7 @@ import { contentRouter } from './module/content/routes/content.routes.js';
 import { documentCommitmentCategoryRouter } from './module/document_commitment/routes/document-commitment-category.routes.js';
 import { documentCommitmentRouter } from './module/document_commitment/routes/document-commitment.routes.js';
 import { divisionRouter } from './module/division/routes/division.routes.js';
+import { documentationRouter } from './module/documentation/documentation.routes.js';
 import { faqRouter } from './module/faq/routes/faq.routes.js';
 import { inboxRouter } from './module/inbox/routes/inbox.routes.js';
 import { languageRouter } from './module/language/routes/language.routes.js';
@@ -42,6 +43,8 @@ app.use(
     },
   }),
 );
+// Before session middleware so browsing the docs does not create sessions.
+app.use(documentationRouter);
 app.use(cors({ origin: frontendOrigin, credentials: true }));
 app.use(express.json());
 app.use(sessionMiddleware);

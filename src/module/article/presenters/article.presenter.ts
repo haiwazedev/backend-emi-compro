@@ -31,6 +31,7 @@ export function presentArticleListItem(
     slug: content?.slug ?? null,
     summary: content?.summary ?? null,
     status: content?.status ?? null,
+    read_time: content?.readTime ?? null,
     languages: languages.map((language) => ({
       language_id: language.id,
       abbreviated_language: language.abbreviatedLanguage,
@@ -75,6 +76,7 @@ function presentArticleContent(content: ArticleContentWithLanguage) {
     summary: content.summary,
     content: content.content,
     status: content.status,
+    read_time: content.readTime,
     created_at: content.createdAt.toISOString(),
     created_by: content.createdBy,
     updated_at: content.updatedAt?.toISOString() ?? null,

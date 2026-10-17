@@ -241,6 +241,7 @@ model ArticleContent {
   summary    String        @db.Text
   content    String        @db.Text
   status     ArticleStatus @default(DRAFT)
+  readTime   Int           @map("read_time")
   createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   createdBy  String        @map("created_by") @db.VarChar(100)
   updatedAt  DateTime?     @map("updated_at") @db.Timestamptz(6)

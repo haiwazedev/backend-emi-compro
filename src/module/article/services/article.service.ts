@@ -1,3 +1,4 @@
+import { JSDOM } from 'jsdom';
 import { Prisma } from '../../../generated/prisma/client.js';
 import { ApiError } from '../../../shared/errors/api-error.js';
 import { ArticleRepository } from '../repositories/article.repository.js';
@@ -164,7 +165,19 @@ function toContentData(input: ArticleContentInput) {
     summary: input.summary,
     content: input.content,
     status: input.status,
+    readTime: calculateReadTime(input.content),
   };
+}
+
+// Trauzettel-Klosinski & Dietz (2012): ~1000 chars/min, stable across 17 languages.
+const READ_CHARACTERS_PER_MINUTE = 1000;
+
+// Whole minutes for the visible body text, at least 1.
+export function calculateReadTime(html: string): number {
+  const text = new JSDOM(html).window.document.body.textContent ?? '';
+  const length = text.replace(/\s+/g, ' ').trim().length;
+
+  return Math.max(1, Math.ceil(length / READ_CHARACTERS_PER_MINUTE));
 }
 
 function toUpdateData(

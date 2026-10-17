@@ -429,6 +429,11 @@ An article is a shared header (category, dates, photo, contact person) plus at
 most one content row per language in `contents`. Title, slug, summary, content,
 and status belong to a language. Slugs are unique per language.
 
+Each content has a server-computed `read_time` in whole minutes: the visible
+characters of `content` (HTML tags removed, whitespace collapsed) divided by
+1000 characters per minute, rounded up, minimum `1`. It is recalculated on every
+save and cannot be sent in requests.
+
 ### List articles
 
 `GET /articles`
@@ -452,7 +457,7 @@ Provided filters are combined using AND. `search`, `language_id`, and `status`
 must all match the same content row. Invalid query values return `400 Bad
 Request`.
 
-`title`, `slug`, `summary`, `status`, and `language_id` on each item come from
+`title`, `slug`, `summary`, `status`, `read_time`, and `language_id` on each item come from
 the `language_id` content when that query is set, otherwise from the content
 with the lowest language ID. `languages` lists every active language with that
 language's content status, or `null` when the article has no content in it.
@@ -485,6 +490,7 @@ language's content status, or `null` when the article has no content in it.
       "slug": "kantor-layanan-baru-dibuka",
       "summary": "Ringkasan singkat.",
       "status": "PUBLISHED",
+      "read_time": 1,
       "languages": [
         {
           "language_id": 1,
@@ -582,6 +588,7 @@ Article detail response:
         "summary": "Ringkasan singkat.",
         "content": "Isi artikel lengkap.",
         "status": "PUBLISHED",
+        "read_time": 1,
         "created_at": "2026-10-10T10:30:00.000Z",
         "created_by": "Ari Putra",
         "updated_at": null,

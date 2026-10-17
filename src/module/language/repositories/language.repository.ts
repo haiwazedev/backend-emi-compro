@@ -11,4 +11,8 @@ export class LanguageRepository {
   findById(id: number) {
     return prisma.language.findUnique({ where: { id } });
   }
+
+  findByAbbreviation(abbreviatedLanguage: string) {
+    return prisma.language.findUnique({ where: { abbreviatedLanguage } });
+  }
 }

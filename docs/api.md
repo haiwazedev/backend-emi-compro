@@ -393,11 +393,46 @@ Invalid combinations, data fields, sort order, duplicate rows, or media
 references return `400 Bad Request`. Missing authentication returns `401
 Unauthorized`; a missing or disallowed request origin returns `403 Forbidden`.
 
+## Languages
+
+`GET /languages` is public and returns the active languages, ordered by `id`.
+Inactive languages are omitted and cannot receive article content.
+
+```json
+{
+  "languages": [
+    {
+      "id": 1,
+      "language": "Bahasa Indonesia",
+      "abbreviated_language": "ID",
+      "flag": "🇮🇩",
+      "is_active": true
+    },
+    {
+      "id": 2,
+      "language": "English",
+      "abbreviated_language": "EN",
+      "flag": "🇬🇧",
+      "is_active": true
+    }
+  ]
+}
+```
+
 ## Articles
 
 Article reads are public. Creating, updating, and deleting articles require an
 authenticated session. State-changing requests must include the configured
 frontend `Origin` or `Referer` as described under [Browser Sessions](#browser-sessions).
+
+An article is a shared header (category, dates, photo, contact person) plus at
+most one content row per language in `contents`. Title, slug, summary, content,
+and status belong to a language. Slugs are unique per language.
+
+Each content has a server-computed `read_time` in whole minutes: the visible
+characters of `content` (HTML tags removed, whitespace collapsed) divided by
+1000 characters per minute, rounded up, minimum `1`. It is recalculated on every
+save and cannot be sent in requests.
 
 ### List articles
 
@@ -407,18 +442,25 @@ Returns a page of articles with their related category and primary photo media.
 Results are sorted by `created_at` descending by default, with `id` as a stable
 tie-breaker.
 
-| Query parameter       | Type   | Rules                                                   |
-| --------------------- | ------ | ------------------------------------------------------- |
-| `page`                | number | Optional, 1-based; default `1`.                         |
-| `limit`               | number | Optional; default `20`, minimum `1`, maximum `100`.     |
-| `search`              | string | Optional, case-insensitive substring search in `title`. |
-| `article_category_id` | number | Optional positive category ID filter.                   |
-| `status`              | string | Optional; `DRAFT` or `PUBLISHED`.                       |
-| `sort_by`             | string | Optional; must be `created_at`, default `created_at`.   |
-| `sort_order`          | string | Optional; `asc` or `desc`, default `desc`.              |
+| Query parameter       | Type   | Rules                                                                     |
+| --------------------- | ------ | ------------------------------------------------------------------------- |
+| `page`                | number | Optional, 1-based; default `1`.                                           |
+| `limit`               | number | Optional; default `20`, minimum `1`, maximum `100`.                       |
+| `search`              | string | Optional, case-insensitive substring search in a content `title`.         |
+| `article_category_id` | number | Optional positive category ID filter.                                     |
+| `language_id`         | number | Optional; only articles with content in this language, shown in it.       |
+| `status`              | string | Optional; `DRAFT` or `PUBLISHED`; matches a content row with this status. |
+| `sort_by`             | string | Optional; must be `created_at`, default `created_at`.                     |
+| `sort_order`          | string | Optional; `asc` or `desc`, default `desc`.                                |
 
-Provided filters are combined using AND. Invalid query values return `400 Bad
+Provided filters are combined using AND. `search`, `language_id`, and `status`
+must all match the same content row. Invalid query values return `400 Bad
 Request`.
+
+`title`, `slug`, `summary`, `status`, `read_time`, and `language_id` on each item come from
+the `language_id` content when that query is set, otherwise from the content
+with the lowest language ID. `languages` lists every active language with that
+language's content status, or `null` when the article has no content in it.
 
 ```json
 {
@@ -426,10 +468,6 @@ Request`.
     {
       "id": 12,
       "article_category_id": 3,
-      "title": "New service center opens",
-      "slug": "new-service-center-opens",
-      "summary": "A short summary.",
-      "content": "Full article content.",
       "issue_date": "2026-10-10",
       "press_release_number": null,
       "primary_photo": 18,
@@ -438,7 +476,6 @@ Request`.
       "cp_role": null,
       "cp_phone_number": null,
       "cp_email": null,
-      "status": "DRAFT",
       "created_at": "2026-10-10T10:30:00.000Z",
       "created_by": "Ari Putra",
       "updated_at": null,
@@ -447,7 +484,21 @@ Request`.
         "id": 3,
         "name": "Company News",
         "slug": "company-news"
-      }
+      },
+      "language_id": 1,
+      "title": "Kantor layanan baru dibuka",
+      "slug": "kantor-layanan-baru-dibuka",
+      "summary": "Ringkasan singkat.",
+      "status": "PUBLISHED",
+      "read_time": 1,
+      "languages": [
+        {
+          "language_id": 1,
+          "abbreviated_language": "ID",
+          "status": "PUBLISHED"
+        },
+        { "language_id": 2, "abbreviated_language": "EN", "status": null }
+      ]
     }
   ],
   "pagination": {
@@ -461,23 +512,29 @@ Request`.
 
 ### Get, create, update, and delete an article
 
-- `GET /articles/:articleId` returns `{ "article": ... }` with `200 OK`.
-- `POST /articles` creates an article and returns `{ "article": ... }` with
-  `201 Created`.
-- `PUT /articles/:articleId` partially updates an article and returns
-  `{ "article": ... }` with `200 OK`. Omitted fields remain unchanged. Send
-  `null` for `primary_photo` to clear its media relation.
-- `DELETE /articles/:articleId` deletes an article and returns `204 No Content`.
+- `GET /articles/:articleId` returns `{ "article": ... }` with `200 OK`. The
+  article has the shared header fields and every language's content in
+  `contents`, ordered by `language_id`.
+- `POST /articles` creates the article header and its first language content,
+  then returns `{ "article": ... }` with `201 Created`.
+- `PUT /articles/:articleId` updates the shared fields that are sent and
+  creates or replaces the content for `language_id`, then returns
+  `{ "article": ... }` with `200 OK`. Omitted shared fields remain unchanged.
+  Send `null` for `primary_photo` to clear its media relation.
+- `DELETE /articles/:articleId` deletes an article and all of its contents and
+  returns `204 No Content`.
 
-Article POST and PUT bodies use JSON.
+Article POST and PUT bodies use JSON. Each request writes one language.
 
 | Field                  | Type           | Rules                                                               |
 | ---------------------- | -------------- | ------------------------------------------------------------------- |
+| `language_id`          | number         | Required; ID of an active language.                                 |
+| `title`                | string         | Required; maximum 120 characters.                                   |
+| `slug`                 | string         | Required; maximum 255 characters; unique within the language.       |
+| `summary`              | string         | Required.                                                           |
+| `content`              | string         | Required.                                                           |
+| `status`               | string         | Required; `DRAFT` or `PUBLISHED`; applies to this language only.    |
 | `article_category_id`  | number         | Required on create; positive ID of an existing category.            |
-| `title`                | string         | Required on create; maximum 120 characters.                         |
-| `slug`                 | string         | Required on create; maximum 255 characters; unique.                 |
-| `summary`              | string         | Required on create.                                                 |
-| `content`              | string         | Required on create.                                                 |
 | `primary_photo`        | number or null | Picture media ID; required on create; optional or `null` on update. |
 | `issue_date`           | date or null   | Optional; `YYYY-MM-DD`.                                             |
 | `press_release_number` | string or null | Optional; maximum 255 characters.                                   |
@@ -485,7 +542,6 @@ Article POST and PUT bodies use JSON.
 | `cp_role`              | string or null | Optional; maximum 100 characters.                                   |
 | `cp_phone_number`      | string or null | Optional; maximum 100 characters.                                   |
 | `cp_email`             | string or null | Optional; maximum 100 characters.                                   |
-| `status`               | string         | Optional; `DRAFT` or `PUBLISHED`; defaults to `DRAFT`.              |
 
 The referenced media record must exist and have type `PICTURE`. Article
 responses include its ID in `primary_photo` and its public path in
@@ -493,9 +549,55 @@ responses include its ID in `primary_photo` and its public path in
 including after the media record is deleted.
 
 On create, omitted nullable text/date fields are stored as `null`. On update,
-omit a field to keep its current value; send `null` to clear nullable fields.
-The authenticated user's name is stored in `created_by`; updates set
-`updated_by` and `updated_at`.
+omit a shared field to keep its current value; send `null` to clear nullable
+fields. The authenticated user's name is stored in `created_by` on the article
+and on new content; updates set `updated_by` and `updated_at` on the article and
+on the content being replaced.
+
+Article detail response:
+
+```json
+{
+  "article": {
+    "id": 12,
+    "article_category_id": 3,
+    "issue_date": "2026-10-10",
+    "press_release_number": null,
+    "primary_photo": 18,
+    "primary_photo_url": "/public/media/company-news.jpg",
+    "cp_name": null,
+    "cp_role": null,
+    "cp_phone_number": null,
+    "cp_email": null,
+    "created_at": "2026-10-10T10:30:00.000Z",
+    "created_by": "Ari Putra",
+    "updated_at": null,
+    "updated_by": null,
+    "article_category": {
+      "id": 3,
+      "name": "Company News",
+      "slug": "company-news"
+    },
+    "contents": [
+      {
+        "id": 40,
+        "language_id": 1,
+        "abbreviated_language": "ID",
+        "title": "Kantor layanan baru dibuka",
+        "slug": "kantor-layanan-baru-dibuka",
+        "summary": "Ringkasan singkat.",
+        "content": "Isi artikel lengkap.",
+        "status": "PUBLISHED",
+        "read_time": 1,
+        "created_at": "2026-10-10T10:30:00.000Z",
+        "created_by": "Ari Putra",
+        "updated_at": null,
+        "updated_by": null
+      }
+    ]
+  }
+}
+```
 
 Example request:
 
@@ -506,10 +608,12 @@ const response = await fetch(`${API_BASE_URL}/articles`, {
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
     article_category_id: 3,
-    title: 'New service center opens',
-    slug: 'new-service-center-opens',
-    summary: 'A short summary.',
-    content: 'Full article content.',
+    language_id: 1,
+    title: 'Kantor layanan baru dibuka',
+    slug: 'kantor-layanan-baru-dibuka',
+    summary: 'Ringkasan singkat.',
+    content: 'Isi artikel lengkap.',
+    status: 'DRAFT',
     issue_date: '2026-10-10',
     primary_photo: 18,
   }),
@@ -1328,10 +1432,177 @@ const response = await fetch(`${API_BASE_URL}/inboxes?page=1&search=budi`, {
 const { inboxes, pagination } = await response.json();
 ```
 
+## Site Settings
+
+Site settings hold the company identity, contact details, and social media
+links shown in the landing page navbar, footer, and "Hubungi Kami" page. There
+is a single settings record (`id` is always `1`).
+
+- `GET /site_settings` is public and returns `{ "site_settings": ... }` with
+  `200 OK`, or `{ "site_settings": null }` before the first save. Signed-in
+  users receive every social media item; everyone else receives only
+  `PUBLISHED` items.
+- `PUT /site_settings` requires an authenticated session and the configured
+  frontend `Origin` or `Referer`. It creates or replaces the settings and the
+  whole social media list, and returns `{ "site_settings": ... }` with
+  `200 OK`.
+
+`PUT /site_settings` uses `multipart/form-data`:
+
+| Field            | Type        | Rules                                                                                 |
+| ---------------- | ----------- | ------------------------------------------------------------------------------------- |
+| `data`           | JSON string | Required; the settings payload below.                                                 |
+| `danantara_logo` | file        | Optional; PNG, JPG, JPEG, WEBP, or SVG; maximum 2 MiB. Omit to keep the current logo. |
+| `pln_logo`       | file        | Optional; same rules as `danantara_logo`.                                             |
+| `social_icons`   | file[]      | Optional; SVG only; maximum 1 MiB each; up to 20. Each must be referenced by an item. |
+
+The `data` payload:
+
+| Field                     | Type           | Rules                                                       |
+| ------------------------- | -------------- | ----------------------------------------------------------- |
+| `company_name`            | string         | Required; trimmed; 1–200 characters.                        |
+| `company_short_name`      | string \| null | Optional; up to 50 characters; blank is `null`.             |
+| `company_address`         | string         | Required; trimmed; 1–500 characters.                        |
+| `company_phone_number`    | string \| null | Optional; up to 30 characters; blank is `null`.             |
+| `company_whatsapp_number` | string \| null | Optional; up to 30 characters; blank is `null`.             |
+| `main_email`              | string \| null | Optional; valid email; blank is `null`.                     |
+| `marketing_email`         | string \| null | Optional; valid email; blank is `null`.                     |
+| `operational_day`         | string \| null | Optional; up to 100 characters, e.g. `"Senin - Jumat"`.     |
+| `operational_start_time`  | string \| null | Optional; `HH:mm`. Must be sent together with the end time. |
+| `operational_end_time`    | string \| null | Optional; `HH:mm`; must be after the start time.            |
+| `social_medias`           | array          | Required (may be empty); up to 20 items, in display order.  |
+
+Each `social_medias` item:
+
+| Field                          | Type    | Rules                                                                                  |
+| ------------------------------ | ------- | -------------------------------------------------------------------------------------- |
+| `id`                           | integer | Omit to create a new item; send an existing ID to update it.                           |
+| `platform_name`                | string  | Required; trimmed; 1–50 characters.                                                    |
+| `platform_url_or_account_name` | string  | Required; trimmed; 1–255 characters.                                                   |
+| `status`                       | string  | `DRAFT` (hidden on the landing page) or `PUBLISHED`.                                   |
+| `icon_index`                   | integer | Optional; index into the uploaded `social_icons` files. Omit to keep the current icon. |
+
+The list is synced to the request: existing items missing from
+`social_medias` are deleted with their icon files, and `sort_order` follows the
+array position starting at 1. Replaced logos and icons are removed after the
+save succeeds.
+
+Uploaded SVG files are sanitized: scripts, event handlers, `foreignObject`, and
+`javascript:` links are removed, and a file with no valid `<svg>` left returns
+`400 Bad Request`. Logos are stored at `/public/site-logo-{name}-{timestamp}.{extension}`
+and icons at `/public/site-social-medias/site-social-media-{name}-{timestamp}.svg`.
+`*_metadata` is the pixel `width` and `height` for raster images and `{}` for
+SVG.
+
+Example browser request:
+
+```js
+const formData = new FormData();
+formData.append(
+  'data',
+  JSON.stringify({
+    company_name: 'PT Energy Management Indonesia (Persero)',
+    company_short_name: 'PLN EMI',
+    company_address: 'Menara Sentraya Lt. 17, Jakarta Selatan 12160',
+    company_phone_number: '021-27881925',
+    company_whatsapp_number: '0821-1779-291',
+    main_email: 'emi@pln.co.id',
+    marketing_email: 'pemasaran@emipersero.co.id',
+    operational_day: 'Senin - Jumat',
+    operational_start_time: '08:00',
+    operational_end_time: '17:00',
+    social_medias: [
+      {
+        id: 1,
+        platform_name: 'Instagram',
+        platform_url_or_account_name: '@ptemi_id',
+        status: 'PUBLISHED',
+      },
+      {
+        platform_name: 'YouTube',
+        platform_url_or_account_name: '@EnergyManagementIndonesia',
+        status: 'PUBLISHED',
+        icon_index: 0,
+      },
+    ],
+  }),
+);
+formData.append('pln_logo', plnLogoFile);
+formData.append('social_icons', youtubeIconFile);
+
+const response = await fetch(`${API_BASE_URL}/site_settings`, {
+  method: 'PUT',
+  credentials: 'include',
+  body: formData,
+});
+
+const data = await response.json();
+if (!response.ok) throw new Error(data.message);
+```
+
+The response shape is:
+
+```json
+{
+  "site_settings": {
+    "id": 1,
+    "company_name": "PT Energy Management Indonesia (Persero)",
+    "company_short_name": "PLN EMI",
+    "danantara_logo_filename": null,
+    "danantara_logo_filepath": null,
+    "danantara_logo_extension": null,
+    "danantara_logo_size": null,
+    "danantara_logo_metadata": null,
+    "pln_logo_filename": "site-logo-pln-emi-1792136400000.svg",
+    "pln_logo_filepath": "/public/site-logo-pln-emi-1792136400000.svg",
+    "pln_logo_extension": "svg",
+    "pln_logo_size": 6,
+    "pln_logo_metadata": {},
+    "company_address": "Menara Sentraya Lt. 17, Jakarta Selatan 12160",
+    "company_phone_number": "021-27881925",
+    "company_whatsapp_number": "0821-1779-291",
+    "main_email": "emi@pln.co.id",
+    "marketing_email": "pemasaran@emipersero.co.id",
+    "operational_day": "Senin - Jumat",
+    "operational_start_time": "08:00",
+    "operational_end_time": "17:00",
+    "social_medias": [
+      {
+        "id": 2,
+        "platform_name": "YouTube",
+        "platform_url_or_account_name": "@EnergyManagementIndonesia",
+        "icon_filename": "site-social-media-youtube-1792136400001.svg",
+        "icon_filepath": "/public/site-social-medias/site-social-media-youtube-1792136400001.svg",
+        "icon_extension": "svg",
+        "icon_size": 1,
+        "icon_metadata": {},
+        "status": "PUBLISHED",
+        "sort_order": 1,
+        "created_at": "2026-10-16T10:30:00.000Z",
+        "created_by": "Ari Putra",
+        "updated_at": null,
+        "updated_by": null
+      }
+    ],
+    "created_at": "2026-10-16T10:30:00.000Z",
+    "created_by": "Ari Putra",
+    "updated_at": null,
+    "updated_by": null
+  }
+}
+```
+
+Invalid fields, files, or `icon_index` references return `400 Bad Request`; an
+unknown social media `id` returns `404 Not Found`; files over their size limit
+return `413 Payload Too Large`.
+
 ## Public Static Assets
 
 Files in the project `public/` directory are served without authentication at
-the matching `/public/*` path and allow cross-origin reads. For example,
+the matching `/public/*` path and allow cross-origin reads. SVG files are
+served with `Content-Security-Policy: default-src 'none'; style-src
+'unsafe-inline'; sandbox` and `X-Content-Type-Options: nosniff`, so an SVG
+opened directly cannot run scripts. For example,
 `public/media/company-news.jpg` is available at
 `http://localhost:8000/public/media/company-news.jpg`. A document commitment
 PDF such as `public/document_commitment/board-decision-2026-10.pdf` is
@@ -1343,14 +1614,14 @@ available at
 
 ## Article, Category, Media, and Document Commitment Errors
 
-| Status                  | Description                                                                    |
-| ----------------------- | ------------------------------------------------------------------------------ |
-| `400 Bad Request`       | Invalid ID, body or query value, category or media reference, or uploaded PDF. |
-| `401 Unauthorized`      | A write request does not have a valid session.                                 |
-| `403 Forbidden`         | A write request has a missing or disallowed `Origin`/`Referer`.                |
-| `404 Not Found`         | The requested article, category, media, or document commitment does not exist. |
-| `409 Conflict`          | Article/category slug, media filename, or document filename is already in use. |
-| `413 Payload Too Large` | An uploaded file exceeds the limit for its media type or document commitment.  |
+| Status                  | Description                                                                                         |
+| ----------------------- | --------------------------------------------------------------------------------------------------- |
+| `400 Bad Request`       | Invalid ID, body or query value, category, media or language reference, or uploaded PDF.            |
+| `401 Unauthorized`      | A write request does not have a valid session.                                                      |
+| `403 Forbidden`         | A write request has a missing or disallowed `Origin`/`Referer`.                                     |
+| `404 Not Found`         | The requested article, category, media, or document commitment does not exist.                      |
+| `409 Conflict`          | Article slug (per language), category slug, media filename, or document filename is already in use. |
+| `413 Payload Too Large` | An uploaded file exceeds the limit for its media type or document commitment.                       |
 
 ## Health Check
 

@@ -2,7 +2,10 @@ import type { Request, Response } from 'express';
 import { ApiError } from '../../../shared/errors/api-error.js';
 import { parseIdParam } from '../../../shared/schemas/common.schema.js';
 import { ArticleService } from '../services/article.service.js';
-import { presentArticle } from '../presenters/article.presenter.js';
+import {
+  presentArticle,
+  presentArticleListItem,
+} from '../presenters/article.presenter.js';
 import type {
   ArticleListQuery,
   CreateArticleInput,
@@ -17,7 +20,9 @@ export class ArticleController {
     const result = await this.service.list(query);
 
     res.status(200).json({
-      articles: result.articles.map(presentArticle),
+      articles: result.articles.map((article) =>
+        presentArticleListItem(article, result.languages, query.language_id),
+      ),
       pagination: result.pagination,
     });
   };

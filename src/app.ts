@@ -13,8 +13,10 @@ import { documentCommitmentRouter } from './module/document_commitment/routes/do
 import { divisionRouter } from './module/division/routes/division.routes.js';
 import { faqRouter } from './module/faq/routes/faq.routes.js';
 import { inboxRouter } from './module/inbox/routes/inbox.routes.js';
+import { languageRouter } from './module/language/routes/language.routes.js';
 import { mediaRouter } from './module/media/routes/media.routes.js';
 import { serviceRouter } from './module/service/routes/service.routes.js';
+import { siteSettingRouter } from './module/site_setting/routes/site-setting.routes.js';
 import { frontendOrigin } from './shared/config/session.js';
 import { redisClient, connectRedis } from './shared/db/redis.js';
 import { sessionMiddleware } from './shared/middlewares/session.middleware.js';
@@ -27,7 +29,18 @@ const PORT = process.env.PORT || 8000;
 app.use(
   '/public',
   cors(),
-  express.static(path.resolve(process.cwd(), 'public')),
+  express.static(path.resolve(process.cwd(), 'public'), {
+    setHeaders: (res, filePath) => {
+      if (path.extname(filePath).toLowerCase() !== '.svg') return;
+
+      // Second layer after upload sanitizing: SVG opened directly cannot run scripts.
+      res.setHeader(
+        'Content-Security-Policy',
+        "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+      );
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+    },
+  }),
 );
 app.use(cors({ origin: frontendOrigin, credentials: true }));
 app.use(express.json());
@@ -35,6 +48,7 @@ app.use(sessionMiddleware);
 app.use(validateRequestOrigin);
 app.use('/auth', authRouter);
 app.use(boardMemberRouter);
+app.use(languageRouter);
 app.use(articleRouter);
 app.use(articleCategoryRouter);
 app.use(mediaRouter);
@@ -46,6 +60,7 @@ app.use(serviceRouter);
 app.use(faqRouter);
 app.use(clientRouter);
 app.use(inboxRouter);
+app.use(siteSettingRouter);
 
 app.get('/health', (req: Request, res: Response) => {
   res.send({ message: 'OK' });

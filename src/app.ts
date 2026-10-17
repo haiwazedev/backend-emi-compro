@@ -1,13 +1,14 @@
-import 'dotenv/config';
 import cors from 'cors';
+import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import path from 'node:path';
-import { articleRouter } from './module/article/routes/article.routes.js';
 import { articleCategoryRouter } from './module/article/routes/article-category.routes.js';
+import { articleRouter } from './module/article/routes/article.routes.js';
 import { authRouter } from './module/auth/auth.routes.js';
-import { clientRouter } from './module/client/routes/client.routes.js';
 import { boardMemberRouter } from './module/board_member/routes/board-member.routes.js';
+import { clientRouter } from './module/client/routes/client.routes.js';
 import { contentRouter } from './module/content/routes/content.routes.js';
+import { divisionRouter } from './module/division/routes/division.routes.js';
 import { documentCommitmentCategoryRouter } from './module/document_commitment/routes/document-commitment-category.routes.js';
 import { documentCommitmentRouter } from './module/document_commitment/routes/document-commitment.routes.js';
 import { divisionRouter } from './module/division/routes/division.routes.js';
@@ -19,13 +20,15 @@ import { mediaRouter } from './module/media/routes/media.routes.js';
 import { serviceRouter } from './module/service/routes/service.routes.js';
 import { siteSettingRouter } from './module/site_setting/routes/site-setting.routes.js';
 import { frontendOrigin } from './shared/config/session.js';
-import { redisClient, connectRedis } from './shared/db/redis.js';
-import { sessionMiddleware } from './shared/middlewares/session.middleware.js';
+import { connectRedis, redisClient } from './shared/db/redis.js';
 import { validateRequestOrigin } from './shared/middlewares/csrf.middleware.js';
 import { errorHandler } from './shared/middlewares/error.middleware.js';
+import { sessionMiddleware } from './shared/middlewares/session.middleware.js';
 
 const app = express();
 const PORT = process.env.PORT || 8000;
+
+app.set('trust proxy', 1);
 
 app.use(
   '/public',

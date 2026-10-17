@@ -18,7 +18,7 @@ export function presentArticle(article: ArticleWithContents) {
 export function presentArticleListItem(
   article: ArticleWithContents,
   languages: Language[],
-  languageId?: number,
+  languageId?: string,
 ) {
   const content = languageId
     ? article.contents.find((item) => item.languageId === languageId)
@@ -34,7 +34,6 @@ export function presentArticleListItem(
     read_time: content?.readTime ?? null,
     languages: languages.map((language) => ({
       language_id: language.id,
-      abbreviated_language: language.abbreviatedLanguage,
       status:
         article.contents.find((item) => item.languageId === language.id)
           ?.status ?? null,
@@ -70,7 +69,6 @@ function presentArticleContent(content: ArticleContentWithLanguage) {
   return {
     id: content.id,
     language_id: content.languageId,
-    abbreviated_language: content.language.abbreviatedLanguage,
     title: content.title,
     slug: content.slug,
     summary: content.summary,

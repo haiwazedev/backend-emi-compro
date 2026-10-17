@@ -405,24 +405,29 @@ Unauthorized`; a missing or disallowed request origin returns `403 Forbidden`.
 
 ## Languages
 
-`GET /languages` is public and returns the active languages, ordered by `id`.
+`GET /languages` is public and returns the active languages, ordered by `sort_order`, then `id`.
+Every language list in the API (article `contents`, article list `languages`)
+uses the same order.
 Inactive languages are omitted and cannot receive article content.
+
+A language `id` is its lowercase code (`id`, `en`). Every `language_id` input
+is case-insensitive and normalized to lowercase, so `ID` and `id` are the same.
 
 ```json
 {
   "languages": [
     {
-      "id": 1,
+      "id": "id",
       "language": "Bahasa Indonesia",
-      "abbreviated_language": "ID",
       "flag": "🇮🇩",
+      "sort_order": 1,
       "is_active": true
     },
     {
-      "id": 2,
+      "id": "en",
       "language": "English",
-      "abbreviated_language": "EN",
       "flag": "🇬🇧",
+      "sort_order": 2,
       "is_active": true
     }
   ]
@@ -458,7 +463,7 @@ tie-breaker.
 | `limit`               | number | Optional; default `20`, minimum `1`, maximum `100`.                       |
 | `search`              | string | Optional, case-insensitive substring search in a content `title`.         |
 | `article_category_id` | number | Optional positive category ID filter.                                     |
-| `language_id`         | number | Optional; only articles with content in this language, shown in it.       |
+| `language_id`         | string | Optional; only articles with content in this language, shown in it.       |
 | `status`              | string | Optional; `DRAFT` or `PUBLISHED`; matches a content row with this status. |
 | `sort_by`             | string | Optional; must be `created_at`, default `created_at`.                     |
 | `sort_order`          | string | Optional; `asc` or `desc`, default `desc`.                                |
@@ -469,7 +474,7 @@ Request`.
 
 `title`, `slug`, `summary`, `status`, `read_time`, and `language_id` on each item come from
 the `language_id` content when that query is set, otherwise from the content
-with the lowest language ID. `languages` lists every active language with that
+with the first language by `sort_order`, then `id`. `languages` lists every active language with that
 language's content status, or `null` when the article has no content in it.
 
 ```json
@@ -495,19 +500,15 @@ language's content status, or `null` when the article has no content in it.
         "name": "Company News",
         "slug": "company-news"
       },
-      "language_id": 1,
+      "language_id": "id",
       "title": "Kantor layanan baru dibuka",
       "slug": "kantor-layanan-baru-dibuka",
       "summary": "Ringkasan singkat.",
       "status": "PUBLISHED",
       "read_time": 1,
       "languages": [
-        {
-          "language_id": 1,
-          "abbreviated_language": "ID",
-          "status": "PUBLISHED"
-        },
-        { "language_id": 2, "abbreviated_language": "EN", "status": null }
+        { "language_id": "id", "status": "PUBLISHED" },
+        { "language_id": "en", "status": null }
       ]
     }
   ],
@@ -524,7 +525,7 @@ language's content status, or `null` when the article has no content in it.
 
 - `GET /articles/:articleId` returns `{ "article": ... }` with `200 OK`. The
   article has the shared header fields and every language's content in
-  `contents`, ordered by `language_id`.
+  `contents`, ordered by language `sort_order`, then `language_id`.
 - `POST /articles` creates the article header and its first language content,
   then returns `{ "article": ... }` with `201 Created`.
 - `PUT /articles/:articleId` updates the shared fields that are sent and
@@ -538,7 +539,7 @@ Article POST and PUT bodies use JSON. Each request writes one language.
 
 | Field                  | Type           | Rules                                                               |
 | ---------------------- | -------------- | ------------------------------------------------------------------- |
-| `language_id`          | number         | Required; ID of an active language.                                 |
+| `language_id`          | string         | Required; ID of an active language.                                 |
 | `title`                | string         | Required; maximum 120 characters.                                   |
 | `slug`                 | string         | Required; maximum 255 characters; unique within the language.       |
 | `summary`              | string         | Required.                                                           |
@@ -591,8 +592,7 @@ Article detail response:
     "contents": [
       {
         "id": 40,
-        "language_id": 1,
-        "abbreviated_language": "ID",
+        "language_id": "id",
         "title": "Kantor layanan baru dibuka",
         "slug": "kantor-layanan-baru-dibuka",
         "summary": "Ringkasan singkat.",
@@ -618,7 +618,7 @@ const response = await fetch(`${API_BASE_URL}/articles`, {
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
     article_category_id: 3,
-    language_id: 1,
+    language_id: 'id',
     title: 'Kantor layanan baru dibuka',
     slug: 'kantor-layanan-baru-dibuka',
     summary: 'Ringkasan singkat.',
@@ -1453,9 +1453,9 @@ In the response, a configured key is a string (`""` until a value is saved)
 and a key with no row for that language is `null`. The CMS disables inputs
 whose key is `null`.
 
-- `GET /site_settings?language_id=1` is public and returns
+- `GET /site_settings?language_id=id` is public and returns
   `{ "site_settings": ... }` with `200 OK`. `language_id` is optional and
-  defaults to Bahasa Indonesia (`ID`); an unknown or inactive language returns
+  defaults to Bahasa Indonesia (`id`); an unknown or inactive language returns
   `400 Bad Request`. Signed-in users receive every social media item; everyone
   else receives only `PUBLISHED` items.
 - `PUT /site_settings` requires an authenticated session and the configured
@@ -1476,7 +1476,7 @@ The `data` payload:
 
 | Field                     | Type           | Rules                                                         |
 | ------------------------- | -------------- | ------------------------------------------------------------- |
-| `language_id`             | number         | Required; ID of an active language.                           |
+| `language_id`             | string         | Required; ID of an active language.                           |
 | `company_name`            | string         | Required; trimmed; 1–200 characters.                          |
 | `company_short_name`      | string \| null | Optional; up to 50 characters; blank is `null`.               |
 | `company_address`         | string         | Required; trimmed; 1–500 characters.                          |
@@ -1526,7 +1526,7 @@ const formData = new FormData();
 formData.append(
   'data',
   JSON.stringify({
-    language_id: 1,
+    language_id: 'id',
     company_name: 'PT Energy Management Indonesia (Persero)',
     company_short_name: 'PLN EMI',
     company_address: 'Menara Sentraya Lt. 17, Jakarta Selatan 12160',
@@ -1571,7 +1571,7 @@ The response shape is:
 ```json
 {
   "site_settings": {
-    "language_id": 1,
+    "language_id": "id",
     "company_name": "PT Energy Management Indonesia (Persero)",
     "company_short_name": "PLN EMI",
     "danantara_logo_filepath": "",

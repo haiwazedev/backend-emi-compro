@@ -5,7 +5,10 @@ import type { ArticleListQuery } from '../schemas/article.schema.js';
 export const articleInclude = {
   articleCategory: true,
   primaryPhotoMedia: true,
-  contents: { include: { language: true }, orderBy: { languageId: 'asc' } },
+  contents: {
+    include: { language: true },
+    orderBy: [{ language: { sortOrder: 'asc' } }, { languageId: 'asc' }],
+  },
 } satisfies Prisma.ArticleInclude;
 
 type ArticleContentData = Omit<
@@ -38,7 +41,7 @@ export class ArticleRepository {
     });
   }
 
-  findContentBySlug(languageId: number, slug: string) {
+  findContentBySlug(languageId: string, slug: string) {
     return prisma.articleContent.findUnique({
       where: { languageId_slug: { languageId, slug } },
       select: { articleId: true },

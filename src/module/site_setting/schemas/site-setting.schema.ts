@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { languageIdSchema } from '../../../shared/schemas/common.schema.js';
 
 export const MAX_SOCIAL_MEDIAS = 20;
 
@@ -36,7 +37,7 @@ const socialMediaSchema = z
 
 export const saveSiteSettingBodySchema = z
   .object({
-    language_id: z.number().int().positive(),
+    language_id: languageIdSchema,
     company_name: z.string().trim().min(1).max(200),
     company_short_name: optionalText(50),
     company_address: z.string().trim().min(1).max(500),
@@ -58,7 +59,7 @@ export const saveSiteSettingBodySchema = z
   );
 
 export const siteSettingQuerySchema = z
-  .object({ language_id: z.coerce.number().int().positive().optional() })
+  .object({ language_id: languageIdSchema.optional() })
   .strict();
 
 export type SaveSiteSettingInput = z.infer<typeof saveSiteSettingBodySchema>;

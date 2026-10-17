@@ -54,14 +54,6 @@ export const saveSiteSettingBodySchema = z
       Boolean(body.operational_start_time) ===
       Boolean(body.operational_end_time),
     { message: 'Operational start and end time must be filled together.' },
-  )
-  // "HH:mm" strings compare correctly as text.
-  .refine(
-    (body) =>
-      !body.operational_start_time ||
-      !body.operational_end_time ||
-      body.operational_end_time > body.operational_start_time,
-    { message: 'Operational end time must be after the start time.' },
   );
 
 export type SaveSiteSettingInput = z.infer<typeof saveSiteSettingBodySchema>;

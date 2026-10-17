@@ -1354,19 +1354,19 @@ is a single settings record (`id` is always `1`).
 
 The `data` payload:
 
-| Field                     | Type           | Rules                                                       |
-| ------------------------- | -------------- | ----------------------------------------------------------- |
-| `company_name`            | string         | Required; trimmed; 1–200 characters.                        |
-| `company_short_name`      | string \| null | Optional; up to 50 characters; blank is `null`.             |
-| `company_address`         | string         | Required; trimmed; 1–500 characters.                        |
-| `company_phone_number`    | string \| null | Optional; up to 30 characters; blank is `null`.             |
-| `company_whatsapp_number` | string \| null | Optional; up to 30 characters; blank is `null`.             |
-| `main_email`              | string \| null | Optional; valid email; blank is `null`.                     |
-| `marketing_email`         | string \| null | Optional; valid email; blank is `null`.                     |
-| `operational_day`         | string \| null | Optional; up to 100 characters, e.g. `"Senin - Jumat"`.     |
-| `operational_start_time`  | string \| null | Optional; `HH:mm`. Must be sent together with the end time. |
-| `operational_end_time`    | string \| null | Optional; `HH:mm`; must be after the start time.            |
-| `social_medias`           | array          | Required (may be empty); up to 20 items, in display order.  |
+| Field                     | Type           | Rules                                                         |
+| ------------------------- | -------------- | ------------------------------------------------------------- |
+| `company_name`            | string         | Required; trimmed; 1–200 characters.                          |
+| `company_short_name`      | string \| null | Optional; up to 50 characters; blank is `null`.               |
+| `company_address`         | string         | Required; trimmed; 1–500 characters.                          |
+| `company_phone_number`    | string \| null | Optional; up to 30 characters; blank is `null`.               |
+| `company_whatsapp_number` | string \| null | Optional; up to 30 characters; blank is `null`.               |
+| `main_email`              | string \| null | Optional; valid email; blank is `null`.                       |
+| `marketing_email`         | string \| null | Optional; valid email; blank is `null`.                       |
+| `operational_day`         | string \| null | Optional; up to 100 characters, e.g. `"Senin - Jumat"`.       |
+| `operational_start_time`  | string \| null | Optional; `HH:mm`. Must be sent together with the end time.   |
+| `operational_end_time`    | string \| null | Optional; `HH:mm`. Must be sent together with the start time. |
+| `social_medias`           | array          | Required (may be empty); up to 20 items, in display order.    |
 
 Each `social_medias` item:
 

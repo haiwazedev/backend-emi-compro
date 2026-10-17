@@ -23,6 +23,16 @@ random session secret of at least 32 bytes. The configured frontend origin must
 be an exact HTTP or HTTPS origin, such as `http://localhost:3000`. The server
 does not start if it cannot connect to Redis.
 
+## Swagger
+
+Interactive API documentation is served at `GET /documentation`, and the raw
+OpenAPI 3.1 document at `GET /documentation/openapi.json`. Request bodies and
+query parameters are generated from the server validation schemas. Response
+shapes and examples are documented in this file.
+
+"Try it out" works for public `GET` routes. Write routes reject requests whose
+origin is not `FRONTEND_ORIGIN`, so call them from the frontend instead.
+
 ## Browser Sessions
 
 Registration and login create a server-side session in Redis and set the
@@ -393,11 +403,46 @@ Invalid combinations, data fields, sort order, duplicate rows, or media
 references return `400 Bad Request`. Missing authentication returns `401
 Unauthorized`; a missing or disallowed request origin returns `403 Forbidden`.
 
+## Languages
+
+`GET /languages` is public and returns the active languages, ordered by `id`.
+Inactive languages are omitted and cannot receive article content.
+
+```json
+{
+  "languages": [
+    {
+      "id": 1,
+      "language": "Bahasa Indonesia",
+      "abbreviated_language": "ID",
+      "flag": "🇮🇩",
+      "is_active": true
+    },
+    {
+      "id": 2,
+      "language": "English",
+      "abbreviated_language": "EN",
+      "flag": "🇬🇧",
+      "is_active": true
+    }
+  ]
+}
+```
+
 ## Articles
 
 Article reads are public. Creating, updating, and deleting articles require an
 authenticated session. State-changing requests must include the configured
 frontend `Origin` or `Referer` as described under [Browser Sessions](#browser-sessions).
+
+An article is a shared header (category, dates, photo, contact person) plus at
+most one content row per language in `contents`. Title, slug, summary, content,
+and status belong to a language. Slugs are unique per language.
+
+Each content has a server-computed `read_time` in whole minutes: the visible
+characters of `content` (HTML tags removed, whitespace collapsed) divided by
+1000 characters per minute, rounded up, minimum `1`. It is recalculated on every
+save and cannot be sent in requests.
 
 ### List articles
 
@@ -407,18 +452,25 @@ Returns a page of articles with their related category and primary photo media.
 Results are sorted by `created_at` descending by default, with `id` as a stable
 tie-breaker.
 
-| Query parameter       | Type   | Rules                                                   |
-| --------------------- | ------ | ------------------------------------------------------- |
-| `page`                | number | Optional, 1-based; default `1`.                         |
-| `limit`               | number | Optional; default `20`, minimum `1`, maximum `100`.     |
-| `search`              | string | Optional, case-insensitive substring search in `title`. |
-| `article_category_id` | number | Optional positive category ID filter.                   |
-| `status`              | string | Optional; `DRAFT` or `PUBLISHED`.                       |
-| `sort_by`             | string | Optional; must be `created_at`, default `created_at`.   |
-| `sort_order`          | string | Optional; `asc` or `desc`, default `desc`.              |
+| Query parameter       | Type   | Rules                                                                     |
+| --------------------- | ------ | ------------------------------------------------------------------------- |
+| `page`                | number | Optional, 1-based; default `1`.                                           |
+| `limit`               | number | Optional; default `20`, minimum `1`, maximum `100`.                       |
+| `search`              | string | Optional, case-insensitive substring search in a content `title`.         |
+| `article_category_id` | number | Optional positive category ID filter.                                     |
+| `language_id`         | number | Optional; only articles with content in this language, shown in it.       |
+| `status`              | string | Optional; `DRAFT` or `PUBLISHED`; matches a content row with this status. |
+| `sort_by`             | string | Optional; must be `created_at`, default `created_at`.                     |
+| `sort_order`          | string | Optional; `asc` or `desc`, default `desc`.                                |
 
-Provided filters are combined using AND. Invalid query values return `400 Bad
+Provided filters are combined using AND. `search`, `language_id`, and `status`
+must all match the same content row. Invalid query values return `400 Bad
 Request`.
+
+`title`, `slug`, `summary`, `status`, `read_time`, and `language_id` on each item come from
+the `language_id` content when that query is set, otherwise from the content
+with the lowest language ID. `languages` lists every active language with that
+language's content status, or `null` when the article has no content in it.
 
 ```json
 {
@@ -426,10 +478,6 @@ Request`.
     {
       "id": 12,
       "article_category_id": 3,
-      "title": "New service center opens",
-      "slug": "new-service-center-opens",
-      "summary": "A short summary.",
-      "content": "Full article content.",
       "issue_date": "2026-10-10",
       "press_release_number": null,
       "primary_photo": 18,
@@ -438,7 +486,6 @@ Request`.
       "cp_role": null,
       "cp_phone_number": null,
       "cp_email": null,
-      "status": "DRAFT",
       "created_at": "2026-10-10T10:30:00.000Z",
       "created_by": "Ari Putra",
       "updated_at": null,
@@ -447,7 +494,21 @@ Request`.
         "id": 3,
         "name": "Company News",
         "slug": "company-news"
-      }
+      },
+      "language_id": 1,
+      "title": "Kantor layanan baru dibuka",
+      "slug": "kantor-layanan-baru-dibuka",
+      "summary": "Ringkasan singkat.",
+      "status": "PUBLISHED",
+      "read_time": 1,
+      "languages": [
+        {
+          "language_id": 1,
+          "abbreviated_language": "ID",
+          "status": "PUBLISHED"
+        },
+        { "language_id": 2, "abbreviated_language": "EN", "status": null }
+      ]
     }
   ],
   "pagination": {
@@ -461,23 +522,29 @@ Request`.
 
 ### Get, create, update, and delete an article
 
-- `GET /articles/:articleId` returns `{ "article": ... }` with `200 OK`.
-- `POST /articles` creates an article and returns `{ "article": ... }` with
-  `201 Created`.
-- `PUT /articles/:articleId` partially updates an article and returns
-  `{ "article": ... }` with `200 OK`. Omitted fields remain unchanged. Send
-  `null` for `primary_photo` to clear its media relation.
-- `DELETE /articles/:articleId` deletes an article and returns `204 No Content`.
+- `GET /articles/:articleId` returns `{ "article": ... }` with `200 OK`. The
+  article has the shared header fields and every language's content in
+  `contents`, ordered by `language_id`.
+- `POST /articles` creates the article header and its first language content,
+  then returns `{ "article": ... }` with `201 Created`.
+- `PUT /articles/:articleId` updates the shared fields that are sent and
+  creates or replaces the content for `language_id`, then returns
+  `{ "article": ... }` with `200 OK`. Omitted shared fields remain unchanged.
+  Send `null` for `primary_photo` to clear its media relation.
+- `DELETE /articles/:articleId` deletes an article and all of its contents and
+  returns `204 No Content`.
 
-Article POST and PUT bodies use JSON.
+Article POST and PUT bodies use JSON. Each request writes one language.
 
 | Field                  | Type           | Rules                                                               |
 | ---------------------- | -------------- | ------------------------------------------------------------------- |
+| `language_id`          | number         | Required; ID of an active language.                                 |
+| `title`                | string         | Required; maximum 120 characters.                                   |
+| `slug`                 | string         | Required; maximum 255 characters; unique within the language.       |
+| `summary`              | string         | Required.                                                           |
+| `content`              | string         | Required.                                                           |
+| `status`               | string         | Required; `DRAFT` or `PUBLISHED`; applies to this language only.    |
 | `article_category_id`  | number         | Required on create; positive ID of an existing category.            |
-| `title`                | string         | Required on create; maximum 120 characters.                         |
-| `slug`                 | string         | Required on create; maximum 255 characters; unique.                 |
-| `summary`              | string         | Required on create.                                                 |
-| `content`              | string         | Required on create.                                                 |
 | `primary_photo`        | number or null | Picture media ID; required on create; optional or `null` on update. |
 | `issue_date`           | date or null   | Optional; `YYYY-MM-DD`.                                             |
 | `press_release_number` | string or null | Optional; maximum 255 characters.                                   |
@@ -485,7 +552,6 @@ Article POST and PUT bodies use JSON.
 | `cp_role`              | string or null | Optional; maximum 100 characters.                                   |
 | `cp_phone_number`      | string or null | Optional; maximum 100 characters.                                   |
 | `cp_email`             | string or null | Optional; maximum 100 characters.                                   |
-| `status`               | string         | Optional; `DRAFT` or `PUBLISHED`; defaults to `DRAFT`.              |
 
 The referenced media record must exist and have type `PICTURE`. Article
 responses include its ID in `primary_photo` and its public path in
@@ -493,9 +559,55 @@ responses include its ID in `primary_photo` and its public path in
 including after the media record is deleted.
 
 On create, omitted nullable text/date fields are stored as `null`. On update,
-omit a field to keep its current value; send `null` to clear nullable fields.
-The authenticated user's name is stored in `created_by`; updates set
-`updated_by` and `updated_at`.
+omit a shared field to keep its current value; send `null` to clear nullable
+fields. The authenticated user's name is stored in `created_by` on the article
+and on new content; updates set `updated_by` and `updated_at` on the article and
+on the content being replaced.
+
+Article detail response:
+
+```json
+{
+  "article": {
+    "id": 12,
+    "article_category_id": 3,
+    "issue_date": "2026-10-10",
+    "press_release_number": null,
+    "primary_photo": 18,
+    "primary_photo_url": "/public/media/company-news.jpg",
+    "cp_name": null,
+    "cp_role": null,
+    "cp_phone_number": null,
+    "cp_email": null,
+    "created_at": "2026-10-10T10:30:00.000Z",
+    "created_by": "Ari Putra",
+    "updated_at": null,
+    "updated_by": null,
+    "article_category": {
+      "id": 3,
+      "name": "Company News",
+      "slug": "company-news"
+    },
+    "contents": [
+      {
+        "id": 40,
+        "language_id": 1,
+        "abbreviated_language": "ID",
+        "title": "Kantor layanan baru dibuka",
+        "slug": "kantor-layanan-baru-dibuka",
+        "summary": "Ringkasan singkat.",
+        "content": "Isi artikel lengkap.",
+        "status": "PUBLISHED",
+        "read_time": 1,
+        "created_at": "2026-10-10T10:30:00.000Z",
+        "created_by": "Ari Putra",
+        "updated_at": null,
+        "updated_by": null
+      }
+    ]
+  }
+}
+```
 
 Example request:
 
@@ -506,10 +618,12 @@ const response = await fetch(`${API_BASE_URL}/articles`, {
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
     article_category_id: 3,
-    title: 'New service center opens',
-    slug: 'new-service-center-opens',
-    summary: 'A short summary.',
-    content: 'Full article content.',
+    language_id: 1,
+    title: 'Kantor layanan baru dibuka',
+    slug: 'kantor-layanan-baru-dibuka',
+    summary: 'Ringkasan singkat.',
+    content: 'Isi artikel lengkap.',
+    status: 'DRAFT',
     issue_date: '2026-10-10',
     primary_photo: 18,
   }),
@@ -1510,14 +1624,14 @@ available at
 
 ## Article, Category, Media, and Document Commitment Errors
 
-| Status                  | Description                                                                    |
-| ----------------------- | ------------------------------------------------------------------------------ |
-| `400 Bad Request`       | Invalid ID, body or query value, category or media reference, or uploaded PDF. |
-| `401 Unauthorized`      | A write request does not have a valid session.                                 |
-| `403 Forbidden`         | A write request has a missing or disallowed `Origin`/`Referer`.                |
-| `404 Not Found`         | The requested article, category, media, or document commitment does not exist. |
-| `409 Conflict`          | Article/category slug, media filename, or document filename is already in use. |
-| `413 Payload Too Large` | An uploaded file exceeds the limit for its media type or document commitment.  |
+| Status                  | Description                                                                                         |
+| ----------------------- | --------------------------------------------------------------------------------------------------- |
+| `400 Bad Request`       | Invalid ID, body or query value, category, media or language reference, or uploaded PDF.            |
+| `401 Unauthorized`      | A write request does not have a valid session.                                                      |
+| `403 Forbidden`         | A write request has a missing or disallowed `Origin`/`Referer`.                                     |
+| `404 Not Found`         | The requested article, category, media, or document commitment does not exist.                      |
+| `409 Conflict`          | Article slug (per language), category slug, media filename, or document filename is already in use. |
+| `413 Payload Too Large` | An uploaded file exceeds the limit for its media type or document commitment.                       |
 
 ## Health Check
 

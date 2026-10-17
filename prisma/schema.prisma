@@ -194,30 +194,64 @@ model Media {
 }
 
 model Article {
-  id                  Int             @id @default(autoincrement())
-  articleCategoryId   Int             @map("article_category_id")
-  title               String          @db.VarChar(120)
-  slug                String          @unique @db.VarChar(255)
-  summary             String          @db.Text
-  content             String          @db.Text
-  issueDate           DateTime?       @map("issue_date") @db.Date
-  pressReleaseNumber  String?         @map("press_release_number") @db.VarChar(255)
-  primaryPhotoMediaId Int?            @map("primary_photo_media_id")
-  cpName              String?         @map("cp_name") @db.VarChar(100)
-  cpRole              String?         @map("cp_role") @db.VarChar(100)
-  cpPhoneNumber       String?         @map("cp_phone_number") @db.VarChar(100)
-  cpEmail             String?         @map("cp_email") @db.VarChar(100)
-  status              ArticleStatus   @default(DRAFT)
-  createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  createdBy           String          @map("created_by") @db.VarChar(100)
-  updatedAt           DateTime?       @map("updated_at") @db.Timestamptz(6)
-  updatedBy           String?         @map("updated_by") @db.VarChar(100)
-  articleCategory     ArticleCategory @relation(fields: [articleCategoryId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  primaryPhotoMedia   Media?          @relation(fields: [primaryPhotoMediaId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  id                  Int              @id @default(autoincrement())
+  articleCategoryId   Int              @map("article_category_id")
+  issueDate           DateTime?        @map("issue_date") @db.Date
+  pressReleaseNumber  String?          @map("press_release_number") @db.VarChar(255)
+  primaryPhotoMediaId Int?             @map("primary_photo_media_id")
+  cpName              String?          @map("cp_name") @db.VarChar(100)
+  cpRole              String?          @map("cp_role") @db.VarChar(100)
+  cpPhoneNumber       String?          @map("cp_phone_number") @db.VarChar(100)
+  cpEmail             String?          @map("cp_email") @db.VarChar(100)
+  createdAt           DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy           String           @map("created_by") @db.VarChar(100)
+  updatedAt           DateTime?        @map("updated_at") @db.Timestamptz(6)
+  updatedBy           String?          @map("updated_by") @db.VarChar(100)
+  articleCategory     ArticleCategory  @relation(fields: [articleCategoryId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  primaryPhotoMedia   Media?           @relation(fields: [primaryPhotoMediaId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  contents            ArticleContent[]
 
   @@index([articleCategoryId])
   @@index([primaryPhotoMediaId])
   @@map("articles")
+}
+
+model Language {
+  id                  Int              @id @default(autoincrement())
+  language            String           @db.VarChar(255)
+  abbreviatedLanguage String           @unique @map("abbreviated_language") @db.VarChar(10)
+  // Flag emoji; subdivision flags span up to 7 code points.
+  flag                String           @db.VarChar(16)
+  isActive            Boolean          @default(true) @map("is_active")
+  createdAt           DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy           String           @map("created_by") @db.VarChar(100)
+  updatedAt           DateTime?        @map("updated_at") @db.Timestamptz(6)
+  updatedBy           String?          @map("updated_by") @db.VarChar(100)
+  articleContents     ArticleContent[]
+
+  @@map("languages")
+}
+
+model ArticleContent {
+  id         Int           @id @default(autoincrement())
+  articleId  Int           @map("article_id")
+  languageId Int           @map("language_id")
+  title      String        @db.VarChar(120)
+  slug       String        @db.VarChar(255)
+  summary    String        @db.Text
+  content    String        @db.Text
+  status     ArticleStatus @default(DRAFT)
+  readTime   Int           @map("read_time")
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy  String        @map("created_by") @db.VarChar(100)
+  updatedAt  DateTime?     @map("updated_at") @db.Timestamptz(6)
+  updatedBy  String?       @map("updated_by") @db.VarChar(100)
+  article    Article       @relation(fields: [articleId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  language   Language      @relation(fields: [languageId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([articleId, languageId])
+  @@unique([languageId, slug])
+  @@map("article_contents")
 }
 
 model Content {

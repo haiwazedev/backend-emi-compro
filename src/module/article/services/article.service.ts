@@ -1,7 +1,9 @@
+import { JSDOM } from 'jsdom';
 import { Prisma } from '../../../generated/prisma/client.js';
 import { ApiError } from '../../../shared/errors/api-error.js';
 import { ArticleRepository } from '../repositories/article.repository.js';
 import { ArticleCategoryRepository } from '../repositories/article-category.repository.js';
+import { LanguageService } from '../../language/services/language.service.js';
 import { MediaRepository } from '../../media/repositories/media.repository.js';
 import type {
   ArticleListQuery,
@@ -9,21 +11,29 @@ import type {
   UpdateArticleInput,
 } from '../schemas/article.schema.js';
 
+type ArticleContentInput = Pick<
+  CreateArticleInput,
+  'language_id' | 'title' | 'slug' | 'summary' | 'content' | 'status'
+>;
+
 export class ArticleService {
   constructor(
     private readonly repository = new ArticleRepository(),
     private readonly categoryRepository = new ArticleCategoryRepository(),
     private readonly mediaRepository = new MediaRepository(),
+    private readonly languageService = new LanguageService(),
   ) {}
 
   async list(query: ArticleListQuery) {
-    const [articles, totalItems] = await Promise.all([
+    const [articles, totalItems, languages] = await Promise.all([
       this.repository.findMany(query),
       this.repository.count(query),
+      this.languageService.listActive(),
     ]);
 
     return {
       articles,
+      languages,
       pagination: {
         page: query.page,
         limit: query.limit,
@@ -47,27 +57,21 @@ export class ArticleService {
     const createdBy = getAuditName(userName);
     await this.requireCategory(input.article_category_id);
     await this.requirePictureMedia(input.primary_photo);
-
-    if (await this.repository.findBySlug(input.slug)) {
-      throw new ApiError(409, 'Article slug is already in use.');
-    }
+    await this.requireContentTarget(input);
 
     try {
-      return await this.repository.create({
-        ...toCreateData(input),
-        createdBy,
-      });
+      return await this.repository.create(
+        { ...toCreateData(input), createdBy },
+        toContentData(input),
+      );
     } catch (error) {
       throw mapArticleError(error);
     }
   }
 
   async update(id: number, input: UpdateArticleInput, userName: string) {
-    const current = await this.getById(id);
-
-    if (Object.keys(input).length === 0) {
-      throw new ApiError(400, 'At least one article field is required.');
-    }
+    const updatedBy = getAuditName(userName);
+    await this.getById(id);
 
     if (input.article_category_id !== undefined) {
       await this.requireCategory(input.article_category_id);
@@ -77,18 +81,14 @@ export class ArticleService {
       await this.requirePictureMedia(input.primary_photo);
     }
 
-    if (input.slug && input.slug !== current.slug) {
-      const existing = await this.repository.findBySlug(input.slug);
-
-      if (existing && existing.id !== id) {
-        throw new ApiError(409, 'Article slug is already in use.');
-      }
-    }
+    await this.requireContentTarget(input, id);
 
     try {
-      return await this.repository.update(
+      return await this.repository.updateWithContent(
         id,
-        toUpdateData(input, getAuditName(userName)),
+        toUpdateData(input, updatedBy),
+        toContentData(input),
+        updatedBy,
       );
     } catch (error) {
       throw mapArticleError(error);
@@ -121,17 +121,32 @@ export class ArticleService {
       );
     }
   }
+
+  // Active language, and a slug not used by another article in that language.
+  private async requireContentTarget(
+    input: ArticleContentInput,
+    articleId?: number,
+  ): Promise<void> {
+    await this.languageService.requireActive(input.language_id);
+    const existing = await this.repository.findContentBySlug(
+      input.language_id,
+      input.slug,
+    );
+
+    if (existing && existing.articleId !== articleId) {
+      throw new ApiError(409, SLUG_CONFLICT_MESSAGE);
+    }
+  }
 }
+
+const SLUG_CONFLICT_MESSAGE =
+  'Article slug is already in use for this language.';
 
 function toCreateData(
   input: CreateArticleInput,
-): Omit<Prisma.ArticleUncheckedCreateInput, 'createdBy'> {
+): Omit<Prisma.ArticleUncheckedCreateInput, 'createdBy' | 'contents'> {
   return {
     articleCategoryId: input.article_category_id,
-    title: input.title,
-    slug: input.slug,
-    summary: input.summary,
-    content: input.content,
     issueDate: input.issue_date ?? null,
     pressReleaseNumber: input.press_release_number ?? null,
     primaryPhotoMediaId: input.primary_photo,
@@ -139,15 +154,37 @@ function toCreateData(
     cpRole: input.cp_role ?? null,
     cpPhoneNumber: input.cp_phone_number ?? null,
     cpEmail: input.cp_email ?? null,
-    status: input.status ?? 'DRAFT',
   };
+}
+
+function toContentData(input: ArticleContentInput) {
+  return {
+    languageId: input.language_id,
+    title: input.title,
+    slug: input.slug,
+    summary: input.summary,
+    content: input.content,
+    status: input.status,
+    readTime: calculateReadTime(input.content),
+  };
+}
+
+// Trauzettel-Klosinski & Dietz (2012): ~1000 chars/min, stable across 17 languages.
+const READ_CHARACTERS_PER_MINUTE = 1000;
+
+// Whole minutes for the visible body text, at least 1.
+export function calculateReadTime(html: string): number {
+  const text = new JSDOM(html).window.document.body.textContent ?? '';
+  const length = text.replace(/\s+/g, ' ').trim().length;
+
+  return Math.max(1, Math.ceil(length / READ_CHARACTERS_PER_MINUTE));
 }
 
 function toUpdateData(
   input: UpdateArticleInput,
   updatedBy: string,
-): Prisma.ArticleUncheckedUpdateInput {
-  const data: Prisma.ArticleUncheckedUpdateInput = {
+): Omit<Prisma.ArticleUncheckedUpdateInput, 'contents'> {
+  const data: Omit<Prisma.ArticleUncheckedUpdateInput, 'contents'> = {
     updatedBy,
     updatedAt: new Date(),
   };
@@ -155,10 +192,6 @@ function toUpdateData(
   if (input.article_category_id !== undefined) {
     data.articleCategoryId = input.article_category_id;
   }
-  if (input.title !== undefined) data.title = input.title;
-  if (input.slug !== undefined) data.slug = input.slug;
-  if (input.summary !== undefined) data.summary = input.summary;
-  if (input.content !== undefined) data.content = input.content;
   if (input.issue_date !== undefined) data.issueDate = input.issue_date;
   if (input.press_release_number !== undefined) {
     data.pressReleaseNumber = input.press_release_number;
@@ -172,7 +205,6 @@ function toUpdateData(
     data.cpPhoneNumber = input.cp_phone_number;
   }
   if (input.cp_email !== undefined) data.cpEmail = input.cp_email;
-  if (input.status !== undefined) data.status = input.status;
 
   return data;
 }
@@ -187,13 +219,13 @@ function getAuditName(name: string): string {
 
 function mapArticleError(error: unknown): unknown {
   if (isPrismaError(error, 'P2002')) {
-    return new ApiError(409, 'Article slug is already in use.');
+    return new ApiError(409, SLUG_CONFLICT_MESSAGE);
   }
 
   if (isPrismaError(error, 'P2003')) {
     return new ApiError(
       400,
-      'Article category or primary photo media does not exist.',
+      'Article category, primary photo media, or language does not exist.',
     );
   }
 

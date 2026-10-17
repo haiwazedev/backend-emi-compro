@@ -20,26 +20,34 @@ const nullableDate = z.preprocess(
   ]),
 );
 
-const articleFormFieldsSchema = z.object({
+// Shared across languages; stored on `articles`.
+const articleSharedFieldsSchema = z.object({
   article_category_id: z.number().int().positive(),
-  title: z.string().trim().min(1).max(120),
-  slug: z.string().trim().min(1).max(255),
-  summary: z.string().trim().min(1),
-  content: z.string().refine((value) => value.trim().length > 0),
   issue_date: nullableDate.optional(),
   press_release_number: nullableText(255).optional(),
   cp_name: nullableText(100).optional(),
   cp_role: nullableText(100).optional(),
   cp_phone_number: nullableText(100).optional(),
   cp_email: nullableText(100).optional(),
-  status: articleStatusSchema.optional(),
 });
 
-export const createArticleBodySchema = articleFormFieldsSchema
+// One language's content; upserted into `article_contents`.
+const articleContentFieldsSchema = z.object({
+  language_id: z.number().int().positive(),
+  title: z.string().trim().min(1).max(120),
+  slug: z.string().trim().min(1).max(255),
+  summary: z.string().trim().min(1),
+  content: z.string().refine((value) => value.trim().length > 0),
+  status: articleStatusSchema,
+});
+
+export const createArticleBodySchema = articleSharedFieldsSchema
+  .extend(articleContentFieldsSchema.shape)
   .extend({ primary_photo: z.number().int().positive() })
   .strict();
-export const updateArticleBodySchema = articleFormFieldsSchema
+export const updateArticleBodySchema = articleSharedFieldsSchema
   .partial()
+  .extend(articleContentFieldsSchema.shape)
   .extend({
     primary_photo: z.number().int().positive().nullable().optional(),
   })
@@ -54,6 +62,7 @@ export const articleListQuerySchema = z
       z.string().trim().max(255).optional(),
     ),
     article_category_id: z.coerce.number().int().positive().optional(),
+    language_id: z.coerce.number().int().positive().optional(),
     status: articleStatusSchema.optional(),
     sort_by: z.literal('created_at').default('created_at'),
     sort_order: z.enum(['asc', 'desc']).default('desc'),

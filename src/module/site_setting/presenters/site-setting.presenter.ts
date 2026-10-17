@@ -8,7 +8,7 @@ export function presentSiteSetting({
   settings,
   socialMedias,
 }: {
-  languageId: number;
+  languageId: string;
   settings: SiteSetting[];
   socialMedias: SiteSocialMedia[];
 }) {

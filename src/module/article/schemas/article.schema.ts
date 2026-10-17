@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { languageIdSchema } from '../../../shared/schemas/common.schema.js';
 
 const articleStatusSchema = z.enum(['DRAFT', 'PUBLISHED']);
 
@@ -33,7 +34,7 @@ const articleSharedFieldsSchema = z.object({
 
 // One language's content; upserted into `article_contents`.
 const articleContentFieldsSchema = z.object({
-  language_id: z.number().int().positive(),
+  language_id: languageIdSchema,
   title: z.string().trim().min(1).max(120),
   slug: z.string().trim().min(1).max(255),
   summary: z.string().trim().min(1),
@@ -62,7 +63,7 @@ export const articleListQuerySchema = z
       z.string().trim().max(255).optional(),
     ),
     article_category_id: z.coerce.number().int().positive().optional(),
-    language_id: z.coerce.number().int().positive().optional(),
+    language_id: languageIdSchema.optional(),
     status: articleStatusSchema.optional(),
     sort_by: z.literal('created_at').default('created_at'),
     sort_order: z.enum(['asc', 'desc']).default('desc'),

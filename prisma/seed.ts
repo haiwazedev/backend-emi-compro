@@ -248,8 +248,8 @@ async function seedInboxSubjects(): Promise<void> {
 async function seedLanguages(): Promise<void> {
   await prisma.language.createMany({
     data: [
-      { language: 'Bahasa Indonesia', abbreviatedLanguage: 'ID', flag: '🇮🇩' },
-      { language: 'English', abbreviatedLanguage: 'EN', flag: '🇬🇧' },
+      { id: 'id', language: 'Bahasa Indonesia', flag: '🇮🇩', sortOrder: 1 },
+      { id: 'en', language: 'English', flag: '🇬🇧', sortOrder: 2 },
     ].map((language) => ({ ...language, createdBy: 'system' })),
     skipDuplicates: true,
   });

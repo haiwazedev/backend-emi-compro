@@ -35,6 +35,14 @@ export class ArticleController {
     res.status(200).json({ article: presentArticle(article) });
   };
 
+  getBySlug = async (req: Request, res: Response): Promise<void> => {
+    const article = await this.service.getPublishedBySlug(
+      String(req.params.slug),
+    );
+
+    res.status(200).json({ article: presentArticle(article) });
+  };
+
   create = async (req: Request, res: Response): Promise<void> => {
     const userName = getAuthenticatedUserName(req);
     const article = await this.service.create(

@@ -53,6 +53,16 @@ export class ArticleService {
     return article;
   }
 
+  async getPublishedBySlug(slug: string) {
+    const article = await this.repository.findPublishedBySlug(slug);
+
+    if (!article) {
+      throw new ApiError(404, 'Article was not found.');
+    }
+
+    return article;
+  }
+
   async create(input: CreateArticleInput, userName: string) {
     const createdBy = getAuditName(userName);
     await this.requireCategory(input.article_category_id);
@@ -122,25 +132,24 @@ export class ArticleService {
     }
   }
 
-  // Active language, and a slug not used by another article in that language.
+  // Active language, and a slug not used by any other content, including this article's other languages.
   private async requireContentTarget(
     input: ArticleContentInput,
     articleId?: number,
   ): Promise<void> {
     await this.languageService.requireActive(input.language_id);
-    const existing = await this.repository.findContentBySlug(
-      input.language_id,
-      input.slug,
-    );
+    const existing = await this.repository.findContentBySlug(input.slug);
+    const isReplacedContent =
+      existing?.articleId === articleId &&
+      existing?.languageId === input.language_id;
 
-    if (existing && existing.articleId !== articleId) {
+    if (existing && !isReplacedContent) {
       throw new ApiError(409, SLUG_CONFLICT_MESSAGE);
     }
   }
 }
 
-const SLUG_CONFLICT_MESSAGE =
-  'Article slug is already in use for this language.';
+const SLUG_CONFLICT_MESSAGE = 'Article slug is already in use.';
 
 function toCreateData(
   input: CreateArticleInput,

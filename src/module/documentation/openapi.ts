@@ -161,6 +161,9 @@ const routes: Routes = {
       body: createArticleBodySchema,
     },
   },
+  '/articles/slug/{slug}': {
+    get: { tag: 'Articles', summary: 'Get a published article by slug' },
+  },
   '/articles/{articleId}': {
     get: { tag: 'Articles', summary: 'Get an article' },
     put: {
@@ -532,7 +535,10 @@ function buildOperation(path: string, operation: Operation) {
     name,
     in: 'path',
     required: true,
-    schema: { type: 'integer', minimum: 1 },
+    // `...Id` params are positive integers; others (e.g. `slug`) are strings.
+    schema: name.endsWith('Id')
+      ? { type: 'integer', minimum: 1 }
+      : { type: 'string' },
   }));
   const status = operation.status ?? 200;
 

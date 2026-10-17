@@ -9,21 +9,13 @@ export class LanguageService {
     return this.repository.findActive();
   }
 
-  async requireActive(id: number) {
-    return assertActive(await this.repository.findById(id));
-  }
+  async requireActive(id: string): Promise<Language> {
+    const language = await this.repository.findById(id);
 
-  async requireActiveByAbbreviation(abbreviatedLanguage: string) {
-    return assertActive(
-      await this.repository.findByAbbreviation(abbreviatedLanguage),
-    );
-  }
-}
+    if (!language || !language.isActive) {
+      throw new ApiError(400, 'Language does not exist or is inactive.');
+    }
 
-function assertActive(language: Language | null) {
-  if (!language || !language.isActive) {
-    throw new ApiError(400, 'Language does not exist or is inactive.');
+    return language;
   }
-
-  return language;
 }

@@ -10,7 +10,7 @@ export type SocialMediaWrite =
 export type SettingValues = Record<string, string | null>;
 
 export class SiteSettingRepository {
-  findSettings(languageId: number) {
+  findSettings(languageId: string) {
     return prisma.siteSetting.findMany({
       where: { languageId },
       orderBy: { id: 'asc' },
@@ -25,7 +25,7 @@ export class SiteSettingRepository {
   }
 
   save(
-    languageId: number,
+    languageId: string,
     values: SettingValues,
     audit: { updatedAt: Date; updatedBy: string },
     keptIds: number[],

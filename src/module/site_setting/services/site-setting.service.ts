@@ -26,7 +26,7 @@ type StoredFiles = {
   icons: StoredFile[];
 };
 
-const DEFAULT_LANGUAGE = 'ID';
+const DEFAULT_LANGUAGE = 'id';
 
 export class SiteSettingService {
   constructor(
@@ -35,13 +35,10 @@ export class SiteSettingService {
     private readonly languageService = new LanguageService(),
   ) {}
 
-  async get(languageId: number | undefined, includeDrafts: boolean) {
-    const language =
-      languageId === undefined
-        ? await this.languageService.requireActiveByAbbreviation(
-            DEFAULT_LANGUAGE,
-          )
-        : await this.languageService.requireActive(languageId);
+  async get(languageId: string | undefined, includeDrafts: boolean) {
+    const language = await this.languageService.requireActive(
+      languageId ?? DEFAULT_LANGUAGE,
+    );
     const settings = await this.repository.findSettings(language.id);
     const socialMedias = await this.repository.findSocialMedias(includeDrafts);
 

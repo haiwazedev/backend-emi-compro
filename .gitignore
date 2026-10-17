@@ -13,3 +13,4 @@ src/generated/prisma/
 /public/site-social-medias/*
 !/public/site-social-medias/.gitkeep
 /public/site-logo-*
+.vibe-wise/

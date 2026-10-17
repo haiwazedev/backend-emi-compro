@@ -4,8 +4,8 @@ export function presentLanguage(language: Language) {
   return {
     id: language.id,
     language: language.language,
-    abbreviated_language: language.abbreviatedLanguage,
     flag: language.flag,
+    sort_order: language.sortOrder,
     is_active: language.isActive,
   };
 }

@@ -4,15 +4,11 @@ export class LanguageRepository {
   findActive() {
     return prisma.language.findMany({
       where: { isActive: true },
-      orderBy: { id: 'asc' },
+      orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
     });
   }
 
-  findById(id: number) {
+  findById(id: string) {
     return prisma.language.findUnique({ where: { id } });
-  }
-
-  findByAbbreviation(abbreviatedLanguage: string) {
-    return prisma.language.findUnique({ where: { abbreviatedLanguage } });
   }
 }

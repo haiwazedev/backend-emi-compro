@@ -229,11 +229,22 @@ async function seedInboxSubjects(): Promise<void> {
   });
 }
 
+async function seedLanguages(): Promise<void> {
+  await prisma.language.createMany({
+    data: [
+      { language: 'Bahasa Indonesia', abbreviatedLanguage: 'ID', flag: '🇮🇩' },
+      { language: 'English', abbreviatedLanguage: 'EN', flag: '🇬🇧' },
+    ].map((language) => ({ ...language, createdBy: 'system' })),
+    skipDuplicates: true,
+  });
+}
+
 async function seed(): Promise<void> {
   await seedContent();
   await seedFaqs();
   await seedClients();
   await seedInboxSubjects();
+  await seedLanguages();
 }
 
 seed()

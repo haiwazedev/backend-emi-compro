@@ -13,6 +13,7 @@ import { documentCommitmentRouter } from './module/document_commitment/routes/do
 import { divisionRouter } from './module/division/routes/division.routes.js';
 import { faqRouter } from './module/faq/routes/faq.routes.js';
 import { inboxRouter } from './module/inbox/routes/inbox.routes.js';
+import { languageRouter } from './module/language/routes/language.routes.js';
 import { mediaRouter } from './module/media/routes/media.routes.js';
 import { serviceRouter } from './module/service/routes/service.routes.js';
 import { siteSettingRouter } from './module/site_setting/routes/site-setting.routes.js';
@@ -47,6 +48,7 @@ app.use(sessionMiddleware);
 app.use(validateRequestOrigin);
 app.use('/auth', authRouter);
 app.use(boardMemberRouter);
+app.use(languageRouter);
 app.use(articleRouter);
 app.use(articleCategoryRouter);
 app.use(mediaRouter);

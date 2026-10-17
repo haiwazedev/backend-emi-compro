@@ -2,6 +2,9 @@ import type { Language } from '../../../generated/prisma/client.js';
 import { ApiError } from '../../../shared/errors/api-error.js';
 import { LanguageRepository } from '../repositories/language.repository.js';
 
+// Bahasa Indonesia: every article's first content.
+export const DEFAULT_LANGUAGE_ID = 'id';
+
 export class LanguageService {
   constructor(private readonly repository = new LanguageRepository()) {}
 

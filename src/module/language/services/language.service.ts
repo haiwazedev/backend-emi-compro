@@ -1,3 +1,4 @@
+import type { Language } from '../../../generated/prisma/client.js';
 import { ApiError } from '../../../shared/errors/api-error.js';
 import { LanguageRepository } from '../repositories/language.repository.js';
 
@@ -9,12 +10,20 @@ export class LanguageService {
   }
 
   async requireActive(id: number) {
-    const language = await this.repository.findById(id);
-
-    if (!language || !language.isActive) {
-      throw new ApiError(400, 'Language does not exist or is inactive.');
-    }
-
-    return language;
+    return assertActive(await this.repository.findById(id));
   }
+
+  async requireActiveByAbbreviation(abbreviatedLanguage: string) {
+    return assertActive(
+      await this.repository.findByAbbreviation(abbreviatedLanguage),
+    );
+  }
+}
+
+function assertActive(language: Language | null) {
+  if (!language || !language.isActive) {
+    throw new ApiError(400, 'Language does not exist or is inactive.');
+  }
+
+  return language;
 }

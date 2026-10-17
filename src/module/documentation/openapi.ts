@@ -63,7 +63,10 @@ import {
   reorderServicesBodySchema,
   updateServiceBodySchema,
 } from '../service/schemas/service.schema.js';
-import { saveSiteSettingBodySchema } from '../site_setting/schemas/site-setting.schema.js';
+import {
+  saveSiteSettingBodySchema,
+  siteSettingQuerySchema,
+} from '../site_setting/schemas/site-setting.schema.js';
 import { sessionCookieName } from '../../shared/config/session.js';
 
 type Operation = {
@@ -502,7 +505,11 @@ const routes: Routes = {
   },
 
   '/site_settings': {
-    get: { tag: 'Site settings', summary: 'Get site settings' },
+    get: {
+      tag: 'Site settings',
+      summary: 'Get site settings',
+      query: siteSettingQuerySchema,
+    },
     put: {
       tag: 'Site settings',
       summary: 'Save site settings',

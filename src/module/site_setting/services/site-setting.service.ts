@@ -1,6 +1,9 @@
+import type { SiteSetting } from '../../../generated/prisma/client.js';
 import { ApiError } from '../../../shared/errors/api-error.js';
+import { LanguageService } from '../../language/services/language.service.js';
 import {
   SiteSettingRepository,
+  type SettingValues,
   type SocialMediaWrite,
 } from '../repositories/site-setting.repository.js';
 import type { SaveSiteSettingInput } from '../schemas/site-setting.schema.js';
@@ -23,18 +26,26 @@ type StoredFiles = {
   icons: StoredFile[];
 };
 
+const DEFAULT_LANGUAGE = 'ID';
+
 export class SiteSettingService {
   constructor(
     private readonly repository = new SiteSettingRepository(),
     private readonly fileService = new SiteSettingFileService(),
+    private readonly languageService = new LanguageService(),
   ) {}
 
-  async get(includeDrafts: boolean) {
-    const setting = await this.repository.findSetting();
-    if (!setting) return null;
-
+  async get(languageId: number | undefined, includeDrafts: boolean) {
+    const language =
+      languageId === undefined
+        ? await this.languageService.requireActiveByAbbreviation(
+            DEFAULT_LANGUAGE,
+          )
+        : await this.languageService.requireActive(languageId);
+    const settings = await this.repository.findSettings(language.id);
     const socialMedias = await this.repository.findSocialMedias(includeDrafts);
-    return { setting, socialMedias };
+
+    return { languageId: language.id, settings, socialMedias };
   }
 
   async save(
@@ -46,7 +57,38 @@ export class SiteSettingService {
     const iconFiles = files.social_icons ?? [];
     validateIconIndexes(input, iconFiles.length);
 
-    const currentSetting = await this.repository.findSetting();
+    const language = await this.languageService.requireActive(
+      input.language_id,
+    );
+    const currentSettings = new Map(
+      (await this.repository.findSettings(language.id)).map((setting) => [
+        setting.key,
+        setting,
+      ]),
+    );
+    // Omitted fields are left unchanged.
+    const textValues = Object.fromEntries(
+      Object.entries({
+        company_name: input.company_name,
+        company_short_name: input.company_short_name,
+        company_address: input.company_address,
+        company_phone_number: input.company_phone_number,
+        company_whatsapp_number: input.company_whatsapp_number,
+        main_email: input.main_email,
+        marketing_email: input.marketing_email,
+        operational_day: input.operational_day,
+        operational_start_time: input.operational_start_time,
+        operational_end_time: input.operational_end_time,
+      }).filter(([, value]) => value !== undefined),
+    ) as SettingValues;
+    validateSettingKeys(
+      [
+        ...Object.keys(textValues),
+        ...(files.danantara_logo?.length ? ['danantara_logo'] : []),
+        ...(files.pln_logo?.length ? ['pln_logo'] : []),
+      ],
+      currentSettings,
+    );
     const currentSocialMedias = await this.repository.findSocialMedias(true);
     const currentById = new Map(
       currentSocialMedias.map((socialMedia) => [socialMedia.id, socialMedia]),
@@ -64,19 +106,13 @@ export class SiteSettingService {
 
     const stored = await this.storeFiles(files, iconFiles);
     const now = new Date();
-    const settingFields = {
-      companyName: input.company_name,
-      companyShortName: input.company_short_name,
-      companyAddress: input.company_address,
-      companyPhoneNumber: input.company_phone_number,
-      companyWhatsappNumber: input.company_whatsapp_number,
-      mainEmail: input.main_email,
-      marketingEmail: input.marketing_email,
-      operationalDay: input.operational_day,
-      operationalStartTime: input.operational_start_time,
-      operationalEndTime: input.operational_end_time,
-      ...toFileFields('danantaraLogo', stored.danantaraLogo),
-      ...toFileFields('plnLogo', stored.plnLogo),
+    const settingValues: SettingValues = {
+      ...textValues,
+      // Logos are only replaced when a new file is uploaded.
+      ...(stored.danantaraLogo && {
+        danantara_logo: stored.danantaraLogo.filepath,
+      }),
+      ...(stored.plnLogo && { pln_logo: stored.plnLogo.filepath }),
     };
 
     const socialMediaWrites = input.social_medias.map<SocialMediaWrite>(
@@ -104,8 +140,9 @@ export class SiteSettingService {
 
     try {
       await this.repository.save(
-        { ...settingFields, createdBy: auditName },
-        { ...settingFields, updatedAt: now, updatedBy: auditName },
+        language.id,
+        settingValues,
+        { updatedAt: now, updatedBy: auditName },
         keptIds,
         socialMediaWrites,
       );
@@ -114,11 +151,11 @@ export class SiteSettingService {
       throw error;
     }
 
-    await this.removeReplacedFiles(input, stored, currentSetting, [
+    await this.removeReplacedFiles(input, stored, currentSettings, [
       ...currentById.values(),
     ]);
 
-    return this.get(true);
+    return this.get(language.id, true);
   }
 
   private async storeFiles(
@@ -169,7 +206,7 @@ export class SiteSettingService {
   private async removeReplacedFiles(
     input: SaveSiteSettingInput,
     stored: StoredFiles,
-    currentSetting: Awaited<ReturnType<SiteSettingRepository['findSetting']>>,
+    currentSettings: Map<string, SiteSetting>,
     currentSocialMedias: Awaited<
       ReturnType<SiteSettingRepository['findSocialMedias']>
     >,
@@ -177,13 +214,13 @@ export class SiteSettingService {
     if (stored.danantaraLogo) {
       await this.fileService.remove(
         LOGO_FILE_RULE,
-        currentSetting?.danantaraLogoFilepath ?? null,
+        currentSettings.get('danantara_logo')?.value ?? null,
       );
     }
     if (stored.plnLogo) {
       await this.fileService.remove(
         LOGO_FILE_RULE,
-        currentSetting?.plnLogoFilepath ?? null,
+        currentSettings.get('pln_logo')?.value ?? null,
       );
     }
 
@@ -215,6 +252,20 @@ function validateIconIndexes(input: SaveSiteSettingInput, iconCount: number) {
     throw new ApiError(
       400,
       'Each uploaded social icon must be referenced by exactly one icon_index.',
+    );
+  }
+}
+
+// Keys are master data seeded per language in site_settings.
+function validateSettingKeys(
+  keys: string[],
+  settings: Map<string, SiteSetting>,
+) {
+  const missingKey = keys.find((key) => !settings.has(key));
+  if (missingKey) {
+    throw new ApiError(
+      400,
+      `${missingKey}: Input key not configured for this language.`,
     );
   }
 }

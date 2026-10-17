@@ -1445,17 +1445,23 @@ const { inboxes, pagination } = await response.json();
 ## Site Settings
 
 Site settings hold the company identity, contact details, and social media
-links shown in the landing page navbar, footer, and "Hubungi Kami" page. There
-is a single settings record (`id` is always `1`).
+links shown in the landing page navbar, footer, and "Hubungi Kami" page. Each
+setting is a key/value row per language; keys are seeded master data for each
+language. Social media items are shared by all languages.
 
-- `GET /site_settings` is public and returns `{ "site_settings": ... }` with
-  `200 OK`, or `{ "site_settings": null }` before the first save. Signed-in
-  users receive every social media item; everyone else receives only
-  `PUBLISHED` items.
+In the response, a configured key is a string (`""` until a value is saved)
+and a key with no row for that language is `null`. The CMS disables inputs
+whose key is `null`.
+
+- `GET /site_settings?language_id=1` is public and returns
+  `{ "site_settings": ... }` with `200 OK`. `language_id` is optional and
+  defaults to Bahasa Indonesia (`ID`); an unknown or inactive language returns
+  `400 Bad Request`. Signed-in users receive every social media item; everyone
+  else receives only `PUBLISHED` items.
 - `PUT /site_settings` requires an authenticated session and the configured
-  frontend `Origin` or `Referer`. It creates or replaces the settings and the
-  whole social media list, and returns `{ "site_settings": ... }` with
-  `200 OK`.
+  frontend `Origin` or `Referer`. It saves the setting values for
+  `language_id`, replaces the whole social media list, and returns
+  `{ "site_settings": ... }` for that language with `200 OK`.
 
 `PUT /site_settings` uses `multipart/form-data`:
 
@@ -1470,6 +1476,7 @@ The `data` payload:
 
 | Field                     | Type           | Rules                                                         |
 | ------------------------- | -------------- | ------------------------------------------------------------- |
+| `language_id`             | number         | Required; ID of an active language.                           |
 | `company_name`            | string         | Required; trimmed; 1–200 characters.                          |
 | `company_short_name`      | string \| null | Optional; up to 50 characters; blank is `null`.               |
 | `company_address`         | string         | Required; trimmed; 1–500 characters.                          |
@@ -1501,8 +1508,16 @@ Uploaded SVG files are sanitized: scripts, event handlers, `foreignObject`, and
 `javascript:` links are removed, and a file with no valid `<svg>` left returns
 `400 Bad Request`. Logos are stored at `/public/site-logo-{name}-{timestamp}.{extension}`
 and icons at `/public/site-social-medias/site-social-media-{name}-{timestamp}.svg`.
-`*_metadata` is the pixel `width` and `height` for raster images and `{}` for
-SVG.
+Only the logo filepath is kept. `icon_metadata` is the pixel `width` and
+`height` for raster images and `{}` for SVG.
+
+Omitted optional fields keep their stored value. Sending a field, or uploading
+a logo, whose key has no row for `language_id` returns `400 Bad Request` with
+`Input key not configured for this language.`
+
+Top-level `created_*` comes from that language's earliest setting row and
+`updated_*` from its most recently updated one; both are `null` when the
+language has no rows.
 
 Example browser request:
 
@@ -1511,6 +1526,7 @@ const formData = new FormData();
 formData.append(
   'data',
   JSON.stringify({
+    language_id: 1,
     company_name: 'PT Energy Management Indonesia (Persero)',
     company_short_name: 'PLN EMI',
     company_address: 'Menara Sentraya Lt. 17, Jakarta Selatan 12160',
@@ -1555,19 +1571,11 @@ The response shape is:
 ```json
 {
   "site_settings": {
-    "id": 1,
+    "language_id": 1,
     "company_name": "PT Energy Management Indonesia (Persero)",
     "company_short_name": "PLN EMI",
-    "danantara_logo_filename": null,
-    "danantara_logo_filepath": null,
-    "danantara_logo_extension": null,
-    "danantara_logo_size": null,
-    "danantara_logo_metadata": null,
-    "pln_logo_filename": "site-logo-pln-emi-1792136400000.svg",
+    "danantara_logo_filepath": "",
     "pln_logo_filepath": "/public/site-logo-pln-emi-1792136400000.svg",
-    "pln_logo_extension": "svg",
-    "pln_logo_size": 6,
-    "pln_logo_metadata": {},
     "company_address": "Menara Sentraya Lt. 17, Jakarta Selatan 12160",
     "company_phone_number": "021-27881925",
     "company_whatsapp_number": "0821-1779-291",
@@ -1594,17 +1602,18 @@ The response shape is:
         "updated_by": null
       }
     ],
-    "created_at": "2026-10-16T10:30:00.000Z",
-    "created_by": "Ari Putra",
-    "updated_at": null,
-    "updated_by": null
+    "created_at": "2026-10-16T10:00:00.000Z",
+    "created_by": "system",
+    "updated_at": "2026-10-16T10:30:00.000Z",
+    "updated_by": "Ari Putra"
   }
 }
 ```
 
-Invalid fields, files, or `icon_index` references return `400 Bad Request`; an
-unknown social media `id` returns `404 Not Found`; files over their size limit
-return `413 Payload Too Large`.
+Invalid fields, files, or `icon_index` references return
+`400 Bad Request`; an unknown social media `id` returns
+`404 Not Found`; files over their size limit return `413 Payload Too Large`; a
+setting key missing from the seed returns `500 Internal Server Error`.
 
 ## Public Static Assets
 

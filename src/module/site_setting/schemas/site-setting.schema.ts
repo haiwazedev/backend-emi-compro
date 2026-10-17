@@ -2,27 +2,27 @@ import { z } from 'zod';
 
 export const MAX_SOCIAL_MEDIAS = 20;
 
+// Blank clears the value; omitted (undefined) leaves the stored value unchanged.
+const blankToNull = (value: string | null | undefined) =>
+  value === undefined ? undefined : value || null;
+
+// Keep these limits in sync with the CMS site settings form.
 const optionalText = (max: number) =>
-  z
-    .string()
-    .trim()
-    .max(max)
-    .nullish()
-    .transform((value) => value || null);
+  z.string().trim().max(max).nullish().transform(blankToNull);
 
 const optionalEmail = z
   .email()
   .max(254)
   .or(z.literal(''))
   .nullish()
-  .transform((value) => value || null);
+  .transform(blankToNull);
 
 const optionalTime = z
   .string()
   .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Time must use the HH:mm format.')
   .or(z.literal(''))
   .nullish()
-  .transform((value) => value || null);
+  .transform(blankToNull);
 
 const socialMediaSchema = z
   .object({
@@ -36,6 +36,7 @@ const socialMediaSchema = z
 
 export const saveSiteSettingBodySchema = z
   .object({
+    language_id: z.number().int().positive(),
     company_name: z.string().trim().min(1).max(200),
     company_short_name: optionalText(50),
     company_address: z.string().trim().min(1).max(500),
@@ -56,6 +57,11 @@ export const saveSiteSettingBodySchema = z
     { message: 'Operational start and end time must be filled together.' },
   );
 
+export const siteSettingQuerySchema = z
+  .object({ language_id: z.coerce.number().int().positive().optional() })
+  .strict();
+
 export type SaveSiteSettingInput = z.infer<typeof saveSiteSettingBodySchema>;
+export type SiteSettingQuery = z.infer<typeof siteSettingQuerySchema>;
 export type SaveSocialMediaInput =
   SaveSiteSettingInput['social_medias'][number];

@@ -129,6 +129,22 @@ const inboxSubjectSeedNames = [
   'Partnerships',
 ] as const;
 
+// Master site setting keys; values are filled through the CMS.
+const siteSettingSeedKeys = [
+  'company_name',
+  'company_short_name',
+  'danantara_logo',
+  'pln_logo',
+  'company_address',
+  'company_phone_number',
+  'company_whatsapp_number',
+  'main_email',
+  'marketing_email',
+  'operational_day',
+  'operational_start_time',
+  'operational_end_time',
+] as const;
+
 // 1x1 transparent PNG; replace the real logos through the CMS.
 const placeholderLogo = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGNgAAIAAAUAAXpeqz8AAAAASUVORK5CYII=',
@@ -239,12 +255,28 @@ async function seedLanguages(): Promise<void> {
   });
 }
 
+async function seedSiteSettings(): Promise<void> {
+  const languages = await prisma.language.findMany();
+
+  await prisma.siteSetting.createMany({
+    data: languages.flatMap((language) =>
+      siteSettingSeedKeys.map((key) => ({
+        key,
+        languageId: language.id,
+        createdBy: 'system',
+      })),
+    ),
+    skipDuplicates: true,
+  });
+}
+
 async function seed(): Promise<void> {
   await seedContent();
   await seedFaqs();
   await seedClients();
   await seedInboxSubjects();
   await seedLanguages();
+  await seedSiteSettings();
 }
 
 seed()

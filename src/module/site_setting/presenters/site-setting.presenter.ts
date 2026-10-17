@@ -3,40 +3,54 @@ import type {
   SiteSocialMedia,
 } from '../../../generated/prisma/client.js';
 
-export function presentSiteSetting(
-  result: { setting: SiteSetting; socialMedias: SiteSocialMedia[] } | null,
-) {
-  if (!result) return null;
-
-  const { setting, socialMedias } = result;
+export function presentSiteSetting({
+  languageId,
+  settings,
+  socialMedias,
+}: {
+  languageId: number;
+  settings: SiteSetting[];
+  socialMedias: SiteSocialMedia[];
+}) {
+  const values = new Map(settings.map((setting) => [setting.key, setting]));
+  // A configured key is a string ('' when empty); null means no row for this language.
+  const valueOf = (key: string) => {
+    const setting = values.get(key);
+    return setting ? (setting.value ?? '') : null;
+  };
+  const created = settings.reduce<SiteSetting | undefined>(
+    (earliest, setting) =>
+      !earliest || setting.createdAt < earliest.createdAt ? setting : earliest,
+    undefined,
+  );
+  const updated = settings.reduce<SiteSetting | undefined>(
+    (latest, setting) =>
+      setting.updatedAt &&
+      (!latest?.updatedAt || setting.updatedAt > latest.updatedAt)
+        ? setting
+        : latest,
+    undefined,
+  );
 
   return {
-    id: setting.id,
-    company_name: setting.companyName,
-    company_short_name: setting.companyShortName,
-    danantara_logo_filename: setting.danantaraLogoFilename,
-    danantara_logo_filepath: setting.danantaraLogoFilepath,
-    danantara_logo_extension: setting.danantaraLogoExtension,
-    danantara_logo_size: setting.danantaraLogoSize,
-    danantara_logo_metadata: setting.danantaraLogoMetadata,
-    pln_logo_filename: setting.plnLogoFilename,
-    pln_logo_filepath: setting.plnLogoFilepath,
-    pln_logo_extension: setting.plnLogoExtension,
-    pln_logo_size: setting.plnLogoSize,
-    pln_logo_metadata: setting.plnLogoMetadata,
-    company_address: setting.companyAddress,
-    company_phone_number: setting.companyPhoneNumber,
-    company_whatsapp_number: setting.companyWhatsappNumber,
-    main_email: setting.mainEmail,
-    marketing_email: setting.marketingEmail,
-    operational_day: setting.operationalDay,
-    operational_start_time: setting.operationalStartTime,
-    operational_end_time: setting.operationalEndTime,
+    language_id: languageId,
+    company_name: valueOf('company_name'),
+    company_short_name: valueOf('company_short_name'),
+    danantara_logo_filepath: valueOf('danantara_logo'),
+    pln_logo_filepath: valueOf('pln_logo'),
+    company_address: valueOf('company_address'),
+    company_phone_number: valueOf('company_phone_number'),
+    company_whatsapp_number: valueOf('company_whatsapp_number'),
+    main_email: valueOf('main_email'),
+    marketing_email: valueOf('marketing_email'),
+    operational_day: valueOf('operational_day'),
+    operational_start_time: valueOf('operational_start_time'),
+    operational_end_time: valueOf('operational_end_time'),
     social_medias: socialMedias.map(presentSocialMedia),
-    created_at: setting.createdAt.toISOString(),
-    created_by: setting.createdBy,
-    updated_at: setting.updatedAt?.toISOString() ?? null,
-    updated_by: setting.updatedBy,
+    created_at: created?.createdAt.toISOString() ?? null,
+    created_by: created?.createdBy ?? null,
+    updated_at: updated?.updatedAt?.toISOString() ?? null,
+    updated_by: updated?.updatedBy ?? null,
   };
 }
 

@@ -1,17 +1,20 @@
 import { Prisma } from '../../../generated/prisma/client.js';
 import { prisma } from '../../../shared/db/prisma.js';
 
-export const SITE_SETTING_ID = 1;
-
 const socialMediaOrderBy = [{ sortOrder: 'asc' }, { id: 'asc' }] as const;
 
 export type SocialMediaWrite =
   | { id: number; data: Prisma.SiteSocialMediaUncheckedUpdateInput }
   | { id?: undefined; data: Prisma.SiteSocialMediaUncheckedCreateInput };
 
+export type SettingValues = Record<string, string | null>;
+
 export class SiteSettingRepository {
-  findSetting() {
-    return prisma.siteSetting.findUnique({ where: { id: SITE_SETTING_ID } });
+  findSettings(languageId: number) {
+    return prisma.siteSetting.findMany({
+      where: { languageId },
+      orderBy: { id: 'asc' },
+    });
   }
 
   findSocialMedias(includeDrafts: boolean) {
@@ -22,17 +25,19 @@ export class SiteSettingRepository {
   }
 
   save(
-    create: Prisma.SiteSettingUncheckedCreateInput,
-    update: Prisma.SiteSettingUncheckedUpdateInput,
+    languageId: number,
+    values: SettingValues,
+    audit: { updatedAt: Date; updatedBy: string },
     keptIds: number[],
     socialMedias: SocialMediaWrite[],
   ) {
     return prisma.$transaction(async (transaction) => {
-      await transaction.siteSetting.upsert({
-        where: { id: SITE_SETTING_ID },
-        create: { ...create, id: SITE_SETTING_ID },
-        update,
-      });
+      for (const [key, value] of Object.entries(values)) {
+        await transaction.siteSetting.update({
+          where: { key_languageId: { key, languageId } },
+          data: { value, ...audit },
+        });
+      }
 
       await transaction.siteSocialMedia.deleteMany({
         where: { id: { notIn: keptIds } },

@@ -228,6 +228,7 @@ model Language {
   updatedAt           DateTime?        @map("updated_at") @db.Timestamptz(6)
   updatedBy           String?          @map("updated_by") @db.VarChar(100)
   articleContents     ArticleContent[]
+  siteSettings        SiteSetting[]
 
   @@map("languages")
 }
@@ -303,32 +304,17 @@ model Inbox {
 }
 
 model SiteSetting {
-  id                     Int       @id @default(1)
-  companyName            String    @map("company_name") @db.VarChar(200)
-  companyShortName       String?   @map("company_short_name") @db.VarChar(50)
-  danantaraLogoFilename  String?   @map("danantara_logo_filename") @db.VarChar(500)
-  danantaraLogoFilepath  String?   @map("danantara_logo_filepath") @db.VarChar(500)
-  danantaraLogoExtension String?   @map("danantara_logo_extension") @db.VarChar(10)
-  danantaraLogoSize      Int?      @map("danantara_logo_size")
-  danantaraLogoMetadata  Json?     @map("danantara_logo_metadata") @db.JsonB
-  plnLogoFilename        String?   @map("pln_logo_filename") @db.VarChar(500)
-  plnLogoFilepath        String?   @map("pln_logo_filepath") @db.VarChar(500)
-  plnLogoExtension       String?   @map("pln_logo_extension") @db.VarChar(10)
-  plnLogoSize            Int?      @map("pln_logo_size")
-  plnLogoMetadata        Json?     @map("pln_logo_metadata") @db.JsonB
-  companyAddress         String    @map("company_address") @db.VarChar(500)
-  companyPhoneNumber     String?   @map("company_phone_number") @db.VarChar(30)
-  companyWhatsappNumber  String?   @map("company_whatsapp_number") @db.VarChar(30)
-  mainEmail              String?   @map("main_email") @db.VarChar(254)
-  marketingEmail         String?   @map("marketing_email") @db.VarChar(254)
-  operationalDay         String?   @map("operational_day") @db.VarChar(100)
-  operationalStartTime   String?   @map("operational_start_time") @db.VarChar(5)
-  operationalEndTime     String?   @map("operational_end_time") @db.VarChar(5)
-  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  createdBy              String    @map("created_by") @db.VarChar(100)
-  updatedAt              DateTime? @map("updated_at") @db.Timestamptz(6)
-  updatedBy              String?   @map("updated_by") @db.VarChar(100)
+  id         Int       @id @default(autoincrement())
+  key        String    @db.VarChar(100)
+  languageId Int       @map("language_id")
+  value      String?
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy  String    @map("created_by") @db.VarChar(100)
+  updatedAt  DateTime? @map("updated_at") @db.Timestamptz(6)
+  updatedBy  String?   @map("updated_by") @db.VarChar(100)
+  language   Language  @relation(fields: [languageId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
+  @@unique([key, languageId])
   @@map("site_settings")
 }
 

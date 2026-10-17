@@ -23,6 +23,16 @@ random session secret of at least 32 bytes. The configured frontend origin must
 be an exact HTTP or HTTPS origin, such as `http://localhost:3000`. The server
 does not start if it cannot connect to Redis.
 
+## Swagger
+
+Interactive API documentation is served at `GET /documentation`, and the raw
+OpenAPI 3.1 document at `GET /documentation/openapi.json`. Request bodies and
+query parameters are generated from the server validation schemas. Response
+shapes and examples are documented in this file.
+
+"Try it out" works for public `GET` routes. Write routes reject requests whose
+origin is not `FRONTEND_ORIGIN`, so call them from the frontend instead.
+
 ## Browser Sessions
 
 Registration and login create a server-side session in Redis and set the

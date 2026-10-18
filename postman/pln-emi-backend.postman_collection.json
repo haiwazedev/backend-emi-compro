@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "PLN EMI Backend API",
-    "description": "All endpoints of backend-emi-compro. See docs/api.md for full rules.\n\nAuth uses the `pln_emi.sid` session cookie: run **Auth > Login** first; Postman keeps the cookie. Write requests (POST/PUT/DELETE) must send an `Origin` matching the server's `FRONTEND_ORIGIN`; the collection pre-request script adds it from the `frontendOrigin` variable.",
+    "description": "All endpoints of backend-emi-compro. See docs/api.md for full rules.\n\nAuth uses the `pln_emi.sid` session cookie: run **Auth > Login** first; Postman keeps the cookie. Other write requests (POST/PUT/DELETE) must send an `Origin` matching the server's `FRONTEND_ORIGIN`; the collection pre-request script adds it from the `frontendOrigin` variable. Public POST /inboxes accepts any Origin, uses no session credentials, and is limited to five attempts per IP every 15 minutes.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -10,7 +10,7 @@
       "script": {
         "type": "text/javascript",
         "exec": [
-          "// The server rejects unsafe methods without the configured frontend Origin.",
+          "// Other writes require the configured frontend Origin; POST /inboxes is public.",
           "if (!['GET', 'HEAD', 'OPTIONS'].includes(pm.request.method)) {",
           "  pm.request.headers.upsert({ key: 'Origin', value: pm.collectionVariables.get('frontendOrigin') });",
           "}"
@@ -1636,7 +1636,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["inboxes"]
             },
-            "description": "Public. Called by the landing-page contact form.",
+            "description": "Public. Called by the landing-page contact form. Accepts any Origin, uses no session credentials, and is limited to five attempts per IP every 15 minutes.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Budi Santoso\",\n  \"email\": \"budi.santoso@example.com\",\n  \"company\": \"PT Nusantara Data Center\",\n  \"phone\": \"+62 812 3456 7890\",\n  \"inbox_subject_id\": 1,\n  \"message\": \"Kami ingin menanyakan layanan audit energi.\"\n}",

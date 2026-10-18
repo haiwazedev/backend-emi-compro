@@ -5,6 +5,11 @@ import { ApiError } from '../errors/api-error.js';
 const safeMethods = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 export const validateRequestOrigin: RequestHandler = (req, _res, next) => {
+  if (req.method === 'POST' && req.path === '/inboxes') {
+    next();
+    return;
+  }
+
   if (safeMethods.has(req.method)) {
     next();
     return;

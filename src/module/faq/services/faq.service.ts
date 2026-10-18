@@ -1,18 +1,28 @@
-import { Prisma } from '../../../generated/prisma/client.js';
 import { ApiError } from '../../../shared/errors/api-error.js';
+import {
+  DEFAULT_LANGUAGE_ID,
+  LanguageService,
+} from '../../language/services/language.service.js';
 import { FaqRepository } from '../repositories/faq.repository.js';
 import type {
-  CreateFaqInput,
+  FaqContentInput,
   FaqListQuery,
   ReorderFaqsInput,
-  UpdateFaqInput,
 } from '../schemas/faq.schema.js';
 
 export class FaqService {
-  constructor(private readonly repository = new FaqRepository()) {}
+  constructor(
+    private readonly repository = new FaqRepository(),
+    private readonly languageService = new LanguageService(),
+  ) {}
 
-  list(query: FaqListQuery) {
-    return this.repository.findMany(query);
+  async list(query: FaqListQuery) {
+    const [faqs, languages] = await Promise.all([
+      this.repository.findMany(query),
+      this.languageService.listActive(),
+    ]);
+
+    return { faqs, languages };
   }
 
   async getById(id: number) {
@@ -26,7 +36,10 @@ export class FaqService {
   }
 
   async reorder(input: ReorderFaqsInput) {
-    const faqs = await this.repository.reorder(input.faq_ids);
+    const [faqs, languages] = await Promise.all([
+      this.repository.reorder(input.faq_ids),
+      this.languageService.listActive(),
+    ]);
 
     if (!faqs) {
       throw new ApiError(
@@ -35,36 +48,29 @@ export class FaqService {
       );
     }
 
-    return faqs;
+    return { faqs, languages };
   }
 
-  async create(input: CreateFaqInput, userName: string) {
-    return this.repository.create({
-      question: input.question,
-      answer: input.answer,
-      ...(input.status !== undefined ? { status: input.status } : {}),
-      createdBy: getAuditName(userName),
-    });
+  async create(input: FaqContentInput, userName: string) {
+    const createdBy = getAuditName(userName);
+    requireDefaultLanguageFirst(input.language_id, []);
+    await this.languageService.requireActive(input.language_id);
+
+    return this.repository.create(toContentData(input), createdBy);
   }
 
-  async update(id: number, input: UpdateFaqInput, userName: string) {
-    await this.getById(id);
-
-    if (Object.keys(input).length === 0) {
-      throw new ApiError(400, 'At least one FAQ field is required.');
-    }
-
-    const data: Prisma.FaqUncheckedUpdateInput = {
-      updatedAt: new Date(),
-      updatedBy: getAuditName(userName),
-    };
-
-    if (input.question !== undefined) data.question = input.question;
-    if (input.answer !== undefined) data.answer = input.answer;
-    if (input.status !== undefined) data.status = input.status;
+  async update(id: number, input: FaqContentInput, userName: string) {
+    const updatedBy = getAuditName(userName);
+    const faq = await this.getById(id);
+    requireDefaultLanguageFirst(input.language_id, faq.contents);
+    await this.languageService.requireActive(input.language_id);
 
     try {
-      return await this.repository.update(id, data);
+      return await this.repository.updateWithContent(
+        id,
+        toContentData(input),
+        updatedBy,
+      );
     } catch (error) {
       if (isPrismaError(error, 'P2025')) {
         throw new ApiError(404, 'FAQ was not found.');
@@ -87,6 +93,32 @@ export class FaqService {
       throw error;
     }
   }
+}
+
+// Other languages need a saved (draft or published) Bahasa Indonesia content first.
+function requireDefaultLanguageFirst(
+  languageId: string,
+  contents: { languageId: string }[],
+): void {
+  const hasDefault = contents.some(
+    (content) => content.languageId === DEFAULT_LANGUAGE_ID,
+  );
+
+  if (languageId !== DEFAULT_LANGUAGE_ID && !hasDefault) {
+    throw new ApiError(
+      400,
+      'Bahasa Indonesia is required before adding another language.',
+    );
+  }
+}
+
+function toContentData(input: FaqContentInput) {
+  return {
+    languageId: input.language_id,
+    question: input.question,
+    answer: input.answer,
+    status: input.status,
+  };
 }
 
 function getAuditName(name: string): string {

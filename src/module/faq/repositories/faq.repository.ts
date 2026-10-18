@@ -2,32 +2,76 @@ import { Prisma } from '../../../generated/prisma/client.js';
 import { prisma } from '../../../shared/db/prisma.js';
 import type { FaqListQuery } from '../schemas/faq.schema.js';
 
+export const faqInclude = {
+  contents: {
+    orderBy: [{ language: { sortOrder: 'asc' } }, { languageId: 'asc' }],
+  },
+} satisfies Prisma.FaqInclude;
+
+const faqOrder = [{ sortOrder: 'asc' }, { id: 'asc' }] as const;
+
+type FaqContentData = Omit<
+  Prisma.FaqContentUncheckedCreateWithoutFaqInput,
+  'createdBy'
+>;
+
 export class FaqRepository {
   findMany(query: FaqListQuery) {
+    // One content row must match every content filter together.
+    const contentWhere: Prisma.FaqContentWhereInput = {
+      ...(query.language_id ? { languageId: query.language_id } : {}),
+      ...(query.status ? { status: query.status } : {}),
+    };
+
     return prisma.faq.findMany({
-      where: query.status ? { status: query.status } : {},
-      orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+      where:
+        Object.keys(contentWhere).length > 0
+          ? { contents: { some: contentWhere } }
+          : {},
+      orderBy: [...faqOrder],
+      include: faqInclude,
     });
   }
 
   findById(id: number) {
-    return prisma.faq.findUnique({ where: { id } });
+    return prisma.faq.findUnique({ where: { id }, include: faqInclude });
   }
 
-  create(data: Prisma.FaqUncheckedCreateInput) {
+  create(content: FaqContentData, userName: string) {
     return prisma.$transaction(async (transaction) => {
       const current = await transaction.faq.aggregate({
         _max: { sortOrder: true },
       });
 
       return transaction.faq.create({
-        data: { ...data, sortOrder: (current._max.sortOrder ?? 0) + 1 },
+        data: {
+          sortOrder: (current._max.sortOrder ?? 0) + 1,
+          createdBy: userName,
+          contents: { create: { ...content, createdBy: userName } },
+        },
+        include: faqInclude,
       });
     });
   }
 
-  update(id: number, data: Prisma.FaqUncheckedUpdateInput) {
-    return prisma.faq.update({ where: { id }, data });
+  updateWithContent(id: number, content: FaqContentData, userName: string) {
+    return prisma.faq.update({
+      where: { id },
+      data: {
+        updatedAt: new Date(),
+        updatedBy: userName,
+        contents: {
+          upsert: {
+            where: {
+              faqId_languageId: { faqId: id, languageId: content.languageId },
+            },
+            create: { ...content, createdBy: userName },
+            update: { ...content, updatedBy: userName, updatedAt: new Date() },
+          },
+        },
+      },
+      include: faqInclude,
+    });
   }
 
   delete(id: number) {
@@ -58,7 +102,8 @@ export class FaqRepository {
       }
 
       return transaction.faq.findMany({
-        orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+        orderBy: [...faqOrder],
+        include: faqInclude,
       });
     });
   }
@@ -68,7 +113,7 @@ async function compactFaqs(
   transaction: Prisma.TransactionClient,
 ): Promise<void> {
   const faqs = await transaction.faq.findMany({
-    orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+    orderBy: [...faqOrder],
     select: { id: true, sortOrder: true },
   });
 

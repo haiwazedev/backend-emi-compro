@@ -1,20 +1,24 @@
 import { z } from 'zod';
+import { languageIdSchema } from '../../../shared/schemas/common.schema.js';
 
 const faqStatusSchema = z.enum(['DRAFT', 'PUBLISHED']);
 
-const faqFieldsSchema = z
+// One language's content; upserted into `faq_contents`.
+const faqContentFieldsSchema = z
   .object({
+    language_id: languageIdSchema,
     question: z.string().trim().min(1).max(200),
     answer: z.string().trim().min(1),
-    status: faqStatusSchema.optional(),
+    status: faqStatusSchema.default('DRAFT'),
   })
   .strict();
 
-export const createFaqBodySchema = faqFieldsSchema;
-export const updateFaqBodySchema = faqFieldsSchema.partial();
+export const createFaqBodySchema = faqContentFieldsSchema;
+export const updateFaqBodySchema = faqContentFieldsSchema;
 
 export const faqListQuerySchema = z
   .object({
+    language_id: languageIdSchema.optional(),
     status: faqStatusSchema.optional(),
   })
   .strict();
@@ -25,7 +29,6 @@ export const reorderFaqsBodySchema = z
   })
   .strict();
 
-export type CreateFaqInput = z.infer<typeof createFaqBodySchema>;
-export type UpdateFaqInput = z.infer<typeof updateFaqBodySchema>;
+export type FaqContentInput = z.infer<typeof faqContentFieldsSchema>;
 export type FaqListQuery = z.infer<typeof faqListQuerySchema>;
 export type ReorderFaqsInput = z.infer<typeof reorderFaqsBodySchema>;

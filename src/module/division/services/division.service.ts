@@ -43,6 +43,7 @@ export class DivisionService {
       name: input.name,
       abbr: input.abbr,
       iconSvg: input.icon_svg ?? null,
+      description: input.description ?? null,
       ...(input.status !== undefined ? { status: input.status } : {}),
       createdBy: getAuditName(userName),
     });
@@ -63,6 +64,9 @@ export class DivisionService {
     if (input.name !== undefined) data.name = input.name;
     if (input.abbr !== undefined) data.abbr = input.abbr;
     if (input.icon_svg !== undefined) data.iconSvg = input.icon_svg;
+    if (input.description !== undefined) {
+      data.description = input.description;
+    }
     if (input.status !== undefined) data.status = input.status;
 
     try {

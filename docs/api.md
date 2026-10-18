@@ -663,16 +663,17 @@ Requests use JSON.
 
 Create and update bodies accept these fields:
 
-| Field      | Type           | Rules                                                            |
-| ---------- | -------------- | ---------------------------------------------------------------- |
-| `name`     | string         | Required on create; trimmed; 1–200 characters.                   |
-| `abbr`     | string         | Required on create; trimmed; 1–50 characters.                    |
-| `icon_svg` | string or null | Optional; omitted on update to keep the current value.           |
-| `status`   | string         | Optional; `DRAFT` or `PUBLISHED`; defaults to `DRAFT` on create. |
+| Field         | Type           | Rules                                                                  |
+| ------------- | -------------- | ---------------------------------------------------------------------- |
+| `name`        | string         | Required on create; trimmed; 1–200 characters.                         |
+| `abbr`        | string         | Required on create; trimmed; 1–50 characters.                          |
+| `icon_svg`    | string or null | Optional; omitted on update to keep the current value.                 |
+| `description` | string or null | Optional; no length limit; blank string or `null` clears it on update. |
+| `status`      | string         | Optional; `DRAFT` or `PUBLISHED`; defaults to `DRAFT` on create.       |
 
-On update, omitted fields remain unchanged. Send `null` for `icon_svg` to clear
-it. The authenticated user's name is stored in `created_by`; updates set
-`updated_by` and `updated_at`.
+On update, omitted fields remain unchanged. Send `null` for `icon_svg` or
+`description` to clear it. The authenticated user's name is stored in
+`created_by`; updates set `updated_by` and `updated_at`.
 
 Example create request:
 
@@ -681,6 +682,7 @@ Example create request:
   "name": "Customer Services",
   "abbr": "CS",
   "icon_svg": "<svg></svg>",
+  "description": "Energy management services for organizations.",
   "status": "PUBLISHED"
 }
 ```
@@ -694,6 +696,7 @@ The response shape is:
     "name": "Customer Services",
     "abbr": "CS",
     "icon_svg": "<svg></svg>",
+    "description": "Energy management services for organizations.",
     "status": "PUBLISHED",
     "sort_order": 1,
     "created_at": "2026-10-11T10:30:00.000Z",
@@ -730,14 +733,36 @@ divisions. Invalid status values and unknown query parameters return
   destination division and compacts its former division.
 - `POST /services/reorder` reorders all services for one division and returns
   `{ "services": [...] }` with `200 OK`.
-- `DELETE /services/:serviceId` returns `204 No Content`.
+- `DELETE /services/:serviceId` returns `204 No Content` and removes its
+  gallery links without deleting media records.
 
-Service create and update bodies accept `division_id` (positive integer ID of
-an existing division) and `name` (required on create; trimmed; 1–200
-characters). Updates are partial; omitted fields remain unchanged. New
+Service create and update bodies accept these fields:
+
+| Field         | Type              | Rules                                                                        |
+| ------------- | ----------------- | ---------------------------------------------------------------------------- |
+| `division_id` | integer           | Positive ID of an existing division; required on create.                     |
+| `name`        | string            | Required on create; trimmed; 1–200 characters.                               |
+| `description` | string or null    | Optional; no length limit; blank string or `null` clears it on update.       |
+| `media_ids`   | array of integers | Optional; unique positive IDs of existing `PICTURE` media, in display order. |
+
+Updates are partial; omitted fields remain unchanged. On create, an omitted
+`media_ids` creates an empty gallery. On update, an omitted `media_ids` keeps
+the current gallery; sending an array replaces it, and `[]` clears it. Invalid,
+duplicate, missing, or non-picture media IDs return `400 Bad Request`. New
 services append after the division's current maximum `sort_order`. The
 authenticated user's name is stored in `created_by`; updates set `updated_by`
 and `updated_at`.
+
+Example create request:
+
+```json
+{
+  "division_id": 1,
+  "name": "Customer Support",
+  "description": "Support for energy management initiatives.",
+  "media_ids": [24, 31]
+}
+```
 
 For example, `GET /services/:serviceId` returns:
 
@@ -747,16 +772,31 @@ For example, `GET /services/:serviceId` returns:
     "id": 12,
     "division_id": 1,
     "name": "Customer Support",
+    "description": "Support for energy management initiatives.",
     "sort_order": 1,
     "created_at": "2026-10-11T10:30:00.000Z",
     "created_by": "Ari Putra",
     "updated_at": null,
     "updated_by": null,
+    "media": [
+      {
+        "id": 24,
+        "filename": "customer-support.jpg",
+        "path": "/public/media/customer-support.jpg",
+        "extension": "jpg",
+        "type": "PICTURE",
+        "size": 245760,
+        "metadata": { "width": 1600, "height": 900 },
+        "created_by": "Ari Putra",
+        "created_at": "2026-10-11T10:20:00.000Z"
+      }
+    ],
     "division": {
       "id": 1,
       "name": "Customer Services",
       "abbr": "CS",
       "icon_svg": null,
+      "description": null,
       "status": "PUBLISHED",
       "sort_order": 1,
       "created_at": "2026-10-11T10:00:00.000Z",
@@ -997,7 +1037,8 @@ The bulk delete response is:
 ```
 
 Deleting media also clears any Article `primary_photo` relation that references
-it. The stored file is removed after the database deletion commits.
+it and removes any service gallery links that reference it. The stored file is
+removed after the database deletion commits.
 
 ## Article Categories
 

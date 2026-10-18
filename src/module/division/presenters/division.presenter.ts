@@ -6,6 +6,7 @@ export function presentDivision(division: Division) {
     name: division.name,
     abbr: division.abbr,
     icon_svg: division.iconSvg,
+    description: division.description,
     status: division.status,
     sort_order: division.sortOrder,
     created_at: division.createdAt.toISOString(),

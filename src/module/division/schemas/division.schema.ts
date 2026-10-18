@@ -1,12 +1,20 @@
 import { z } from 'zod';
 
 const divisionStatusSchema = z.enum(['DRAFT', 'PUBLISHED']);
+const descriptionSchema = z
+  .string()
+  .nullable()
+  .optional()
+  .transform((value) =>
+    typeof value === 'string' && value.trim() === '' ? null : value,
+  );
 
 const divisionFieldsSchema = z
   .object({
     name: z.string().trim().min(1).max(200),
     abbr: z.string().trim().min(1).max(50),
     icon_svg: z.string().nullable().optional(),
+    description: descriptionSchema,
     status: divisionStatusSchema.optional(),
   })
   .strict();

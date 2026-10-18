@@ -87,17 +87,18 @@ model DocumentCommitment {
 }
 
 model Division {
-  id        Int            @id @default(autoincrement())
-  name      String         @db.VarChar(200)
-  abbr      String         @db.VarChar(50)
-  iconSvg   String?        @map("icon_svg") @db.Text
-  status    DivisionStatus @default(DRAFT)
-  sortOrder Int            @default(1) @map("sort_order")
-  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
-  createdBy String         @map("created_by") @db.VarChar(100)
-  updatedAt DateTime?      @map("updated_at") @db.Timestamptz(6)
-  updatedBy String?        @map("updated_by") @db.VarChar(100)
-  services  Service[]
+  id          Int            @id @default(autoincrement())
+  name        String         @db.VarChar(200)
+  abbr        String         @db.VarChar(50)
+  iconSvg     String?        @map("icon_svg") @db.Text
+  description String?        @db.Text
+  status      DivisionStatus @default(DRAFT)
+  sortOrder   Int            @default(1) @map("sort_order")
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy   String         @map("created_by") @db.VarChar(100)
+  updatedAt   DateTime?      @map("updated_at") @db.Timestamptz(6)
+  updatedBy   String?        @map("updated_by") @db.VarChar(100)
+  services    Service[]
 
   @@map("divisions")
 }
@@ -136,18 +137,33 @@ model Faq {
 }
 
 model Service {
-  id         Int       @id @default(autoincrement())
-  divisionId Int       @map("division_id")
-  name       String    @db.VarChar(200)
-  sortOrder  Int       @default(1) @map("sort_order")
-  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  createdBy  String    @map("created_by") @db.VarChar(100)
-  updatedAt  DateTime? @map("updated_at") @db.Timestamptz(6)
-  updatedBy  String?   @map("updated_by") @db.VarChar(100)
-  division   Division  @relation(fields: [divisionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  id          Int            @id @default(autoincrement())
+  divisionId  Int            @map("division_id")
+  name        String         @db.VarChar(200)
+  description String?        @db.Text
+  sortOrder   Int            @default(1) @map("sort_order")
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy   String         @map("created_by") @db.VarChar(100)
+  updatedAt   DateTime?      @map("updated_at") @db.Timestamptz(6)
+  updatedBy   String?        @map("updated_by") @db.VarChar(100)
+  division    Division       @relation(fields: [divisionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  mediaLinks  ServiceMedia[]
 
   @@index([divisionId, sortOrder])
   @@map("services")
+}
+
+model ServiceMedia {
+  serviceId Int     @map("service_id")
+  mediaId   Int     @map("media_id")
+  sortOrder Int     @map("sort_order")
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  media     Media   @relation(fields: [mediaId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([serviceId, mediaId])
+  @@unique([serviceId, sortOrder])
+  @@index([mediaId])
+  @@map("service_media")
 }
 
 model BoardMemberType {
@@ -176,17 +192,18 @@ model BoardMember {
 }
 
 model Media {
-  id        Int       @id @default(autoincrement())
-  filename  String    @unique @db.VarChar(255)
-  path      String    @db.VarChar(255)
-  extension String    @db.VarChar(20)
-  type      MediaType
-  size      Int
-  metadata  Json?     @db.JsonB
-  createdBy String    @map("created_by") @db.VarChar(100)
-  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  articles  Article[]
-  contents  Content[]
+  id           Int            @id @default(autoincrement())
+  filename     String         @unique @db.VarChar(255)
+  path         String         @db.VarChar(255)
+  extension    String         @db.VarChar(20)
+  type         MediaType
+  size         Int
+  metadata     Json?          @db.JsonB
+  createdBy    String         @map("created_by") @db.VarChar(100)
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  articles     Article[]
+  contents     Content[]
+  serviceLinks ServiceMedia[]
 
   @@index([type])
   @@index([createdAt])
@@ -238,7 +255,7 @@ model ArticleContent {
   id         Int           @id @default(autoincrement())
   articleId  Int           @map("article_id")
   languageId String        @map("language_id") @db.VarChar(10)
-  title     String        @db.VarChar(120)
+  title      String        @db.VarChar(120)
   slug       String        @unique @db.VarChar(255)
   summary    String        @db.Text
   content    String        @db.Text
@@ -307,7 +324,7 @@ model SiteSetting {
   id         Int       @id @default(autoincrement())
   key        String    @db.VarChar(100)
   languageId String    @map("language_id") @db.VarChar(10)
-  value     String?
+  value      String?
   createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   createdBy  String    @map("created_by") @db.VarChar(100)
   updatedAt  DateTime? @map("updated_at") @db.Timestamptz(6)

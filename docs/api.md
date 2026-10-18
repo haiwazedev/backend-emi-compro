@@ -542,6 +542,10 @@ language's content status, or `null` when the article has no content in it.
   returns `204 No Content`.
 
 Article POST and PUT bodies use JSON. Each request writes one language.
+Bahasa Indonesia (`id`) comes first: `POST` must use `language_id` `id`, and a
+`PUT` for any other language needs saved `id` content (draft or published).
+Otherwise the request returns `400 Bad Request` with
+`Bahasa Indonesia is required before adding another language.`
 
 | Field                  | Type           | Rules                                                               |
 | ---------------------- | -------------- | ------------------------------------------------------------------- |

@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import { getAuthenticatedUser } from '../../auth/authenticated-user.js';
 import { parseIdParam } from '../../../shared/schemas/common.schema.js';
 import { presentBoardMemberType } from '../presenters/board-member-type.presenter.js';
 import { BoardMemberTypeService } from '../services/board-member-type.service.js';
@@ -31,6 +32,7 @@ export class BoardMemberTypeController {
   create = async (req: Request, res: Response): Promise<void> => {
     const boardMemberType = await this.service.create(
       req.body as CreateBoardMemberTypeInput,
+      getAuthenticatedUser(req),
     );
 
     res.status(201).json({
@@ -42,6 +44,7 @@ export class BoardMemberTypeController {
     const boardMemberType = await this.service.update(
       parseIdParam(req.params.typeId),
       req.body as UpdateBoardMemberTypeInput,
+      getAuthenticatedUser(req),
     );
 
     res.status(200).json({
@@ -50,7 +53,10 @@ export class BoardMemberTypeController {
   };
 
   delete = async (req: Request, res: Response): Promise<void> => {
-    await this.service.delete(parseIdParam(req.params.typeId));
+    await this.service.delete(
+      parseIdParam(req.params.typeId),
+      getAuthenticatedUser(req),
+    );
     res.status(204).end();
   };
 }

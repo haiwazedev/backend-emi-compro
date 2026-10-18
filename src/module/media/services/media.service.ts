@@ -1,5 +1,7 @@
 import { prisma } from '../../../shared/db/prisma.js';
 import { ApiError } from '../../../shared/errors/api-error.js';
+import { ActivityLogService } from '../../activity_log/services/activity-log.service.js';
+import type { AuthenticatedUser } from '../../auth/authenticated-user.js';
 import { MediaRepository } from '../repositories/media.repository.js';
 import type { MediaListQuery, MediaType } from '../schemas/media.schema.js';
 import { MediaFileService } from './media-file.service.js';
@@ -8,6 +10,7 @@ export class MediaService {
   constructor(
     private readonly repository = new MediaRepository(),
     private readonly fileService = new MediaFileService(),
+    private readonly activityLogService = new ActivityLogService(),
   ) {}
 
   list(query: MediaListQuery) {
@@ -27,13 +30,13 @@ export class MediaService {
   async upload(
     file: Express.Multer.File | undefined,
     type: MediaType,
-    userName: string,
+    user: AuthenticatedUser,
   ) {
     if (!file) {
       throw new ApiError(400, 'File is required.');
     }
 
-    if (userName.length > 100) {
+    if (user.name.length > 100) {
       throw new ApiError(
         400,
         'Authenticated user name exceeds 100 characters.',
@@ -53,7 +56,7 @@ export class MediaService {
             type,
             size: details.size,
             metadata: details.metadata,
-            createdBy: userName,
+            createdBy: user.name,
           },
           transaction,
         );
@@ -63,6 +66,11 @@ export class MediaService {
         return created;
       });
 
+      await this.activityLogService.log(
+        user,
+        'menambahkan media',
+        media.filename,
+      );
       return media;
     } catch (error) {
       if (fileStored) {
@@ -80,7 +88,7 @@ export class MediaService {
     }
   }
 
-  async delete(id: number): Promise<void> {
+  async delete(id: number, user: AuthenticatedUser): Promise<void> {
     const media = await this.getById(id);
 
     try {
@@ -94,9 +102,10 @@ export class MediaService {
     }
 
     await this.fileService.removeAfterCommit(media.filename);
+    await this.activityLogService.log(user, 'menghapus media', media.filename);
   }
 
-  async bulkDelete(ids: number[]): Promise<number> {
+  async bulkDelete(ids: number[], user: AuthenticatedUser): Promise<number> {
     const uniqueIds = [...new Set(ids)];
     const result = await prisma.$transaction(async (transaction) => {
       const media = await this.repository.findManyByIds(uniqueIds, transaction);
@@ -110,6 +119,14 @@ export class MediaService {
         this.fileService.removeAfterCommit(filename),
       ),
     );
+
+    if (result.count > 0) {
+      await this.activityLogService.log(
+        user,
+        'menghapus media',
+        `${result.count} file`,
+      );
+    }
 
     return result.count;
   }

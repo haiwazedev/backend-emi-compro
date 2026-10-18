@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { ApiError } from '../../../shared/errors/api-error.js';
+import { getAuthenticatedUser } from '../../auth/authenticated-user.js';
 import { parseIdParam } from '../../../shared/schemas/common.schema.js';
 import { presentClient } from '../presenters/client.presenter.js';
 import { ClientService } from '../services/client.service.js';
@@ -27,7 +27,10 @@ export class ClientController {
   };
 
   reorder = async (req: Request, res: Response): Promise<void> => {
-    const clients = await this.service.reorder(req.body as ReorderClientsInput);
+    const clients = await this.service.reorder(
+      req.body as ReorderClientsInput,
+      getAuthenticatedUser(req),
+    );
 
     res.status(200).json({ clients: clients.map(presentClient) });
   };
@@ -36,7 +39,7 @@ export class ClientController {
     const client = await this.service.create(
       req.body as CreateClientInput,
       req.file,
-      getAuthenticatedUserName(req),
+      getAuthenticatedUser(req),
     );
 
     res.status(201).json({ client: presentClient(client) });
@@ -47,22 +50,17 @@ export class ClientController {
       parseIdParam(req.params.clientId),
       req.body as UpdateClientInput,
       req.file,
-      getAuthenticatedUserName(req),
+      getAuthenticatedUser(req),
     );
 
     res.status(200).json({ client: presentClient(client) });
   };
 
   delete = async (req: Request, res: Response): Promise<void> => {
-    await this.service.delete(parseIdParam(req.params.clientId));
+    await this.service.delete(
+      parseIdParam(req.params.clientId),
+      getAuthenticatedUser(req),
+    );
     res.status(204).end();
   };
-}
-
-function getAuthenticatedUserName(req: Request): string {
-  if (!req.authenticatedUser) {
-    throw new ApiError(401, 'Authentication is required.');
-  }
-
-  return req.authenticatedUser.name;
 }

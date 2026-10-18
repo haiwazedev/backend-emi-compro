@@ -7,6 +7,8 @@ import {
   DEFAULT_LANGUAGE_ID,
   LanguageService,
 } from '../../language/services/language.service.js';
+import type { AuthenticatedUser } from '../../auth/authenticated-user.js';
+import { ActivityLogService } from '../../activity_log/services/activity-log.service.js';
 import { MediaRepository } from '../../media/repositories/media.repository.js';
 import type {
   ArticleListQuery,
@@ -25,6 +27,7 @@ export class ArticleService {
     private readonly categoryRepository = new ArticleCategoryRepository(),
     private readonly mediaRepository = new MediaRepository(),
     private readonly languageService = new LanguageService(),
+    private readonly activityLogService = new ActivityLogService(),
   ) {}
 
   async list(query: ArticleListQuery) {
@@ -43,6 +46,32 @@ export class ArticleService {
         totalItems,
         totalPages: Math.ceil(totalItems / query.limit),
       },
+    };
+  }
+
+  async counts() {
+    const [total, contentCounts, languages] = await Promise.all([
+      this.repository.countAll(),
+      this.repository.countContentsByLanguageAndStatus(),
+      this.languageService.listActive(),
+    ]);
+
+    // Languages without content have no group, so they fall back to 0.
+    const countOf = (languageId: string, status: 'DRAFT' | 'PUBLISHED') =>
+      contentCounts.find(
+        (item) => item.languageId === languageId && item.status === status,
+      )?._count._all ?? 0;
+
+    return {
+      total,
+      languages: languages.map((language) => ({
+        id: language.id,
+        flag: language.flag,
+        count: {
+          draft: countOf(language.id, 'DRAFT'),
+          published: countOf(language.id, 'PUBLISHED'),
+        },
+      })),
     };
   }
 
@@ -66,25 +95,30 @@ export class ArticleService {
     return article;
   }
 
-  async create(input: CreateArticleInput, userName: string) {
-    const createdBy = getAuditName(userName);
+  async create(input: CreateArticleInput, user: AuthenticatedUser) {
+    const createdBy = getAuditName(user.name);
     await this.requireCategory(input.article_category_id);
     await this.requirePictureMedia(input.primary_photo);
     requireDefaultLanguageFirst(input.language_id, []);
     await this.requireContentTarget(input);
 
+    let article;
+
     try {
-      return await this.repository.create(
+      article = await this.repository.create(
         { ...toCreateData(input), createdBy },
         toContentData(input),
       );
     } catch (error) {
       throw mapArticleError(error);
     }
+
+    await this.activityLogService.log(user, 'menambahkan artikel', input.title);
+    return article;
   }
 
-  async update(id: number, input: UpdateArticleInput, userName: string) {
-    const updatedBy = getAuditName(userName);
+  async update(id: number, input: UpdateArticleInput, user: AuthenticatedUser) {
+    const updatedBy = getAuditName(user.name);
     const article = await this.getById(id);
     requireDefaultLanguageFirst(input.language_id, article.contents);
 
@@ -98,8 +132,10 @@ export class ArticleService {
 
     await this.requireContentTarget(input, id);
 
+    let updated;
+
     try {
-      return await this.repository.updateWithContent(
+      updated = await this.repository.updateWithContent(
         id,
         toUpdateData(input, updatedBy),
         toContentData(input),
@@ -108,16 +144,26 @@ export class ArticleService {
     } catch (error) {
       throw mapArticleError(error);
     }
+
+    await this.activityLogService.log(user, 'memperbarui artikel', input.title);
+    return updated;
   }
 
-  async delete(id: number): Promise<void> {
-    await this.getById(id);
+  async delete(id: number, user: AuthenticatedUser): Promise<void> {
+    const article = await this.getById(id);
 
     try {
       await this.repository.delete(id);
     } catch (error) {
       throw mapArticleError(error);
     }
+
+    // Contents are ordered by language, so the first is the default title.
+    await this.activityLogService.log(
+      user,
+      'menghapus artikel',
+      article.contents[0]?.title ?? `Artikel #${id}`,
+    );
   }
 
   private async requireCategory(id: number): Promise<void> {

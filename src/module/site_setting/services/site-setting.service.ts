@@ -1,5 +1,7 @@
 import type { SiteSetting } from '../../../generated/prisma/client.js';
 import { ApiError } from '../../../shared/errors/api-error.js';
+import { ActivityLogService } from '../../activity_log/services/activity-log.service.js';
+import type { AuthenticatedUser } from '../../auth/authenticated-user.js';
 import { LanguageService } from '../../language/services/language.service.js';
 import {
   SiteSettingRepository,
@@ -33,6 +35,7 @@ export class SiteSettingService {
     private readonly repository = new SiteSettingRepository(),
     private readonly fileService = new SiteSettingFileService(),
     private readonly languageService = new LanguageService(),
+    private readonly activityLogService = new ActivityLogService(),
   ) {}
 
   async get(languageId: string | undefined, includeDrafts: boolean) {
@@ -48,9 +51,9 @@ export class SiteSettingService {
   async save(
     input: SaveSiteSettingInput,
     files: SiteSettingFiles,
-    userName: string,
+    user: AuthenticatedUser,
   ) {
-    const auditName = getAuditName(userName);
+    const auditName = getAuditName(user.name);
     const iconFiles = files.social_icons ?? [];
     validateIconIndexes(input, iconFiles.length);
 
@@ -167,6 +170,11 @@ export class SiteSettingService {
       ...currentById.values(),
     ]);
 
+    await this.activityLogService.log(
+      user,
+      'memperbarui pengaturan situs',
+      'Pengaturan situs',
+    );
     return this.get(language.id, true);
   }
 

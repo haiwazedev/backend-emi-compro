@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { ApiError } from '../../../shared/errors/api-error.js';
+import { getAuthenticatedUser } from '../../auth/authenticated-user.js';
 import { parseIdParam } from '../../../shared/schemas/common.schema.js';
 import { ArticleService } from '../services/article.service.js';
 import {
@@ -27,6 +27,10 @@ export class ArticleController {
     });
   };
 
+  counts = async (_req: Request, res: Response): Promise<void> => {
+    res.status(200).json(await this.service.counts());
+  };
+
   get = async (req: Request, res: Response): Promise<void> => {
     const article = await this.service.getById(
       parseIdParam(req.params.articleId),
@@ -44,36 +48,29 @@ export class ArticleController {
   };
 
   create = async (req: Request, res: Response): Promise<void> => {
-    const userName = getAuthenticatedUserName(req);
     const article = await this.service.create(
       req.body as CreateArticleInput,
-      userName,
+      getAuthenticatedUser(req),
     );
 
     res.status(201).json({ article: presentArticle(article) });
   };
 
   update = async (req: Request, res: Response): Promise<void> => {
-    const userName = getAuthenticatedUserName(req);
     const article = await this.service.update(
       parseIdParam(req.params.articleId),
       req.body as UpdateArticleInput,
-      userName,
+      getAuthenticatedUser(req),
     );
 
     res.status(200).json({ article: presentArticle(article) });
   };
 
   delete = async (req: Request, res: Response): Promise<void> => {
-    await this.service.delete(parseIdParam(req.params.articleId));
+    await this.service.delete(
+      parseIdParam(req.params.articleId),
+      getAuthenticatedUser(req),
+    );
     res.status(204).end();
   };
-}
-
-function getAuthenticatedUserName(req: Request): string {
-  if (!req.authenticatedUser) {
-    throw new ApiError(401, 'Authentication is required.');
-  }
-
-  return req.authenticatedUser.name;
 }

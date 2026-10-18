@@ -1,6 +1,8 @@
 import { Prisma } from '../../../generated/prisma/client.js';
 import { prisma } from '../../../shared/db/prisma.js';
 import { ApiError } from '../../../shared/errors/api-error.js';
+import { ActivityLogService } from '../../activity_log/services/activity-log.service.js';
+import type { AuthenticatedUser } from '../../auth/authenticated-user.js';
 import { DocumentCommitmentCategoryRepository } from '../repositories/document-commitment-category.repository.js';
 import { DocumentCommitmentRepository } from '../repositories/document-commitment.repository.js';
 import type {
@@ -18,6 +20,7 @@ export class DocumentCommitmentService {
     private readonly repository = new DocumentCommitmentRepository(),
     private readonly categoryRepository = new DocumentCommitmentCategoryRepository(),
     private readonly fileService = new DocumentCommitmentFileService(),
+    private readonly activityLogService = new ActivityLogService(),
   ) {}
 
   async list(query: DocumentCommitmentListQuery) {
@@ -50,9 +53,9 @@ export class DocumentCommitmentService {
   async create(
     input: CreateDocumentCommitmentInput,
     file: Express.Multer.File | undefined,
-    userName: string,
+    user: AuthenticatedUser,
   ) {
-    const uploadedBy = getAuditName(userName);
+    const uploadedBy = getAuditName(user.name);
 
     if (!file) {
       throw new ApiError(400, 'File is required.');
@@ -63,7 +66,7 @@ export class DocumentCommitmentService {
 
     let fileStored = false;
     try {
-      return await prisma.$transaction(async (transaction) => {
+      const document = await prisma.$transaction(async (transaction) => {
         const created = await this.repository.create(
           {
             documentCommitmentCategoryId: input.document_commitment_category_id,
@@ -82,6 +85,13 @@ export class DocumentCommitmentService {
 
         return created;
       });
+
+      await this.activityLogService.log(
+        user,
+        'menambahkan dokumen',
+        document.title,
+      );
+      return document;
     } catch (error) {
       if (fileStored) {
         await this.fileService.removeAfterCommit(details.filename);
@@ -95,10 +105,10 @@ export class DocumentCommitmentService {
     id: number,
     input: UpdateDocumentCommitmentInput,
     file: Express.Multer.File | undefined,
-    userName: string,
+    user: AuthenticatedUser,
   ) {
     const current = await this.getById(id);
-    const updatedBy = getAuditName(userName);
+    const updatedBy = getAuditName(user.name);
 
     if (Object.keys(input).length === 0 && !file) {
       throw new ApiError(
@@ -150,6 +160,11 @@ export class DocumentCommitmentService {
         await replacement.commitAfterTransaction();
       }
 
+      await this.activityLogService.log(
+        user,
+        'memperbarui dokumen',
+        document.title,
+      );
       return document;
     } catch (error) {
       if (replacement) {
@@ -165,7 +180,8 @@ export class DocumentCommitmentService {
     }
   }
 
-  async delete(id: number): Promise<void> {
+  async delete(id: number, user: AuthenticatedUser): Promise<void> {
+    const { title } = await this.getById(id);
     const document = await this.repository.deleteWithFile(id);
 
     if (!document) {
@@ -173,6 +189,7 @@ export class DocumentCommitmentService {
     }
 
     await this.fileService.removeAfterCommit(document.filename);
+    await this.activityLogService.log(user, 'menghapus dokumen', title);
   }
 
   private async requireCategory(id: number): Promise<void> {

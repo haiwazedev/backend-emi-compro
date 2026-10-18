@@ -1,4 +1,6 @@
 import { ApiError } from '../../../shared/errors/api-error.js';
+import { ActivityLogService } from '../../activity_log/services/activity-log.service.js';
+import type { AuthenticatedUser } from '../../auth/authenticated-user.js';
 import { LanguageService } from '../../language/services/language.service.js';
 import { BoardMemberFileService } from './board-member-file.service.js';
 import { BoardMemberTypeRepository } from '../repositories/board-member-type.repository.js';
@@ -12,6 +14,7 @@ export class BoardMemberTypeService {
     private readonly repository = new BoardMemberTypeRepository(),
     private readonly fileService = new BoardMemberFileService(),
     private readonly languageService = new LanguageService(),
+    private readonly activityLogService = new ActivityLogService(),
   ) {}
 
   list() {
@@ -28,11 +31,17 @@ export class BoardMemberTypeService {
     return boardMemberType;
   }
 
-  async create(input: CreateBoardMemberTypeInput) {
+  async create(input: CreateBoardMemberTypeInput, user: AuthenticatedUser) {
     await this.languageService.requireActive(input.language_id);
 
     try {
-      return await this.repository.create(input);
+      const boardMemberType = await this.repository.create(input);
+      await this.activityLogService.log(
+        user,
+        'menambahkan tipe anggota direksi',
+        boardMemberType.type,
+      );
+      return boardMemberType;
     } catch (error) {
       if (isPrismaError(error, 'P2003')) {
         throw new ApiError(400, 'Language does not exist or is inactive.');
@@ -42,7 +51,11 @@ export class BoardMemberTypeService {
     }
   }
 
-  async update(id: number, input: UpdateBoardMemberTypeInput) {
+  async update(
+    id: number,
+    input: UpdateBoardMemberTypeInput,
+    user: AuthenticatedUser,
+  ) {
     await this.getById(id);
 
     if (Object.keys(input).length === 0) {
@@ -59,7 +72,13 @@ export class BoardMemberTypeService {
     }
 
     try {
-      return await this.repository.update(id, input.type);
+      const boardMemberType = await this.repository.update(id, input.type);
+      await this.activityLogService.log(
+        user,
+        'memperbarui tipe anggota direksi',
+        boardMemberType.type,
+      );
+      return boardMemberType;
     } catch (error) {
       if (isPrismaError(error, 'P2025')) {
         throw new ApiError(404, 'Board member type was not found.');
@@ -69,7 +88,8 @@ export class BoardMemberTypeService {
     }
   }
 
-  async delete(id: number): Promise<void> {
+  async delete(id: number, user: AuthenticatedUser): Promise<void> {
+    const boardMemberType = await this.getById(id);
     const photos = await this.repository.delete(id);
 
     if (!photos) {
@@ -78,6 +98,11 @@ export class BoardMemberTypeService {
 
     await Promise.all(
       photos.map((photo) => this.fileService.removeAfterCommit(photo)),
+    );
+    await this.activityLogService.log(
+      user,
+      'menghapus tipe anggota direksi',
+      boardMemberType.type,
     );
   }
 }

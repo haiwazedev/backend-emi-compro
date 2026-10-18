@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { ApiError } from '../../../shared/errors/api-error.js';
+import { getAuthenticatedUser } from '../../auth/authenticated-user.js';
 import { parseIdParam } from '../../../shared/schemas/common.schema.js';
 import { presentFaq, presentFaqListItem } from '../presenters/faq.presenter.js';
 import { FaqService } from '../services/faq.service.js';
@@ -32,6 +32,7 @@ export class FaqController {
   reorder = async (req: Request, res: Response): Promise<void> => {
     const { faqs, languages } = await this.service.reorder(
       req.body as ReorderFaqsInput,
+      getAuthenticatedUser(req),
     );
 
     res.status(200).json({
@@ -42,7 +43,7 @@ export class FaqController {
   create = async (req: Request, res: Response): Promise<void> => {
     const faq = await this.service.create(
       req.body as FaqContentInput,
-      getAuthenticatedUserName(req),
+      getAuthenticatedUser(req),
     );
 
     res.status(201).json({ faq: presentFaq(faq) });
@@ -52,22 +53,17 @@ export class FaqController {
     const faq = await this.service.update(
       parseIdParam(req.params.faqId),
       req.body as FaqContentInput,
-      getAuthenticatedUserName(req),
+      getAuthenticatedUser(req),
     );
 
     res.status(200).json({ faq: presentFaq(faq) });
   };
 
   delete = async (req: Request, res: Response): Promise<void> => {
-    await this.service.delete(parseIdParam(req.params.faqId));
+    await this.service.delete(
+      parseIdParam(req.params.faqId),
+      getAuthenticatedUser(req),
+    );
     res.status(204).end();
   };
-}
-
-function getAuthenticatedUserName(req: Request): string {
-  if (!req.authenticatedUser) {
-    throw new ApiError(401, 'Authentication is required.');
-  }
-
-  return req.authenticatedUser.name;
 }

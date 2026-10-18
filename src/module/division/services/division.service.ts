@@ -1,5 +1,7 @@
 import { Prisma } from '../../../generated/prisma/client.js';
 import { ApiError } from '../../../shared/errors/api-error.js';
+import { ActivityLogService } from '../../activity_log/services/activity-log.service.js';
+import type { AuthenticatedUser } from '../../auth/authenticated-user.js';
 import { LanguageService } from '../../language/services/language.service.js';
 import { DivisionRepository } from '../repositories/division.repository.js';
 import type {
@@ -13,6 +15,7 @@ export class DivisionService {
   constructor(
     private readonly repository = new DivisionRepository(),
     private readonly languageService = new LanguageService(),
+    private readonly activityLogService = new ActivityLogService(),
   ) {}
 
   list(query: DivisionListQuery) {
@@ -29,7 +32,7 @@ export class DivisionService {
     return division;
   }
 
-  async reorder(input: ReorderDivisionsInput) {
+  async reorder(input: ReorderDivisionsInput, user: AuthenticatedUser) {
     const divisions = await this.repository.reorder(input.division_ids);
 
     if (!divisions) {
@@ -39,18 +42,19 @@ export class DivisionService {
       );
     }
 
+    await this.activityLogService.log(user, 'memperbarui urutan', 'Divisi');
     return divisions;
   }
 
-  async create(input: CreateDivisionInput, userName: string) {
+  async create(input: CreateDivisionInput, user: AuthenticatedUser) {
     await this.languageService.requireActive(input.language_id);
 
     try {
-      return await this.repository.create(
+      const division = await this.repository.create(
         {
           iconSvg: input.icon_svg ?? null,
           ...(input.status !== undefined ? { status: input.status } : {}),
-          createdBy: getAuditName(userName),
+          createdBy: getAuditName(user.name),
         },
         {
           languageId: input.language_id,
@@ -59,12 +63,18 @@ export class DivisionService {
           description: input.description ?? null,
         },
       );
+      await this.activityLogService.log(user, 'menambahkan divisi', input.name);
+      return division;
     } catch (error) {
       throw mapDivisionError(error);
     }
   }
 
-  async update(id: number, input: UpdateDivisionInput, userName: string) {
+  async update(
+    id: number,
+    input: UpdateDivisionInput,
+    user: AuthenticatedUser,
+  ) {
     await this.getById(id);
 
     if (Object.keys(input).length === 0) {
@@ -77,7 +87,7 @@ export class DivisionService {
 
     const data: Prisma.DivisionUncheckedUpdateInput = {
       updatedAt: new Date(),
-      updatedBy: getAuditName(userName),
+      updatedBy: getAuditName(user.name),
     };
 
     if (input.icon_svg !== undefined) data.iconSvg = input.icon_svg;
@@ -105,21 +115,37 @@ export class DivisionService {
         );
       }
 
+      await this.activityLogService.log(
+        user,
+        'memperbarui divisi',
+        divisionName(division),
+      );
       return division;
     } catch (error) {
       throw mapDivisionError(error);
     }
   }
 
-  async delete(id: number): Promise<void> {
-    await this.getById(id);
+  async delete(id: number, user: AuthenticatedUser): Promise<void> {
+    const division = await this.getById(id);
 
     try {
       await this.repository.delete(id);
     } catch (error) {
       throw mapDivisionError(error);
     }
+
+    await this.activityLogService.log(
+      user,
+      'menghapus divisi',
+      divisionName(division),
+    );
   }
+}
+
+// Contents are ordered by language, so the first is the default name.
+function divisionName(division: { id: number; contents: { name: string }[] }) {
+  return division.contents[0]?.name ?? `Divisi #${division.id}`;
 }
 
 function getAuditName(name: string): string {

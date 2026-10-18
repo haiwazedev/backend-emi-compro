@@ -65,7 +65,7 @@ export const articleListQuerySchema = z
     article_category_id: z.coerce.number().int().positive().optional(),
     language_id: languageIdSchema.optional(),
     status: articleStatusSchema.optional(),
-    sort_by: z.literal('created_at').default('created_at'),
+    sort_by: z.enum(['created_at', 'issue_date']).default('created_at'),
     sort_order: z.enum(['asc', 'desc']).default('desc'),
   })
   .strict();

@@ -20,18 +20,38 @@ export class ArticleRepository {
   findMany(query: ArticleListQuery) {
     const where = this.buildWhere(query);
     const direction = query.sort_order;
+    // Issue date and updated_at are nullable; undated articles go last.
+    const orderBy: Prisma.ArticleOrderByWithRelationInput[] =
+      query.sort_by === 'issue_date'
+        ? [
+            { issueDate: { sort: direction, nulls: 'last' } },
+            { updatedAt: { sort: direction, nulls: 'last' } },
+            { id: direction },
+          ]
+        : [{ createdAt: direction }, { id: direction }];
 
     return prisma.article.findMany({
       where,
       skip: (query.page - 1) * query.limit,
       take: query.limit,
-      orderBy: [{ createdAt: direction }, { id: direction }],
+      orderBy,
       include: articleInclude,
     });
   }
 
   count(query: ArticleListQuery) {
     return prisma.article.count({ where: this.buildWhere(query) });
+  }
+
+  countAll() {
+    return prisma.article.count();
+  }
+
+  countContentsByLanguageAndStatus() {
+    return prisma.articleContent.groupBy({
+      by: ['languageId', 'status'],
+      _count: { _all: true },
+    });
   }
 
   findById(id: number) {

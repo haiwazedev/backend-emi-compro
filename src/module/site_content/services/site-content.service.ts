@@ -1,4 +1,6 @@
 import { ApiError } from '../../../shared/errors/api-error.js';
+import { ActivityLogService } from '../../activity_log/services/activity-log.service.js';
+import type { AuthenticatedUser } from '../../auth/authenticated-user.js';
 import { findContentDefinition } from '../site-content-definitions.js';
 import {
   DEFAULT_LANGUAGE_ID,
@@ -16,6 +18,7 @@ export class SiteContentService {
     private readonly repository = new SiteContentRepository(),
     private readonly languageService = new LanguageService(),
     private readonly mediaRepository = new MediaRepository(),
+    private readonly activityLogService = new ActivityLogService(),
   ) {}
 
   async list(query: SiteContentQuery) {
@@ -27,8 +30,8 @@ export class SiteContentService {
     return { languageId: language.id, items };
   }
 
-  async save(input: SaveSiteContentsInput, userName: string) {
-    if (userName.length > 100) {
+  async save(input: SaveSiteContentsInput, user: AuthenticatedUser) {
+    if (user.name.length > 100) {
       throw new ApiError(
         400,
         'Authenticated user name exceeds 100 characters.',
@@ -62,9 +65,15 @@ export class SiteContentService {
             ?.supportsOrder,
         ),
       })),
-      userName,
+      user.name,
     );
 
+    const pages = [...new Set(input.items.map((item) => item.page))];
+    await this.activityLogService.log(
+      user,
+      'memperbarui konten halaman',
+      pages.join(', '),
+    );
     return { languageId: language.id, items };
   }
 

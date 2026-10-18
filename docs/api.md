@@ -451,7 +451,8 @@ save and cannot be sent in requests.
 
 Returns a page of articles with their related category and primary photo media.
 Results are sorted by `created_at` descending by default, with `id` as a stable
-tie-breaker.
+tie-breaker. `sort_by=issue_date` sorts by `issue_date`, then `updated_at`, then
+`id`, all in `sort_order`; articles without an issue date or update come last.
 
 | Query parameter       | Type   | Rules                                                                     |
 | --------------------- | ------ | ------------------------------------------------------------------------- |
@@ -461,7 +462,7 @@ tie-breaker.
 | `article_category_id` | number | Optional positive category ID filter.                                     |
 | `language_id`         | string | Optional; only articles with content in this language, shown in it.       |
 | `status`              | string | Optional; `DRAFT` or `PUBLISHED`; matches a content row with this status. |
-| `sort_by`             | string | Optional; must be `created_at`, default `created_at`.                     |
+| `sort_by`             | string | Optional; `created_at` or `issue_date`, default `created_at`.             |
 | `sort_order`          | string | Optional; `asc` or `desc`, default `desc`.                                |
 
 Provided filters are combined using AND. `search`, `language_id`, and `status`
@@ -514,6 +515,26 @@ language's content status, or `null` when the article has no content in it.
     "totalItems": 1,
     "totalPages": 1
   }
+}
+```
+
+### Count articles
+
+`GET /articles/count`
+
+Requires an authenticated session. Returns the number of articles and, for
+every active language (ordered like `GET /languages`), how many of its contents
+are `DRAFT` or `PUBLISHED`. An article without content in a language does not
+count toward that language; active languages without content return `0`.
+`total` counts every article.
+
+```json
+{
+  "total": 1,
+  "languages": [
+    { "id": "id", "flag": "🇮🇩", "count": { "draft": 0, "published": 1 } },
+    { "id": "en", "flag": "🇬🇧", "count": { "draft": 1, "published": 0 } }
+  ]
 }
 ```
 
@@ -1774,6 +1795,7 @@ The response shape is:
     "operational_day": "Senin - Jumat",
     "operational_start_time": "08:00",
     "operational_end_time": "17:00",
+    "landing_site_url": "https://www.example.com",
     "social_medias": [
       {
         "id": 2,
@@ -1800,10 +1822,49 @@ The response shape is:
 }
 ```
 
+`landing_site_url` is read-only here: it is set directly in the
+`site_settings` table (key `landing_site_url`) and is `null` when that row is
+missing for the language. The CMS reads it from `language_id=id`.
+
 Invalid fields, files, or `icon_index` references return
 `400 Bad Request`; an unknown social media `id` returns
 `404 Not Found`; files over their size limit return `413 Payload Too Large`; a
 setting key missing from the seed returns `500 Internal Server Error`.
+
+## Activity Logs
+
+`GET /activity-logs` requires login and returns
+`{ "activityLogs": [...], "pagination": ... }` with `200 OK`, newest first
+(`created_at` descending, then ID).
+
+| Query parameter | Type   | Rules                                               |
+| --------------- | ------ | --------------------------------------------------- |
+| `page`          | number | Optional, 1-based; default `1`.                     |
+| `limit`         | number | Optional; default `20`, minimum `1`, maximum `100`. |
+
+```json
+{
+  "activityLogs": [
+    {
+      "id": 1,
+      "name": "Neni A.",
+      "action_type": "menambahkan artikel",
+      "action_result": "Kompas.com x PLN EMI",
+      "created_at": "2026-10-18T08:50:01.237Z"
+    }
+  ],
+  "pagination": { "page": 1, "limit": 20, "totalItems": 1, "totalPages": 1 }
+}
+```
+
+`name` is the user's name. Entries are written by the server after each
+successful content create, update, delete, or reorder (articles, article
+categories, board members and types, clients, divisions, services, documents
+and their categories, FAQs, media, site contents, and site settings).
+`action_type` is a verb plus the resource, such as `menambahkan artikel`,
+`memperbarui layanan`, `menghapus dokumen`, or `memperbarui urutan`.
+`action_result` is the item's name or title in the default language. Inbox and
+auth actions are not logged.
 
 ## Public Static Assets
 

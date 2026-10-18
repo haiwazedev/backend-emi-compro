@@ -451,7 +451,8 @@ save and cannot be sent in requests.
 
 Returns a page of articles with their related category and primary photo media.
 Results are sorted by `created_at` descending by default, with `id` as a stable
-tie-breaker.
+tie-breaker. `sort_by=issue_date` sorts by `issue_date`, then `updated_at`, then
+`id`, all in `sort_order`; articles without an issue date or update come last.
 
 | Query parameter       | Type   | Rules                                                                     |
 | --------------------- | ------ | ------------------------------------------------------------------------- |
@@ -461,7 +462,7 @@ tie-breaker.
 | `article_category_id` | number | Optional positive category ID filter.                                     |
 | `language_id`         | string | Optional; only articles with content in this language, shown in it.       |
 | `status`              | string | Optional; `DRAFT` or `PUBLISHED`; matches a content row with this status. |
-| `sort_by`             | string | Optional; must be `created_at`, default `created_at`.                     |
+| `sort_by`             | string | Optional; `created_at` or `issue_date`, default `created_at`.             |
 | `sort_order`          | string | Optional; `asc` or `desc`, default `desc`.                                |
 
 Provided filters are combined using AND. `search`, `language_id`, and `status`
@@ -514,6 +515,26 @@ language's content status, or `null` when the article has no content in it.
     "totalItems": 1,
     "totalPages": 1
   }
+}
+```
+
+### Count articles
+
+`GET /articles/count`
+
+Requires an authenticated session. Returns the number of articles and, for
+every active language (ordered like `GET /languages`), how many of its contents
+are `DRAFT` or `PUBLISHED`. An article without content in a language does not
+count toward that language; active languages without content return `0`.
+`total` counts every article.
+
+```json
+{
+  "total": 1,
+  "languages": [
+    { "id": "id", "flag": "🇮🇩", "count": { "draft": 0, "published": 1 } },
+    { "id": "en", "flag": "🇬🇧", "count": { "draft": 1, "published": 0 } }
+  ]
 }
 ```
 

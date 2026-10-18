@@ -27,6 +27,10 @@ export class ArticleController {
     });
   };
 
+  counts = async (_req: Request, res: Response): Promise<void> => {
+    res.status(200).json(await this.service.counts());
+  };
+
   get = async (req: Request, res: Response): Promise<void> => {
     const article = await this.service.getById(
       parseIdParam(req.params.articleId),

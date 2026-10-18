@@ -21,6 +21,8 @@ articleRouter.get(
   validateQuery(articleListQuerySchema, 'articleListQuery'),
   controller.list,
 );
+// Registered before `/articles/:articleId` so "count" isn't read as an id.
+articleRouter.get('/articles/count', requireAuth, controller.counts);
 articleRouter.get('/articles/slug/:slug', controller.getBySlug);
 articleRouter.get('/articles/:articleId', controller.get);
 articleRouter.post(

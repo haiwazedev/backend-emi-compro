@@ -46,6 +46,32 @@ export class ArticleService {
     };
   }
 
+  async counts() {
+    const [total, contentCounts, languages] = await Promise.all([
+      this.repository.countAll(),
+      this.repository.countContentsByLanguageAndStatus(),
+      this.languageService.listActive(),
+    ]);
+
+    // Languages without content have no group, so they fall back to 0.
+    const countOf = (languageId: string, status: 'DRAFT' | 'PUBLISHED') =>
+      contentCounts.find(
+        (item) => item.languageId === languageId && item.status === status,
+      )?._count._all ?? 0;
+
+    return {
+      total,
+      languages: languages.map((language) => ({
+        id: language.id,
+        flag: language.flag,
+        count: {
+          draft: countOf(language.id, 'DRAFT'),
+          published: countOf(language.id, 'PUBLISHED'),
+        },
+      })),
+    };
+  }
+
   async getById(id: number) {
     const article = await this.repository.findById(id);
 

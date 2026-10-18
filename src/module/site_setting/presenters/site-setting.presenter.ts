@@ -18,6 +18,13 @@ export function presentSiteSetting({
     const setting = values.get(key);
     return setting ? (setting.value ?? '') : null;
   };
+  const numberValueOf = (key: string) => {
+    const value = valueOf(key);
+    if (value === null || value === '') return null;
+
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+  };
   const created = settings.reduce<SiteSetting | undefined>(
     (earliest, setting) =>
       !earliest || setting.createdAt < earliest.createdAt ? setting : earliest,
@@ -39,6 +46,8 @@ export function presentSiteSetting({
     danantara_logo_filepath: valueOf('danantara_logo'),
     pln_logo_filepath: valueOf('pln_logo'),
     company_address: valueOf('company_address'),
+    company_location_lat: numberValueOf('company_location_lat'),
+    company_location_long: numberValueOf('company_location_long'),
     company_phone_number: valueOf('company_phone_number'),
     company_whatsapp_number: valueOf('company_whatsapp_number'),
     main_email: valueOf('main_email'),

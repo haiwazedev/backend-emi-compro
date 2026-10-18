@@ -1,6 +1,8 @@
 import { Prisma } from '../../../generated/prisma/client.js';
 import { ApiError } from '../../../shared/errors/api-error.js';
 import { DivisionRepository } from '../../division/repositories/division.repository.js';
+import { LanguageService } from '../../language/services/language.service.js';
+import { MediaRepository } from '../../media/repositories/media.repository.js';
 import { ServiceRepository } from '../repositories/service.repository.js';
 import type {
   CreateServiceInput,
@@ -12,6 +14,8 @@ export class ServiceService {
   constructor(
     private readonly repository = new ServiceRepository(),
     private readonly divisionRepository = new DivisionRepository(),
+    private readonly mediaRepository = new MediaRepository(),
+    private readonly languageService = new LanguageService(),
   ) {}
 
   list() {
@@ -30,13 +34,23 @@ export class ServiceService {
 
   async create(input: CreateServiceInput, userName: string) {
     await this.requireDivision(input.division_id);
+    await this.languageService.requireActive(input.language_id);
+    const mediaIds = input.media_ids ?? [];
+    await this.requirePictureMedia(mediaIds);
 
     try {
-      return await this.repository.create({
-        divisionId: input.division_id,
-        name: input.name,
-        createdBy: getAuditName(userName),
-      });
+      return await this.repository.create(
+        {
+          divisionId: input.division_id,
+          createdBy: getAuditName(userName),
+        },
+        {
+          languageId: input.language_id,
+          name: input.name,
+          description: input.description ?? null,
+        },
+        mediaIds,
+      );
     } catch (error) {
       throw mapServiceError(error);
     }
@@ -52,6 +66,12 @@ export class ServiceService {
     if (input.division_id !== undefined) {
       await this.requireDivision(input.division_id);
     }
+    if (input.language_id !== undefined) {
+      await this.languageService.requireActive(input.language_id);
+    }
+    if (input.media_ids !== undefined) {
+      await this.requirePictureMedia(input.media_ids);
+    }
 
     const data: Prisma.ServiceUncheckedUpdateInput = {
       updatedAt: new Date(),
@@ -59,10 +79,35 @@ export class ServiceService {
     };
 
     if (input.division_id !== undefined) data.divisionId = input.division_id;
-    if (input.name !== undefined) data.name = input.name;
+
+    const content =
+      input.language_id !== undefined
+        ? {
+            languageId: input.language_id,
+            ...(input.name !== undefined ? { name: input.name } : {}),
+            ...(input.description !== undefined
+              ? { description: input.description }
+              : {}),
+          }
+        : undefined;
 
     try {
-      return await this.repository.update(id, data, input.division_id);
+      const service = await this.repository.update(
+        id,
+        data,
+        content,
+        input.division_id,
+        input.media_ids,
+      );
+
+      if (!service) {
+        throw new ApiError(
+          400,
+          'name is required when adding a service translation.',
+        );
+      }
+
+      return service;
     } catch (error) {
       throw mapServiceError(error);
     }
@@ -103,6 +148,26 @@ export class ServiceService {
       throw new ApiError(400, 'Division does not exist.');
     }
   }
+
+  private async requirePictureMedia(ids: number[]): Promise<void> {
+    if (new Set(ids).size !== ids.length) {
+      throw new ApiError(400, 'media_ids must contain unique IDs.');
+    }
+
+    if (ids.length === 0) return;
+
+    const media = await this.mediaRepository.findManyByIds(ids);
+
+    if (
+      media.length !== ids.length ||
+      media.some((item) => item.type !== 'PICTURE')
+    ) {
+      throw new ApiError(
+        400,
+        'media_ids must reference existing picture media items.',
+      );
+    }
+  }
 }
 
 function getAuditName(name: string): string {
@@ -115,7 +180,10 @@ function getAuditName(name: string): string {
 
 function mapServiceError(error: unknown): unknown {
   if (isPrismaError(error, 'P2003')) {
-    return new ApiError(400, 'Division does not exist.');
+    return new ApiError(
+      400,
+      'A referenced division, language, or picture media item does not exist.',
+    );
   }
 
   if (isPrismaError(error, 'P2025')) {

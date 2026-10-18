@@ -78,9 +78,23 @@ export class SiteSettingService {
         operational_end_time: input.operational_end_time,
       }).filter(([, value]) => value !== undefined),
     ) as SettingValues;
+    const locationValues: SettingValues = {};
+    if (input.company_location_lat !== undefined) {
+      locationValues.company_location_lat =
+        input.company_location_lat === null
+          ? null
+          : String(input.company_location_lat);
+    }
+    if (input.company_location_long !== undefined) {
+      locationValues.company_location_long =
+        input.company_location_long === null
+          ? null
+          : String(input.company_location_long);
+    }
     validateSettingKeys(
       [
         ...Object.keys(textValues),
+        ...Object.keys(locationValues),
         ...(files.danantara_logo?.length ? ['danantara_logo'] : []),
         ...(files.pln_logo?.length ? ['pln_logo'] : []),
       ],
@@ -105,6 +119,7 @@ export class SiteSettingService {
     const now = new Date();
     const settingValues: SettingValues = {
       ...textValues,
+      ...locationValues,
       // Logos are only replaced when a new file is uploaded.
       ...(stored.danantaraLogo && {
         danantara_logo: stored.danantaraLogo.filepath,

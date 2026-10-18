@@ -3,7 +3,10 @@ import { Prisma } from '../../../generated/prisma/client.js';
 import { ApiError } from '../../../shared/errors/api-error.js';
 import { ArticleRepository } from '../repositories/article.repository.js';
 import { ArticleCategoryRepository } from '../repositories/article-category.repository.js';
-import { LanguageService } from '../../language/services/language.service.js';
+import {
+  DEFAULT_LANGUAGE_ID,
+  LanguageService,
+} from '../../language/services/language.service.js';
 import { MediaRepository } from '../../media/repositories/media.repository.js';
 import type {
   ArticleListQuery,
@@ -67,6 +70,7 @@ export class ArticleService {
     const createdBy = getAuditName(userName);
     await this.requireCategory(input.article_category_id);
     await this.requirePictureMedia(input.primary_photo);
+    requireDefaultLanguageFirst(input.language_id, []);
     await this.requireContentTarget(input);
 
     try {
@@ -81,7 +85,8 @@ export class ArticleService {
 
   async update(id: number, input: UpdateArticleInput, userName: string) {
     const updatedBy = getAuditName(userName);
-    await this.getById(id);
+    const article = await this.getById(id);
+    requireDefaultLanguageFirst(input.language_id, article.contents);
 
     if (input.article_category_id !== undefined) {
       await this.requireCategory(input.article_category_id);
@@ -150,6 +155,23 @@ export class ArticleService {
 }
 
 const SLUG_CONFLICT_MESSAGE = 'Article slug is already in use.';
+
+// Other languages need a saved (draft or published) Bahasa Indonesia content first.
+function requireDefaultLanguageFirst(
+  languageId: string,
+  contents: { languageId: string }[],
+): void {
+  const hasDefault = contents.some(
+    (content) => content.languageId === DEFAULT_LANGUAGE_ID,
+  );
+
+  if (languageId !== DEFAULT_LANGUAGE_ID && !hasDefault) {
+    throw new ApiError(
+      400,
+      'Bahasa Indonesia is required before adding another language.',
+    );
+  }
+}
 
 function toCreateData(
   input: CreateArticleInput,

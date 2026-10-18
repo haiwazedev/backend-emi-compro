@@ -92,13 +92,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/auth/register",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "register"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
             },
             "description": "Public.",
             "body": {
@@ -125,13 +120,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/auth/login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "login"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
             },
             "description": "Public. Sets the session cookie.",
             "body": {
@@ -153,13 +143,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/auth/me",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "me"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "me"]
             },
             "description": "Requires login session."
           },
@@ -172,13 +157,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/auth/logout",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "logout"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"]
             },
             "description": "Public."
           },
@@ -187,21 +167,17 @@
       ]
     },
     {
-      "name": "Content Blocks",
+      "name": "Site Contents",
       "item": [
         {
-          "name": "List Content",
+          "name": "List Site Contents",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/contents?page=home",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "contents"
-              ],
+              "raw": "{{baseUrl}}/site_contents?page=home&language_id=id",
+              "host": ["{{baseUrl}}"],
+              "path": ["site_contents"],
               "query": [
                 {
                   "key": "page",
@@ -209,14 +185,9 @@
                   "disabled": false
                 },
                 {
-                  "key": "block_key",
-                  "value": "",
-                  "disabled": true
-                },
-                {
-                  "key": "block_type",
-                  "value": "",
-                  "disabled": true
+                  "key": "language_id",
+                  "value": "id",
+                  "disabled": false
                 }
               ]
             },
@@ -225,7 +196,7 @@
           "response": []
         },
         {
-          "name": "Replace Content Lists",
+          "name": "Save Site Contents",
           "request": {
             "method": "PUT",
             "header": [
@@ -235,18 +206,14 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/contents",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "contents"
-              ]
+              "raw": "{{baseUrl}}/site_contents",
+              "host": ["{{baseUrl}}"],
+              "path": ["site_contents"]
             },
             "description": "Requires login session.",
             "body": {
               "mode": "raw",
-              "raw": "[\n  {\n    \"page\": \"home\",\n    \"block_key\": \"teaser\",\n    \"block_type\": \"teaser-title\",\n    \"data\": {\n      \"title\": \"Contoh judul teaser\"\n    }\n  }\n]",
+              "raw": "{\n  \"language_id\": \"id\",\n  \"items\": [\n    {\n      \"page\": \"home\",\n      \"block_key\": \"teaser\",\n      \"block_type\": \"teaser-title\",\n      \"data\": {\n        \"title\": \"Contoh judul teaser\"\n      }\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -268,12 +235,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/article_categories",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "article_categories"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["article_categories"]
             },
             "description": "Public."
           },
@@ -286,13 +249,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/article_categories/{{articleCategoryId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "article_categories",
-                "{{articleCategoryId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["article_categories", "{{articleCategoryId}}"]
             },
             "description": "Public."
           },
@@ -310,12 +268,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/article_categories",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "article_categories"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["article_categories"]
             },
             "description": "Requires login session.",
             "body": {
@@ -342,13 +296,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/article_categories/{{articleCategoryId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "article_categories",
-                "{{articleCategoryId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["article_categories", "{{articleCategoryId}}"]
             },
             "description": "Requires login session. Partial update; omitted fields stay unchanged.",
             "body": {
@@ -370,13 +319,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/article_categories/{{articleCategoryId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "article_categories",
-                "{{articleCategoryId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["article_categories", "{{articleCategoryId}}"]
             },
             "description": "Requires login session."
           },
@@ -394,12 +338,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/articles?page=1&limit=20",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "articles"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["articles"],
               "query": [
                 {
                   "key": "page",
@@ -449,13 +389,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/articles/{{articleId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "articles",
-                "{{articleId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["articles", "{{articleId}}"]
             },
             "description": "Public."
           },
@@ -473,12 +408,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/articles",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "articles"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["articles"]
             },
             "description": "Requires login session.",
             "body": {
@@ -505,13 +436,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/articles/{{articleId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "articles",
-                "{{articleId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["articles", "{{articleId}}"]
             },
             "description": "Requires login session. Partial update; omitted fields stay unchanged.",
             "body": {
@@ -533,13 +459,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/articles/{{articleId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "articles",
-                "{{articleId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["articles", "{{articleId}}"]
             },
             "description": "Requires login session."
           },
@@ -557,12 +478,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/divisions",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "divisions"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["divisions"],
               "query": [
                 {
                   "key": "status",
@@ -582,13 +499,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/divisions/{{divisionId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "divisions",
-                "{{divisionId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["divisions", "{{divisionId}}"]
             },
             "description": "Public."
           },
@@ -606,13 +518,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/divisions/reorder",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "divisions",
-                "reorder"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["divisions", "reorder"]
             },
             "description": "Requires login session.",
             "body": {
@@ -639,12 +546,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/divisions",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "divisions"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["divisions"]
             },
             "description": "Requires login session.",
             "body": {
@@ -671,13 +574,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/divisions/{{divisionId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "divisions",
-                "{{divisionId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["divisions", "{{divisionId}}"]
             },
             "description": "Requires login session. Partial update; omitted fields stay unchanged.",
             "body": {
@@ -699,13 +597,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/divisions/{{divisionId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "divisions",
-                "{{divisionId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["divisions", "{{divisionId}}"]
             },
             "description": "Requires login session."
           },
@@ -723,12 +616,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/services",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "services"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["services"]
             },
             "description": "Public."
           },
@@ -741,13 +630,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/services/{{serviceId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "services",
-                "{{serviceId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["services", "{{serviceId}}"]
             },
             "description": "Public."
           },
@@ -765,13 +649,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/services/reorder",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "services",
-                "reorder"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["services", "reorder"]
             },
             "description": "Requires login session.",
             "body": {
@@ -798,12 +677,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/services",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "services"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["services"]
             },
             "description": "Requires login session.",
             "body": {
@@ -830,13 +705,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/services/{{serviceId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "services",
-                "{{serviceId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["services", "{{serviceId}}"]
             },
             "description": "Requires login session. Partial update; omitted fields stay unchanged.",
             "body": {
@@ -858,13 +728,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/services/{{serviceId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "services",
-                "{{serviceId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["services", "{{serviceId}}"]
             },
             "description": "Requires login session."
           },
@@ -882,12 +747,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/board_member_types",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "board_member_types"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["board_member_types"]
             },
             "description": "Public."
           },
@@ -900,13 +761,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/board_member_types/{{typeId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "board_member_types",
-                "{{typeId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["board_member_types", "{{typeId}}"]
             },
             "description": "Public."
           },
@@ -924,12 +780,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/board_member_types",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "board_member_types"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["board_member_types"]
             },
             "description": "Requires login session.",
             "body": {
@@ -956,13 +808,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/board_member_types/{{typeId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "board_member_types",
-                "{{typeId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["board_member_types", "{{typeId}}"]
             },
             "description": "Requires login session. Partial update; omitted fields stay unchanged.",
             "body": {
@@ -984,13 +831,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/board_member_types/{{typeId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "board_member_types",
-                "{{typeId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["board_member_types", "{{typeId}}"]
             },
             "description": "Requires login session."
           },
@@ -1008,12 +850,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/board_members",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "board_members"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["board_members"],
               "query": [
                 {
                   "key": "search",
@@ -1038,13 +876,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/board_members/{{memberId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "board_members",
-                "{{memberId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["board_members", "{{memberId}}"]
             },
             "description": "Public."
           },
@@ -1057,12 +890,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/board_members",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "board_members"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["board_members"]
             },
             "description": "Requires login session.",
             "body": {
@@ -1105,13 +934,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/board_members/{{memberId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "board_members",
-                "{{memberId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["board_members", "{{memberId}}"]
             },
             "description": "Requires login session. Partial update; omitted fields stay unchanged.",
             "body": {
@@ -1139,13 +963,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/board_members/{{memberId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "board_members",
-                "{{memberId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["board_members", "{{memberId}}"]
             },
             "description": "Requires login session."
           },
@@ -1163,12 +982,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/media",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "media"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["media"],
               "query": [
                 {
                   "key": "type",
@@ -1198,13 +1013,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/media/{{mediaId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "media",
-                "{{mediaId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["media", "{{mediaId}}"]
             },
             "description": "Public."
           },
@@ -1217,12 +1027,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/media",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "media"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["media"]
             },
             "description": "Requires login session.",
             "body": {
@@ -1250,13 +1056,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/media/{{mediaId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "media",
-                "{{mediaId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["media", "{{mediaId}}"]
             },
             "description": "Requires login session."
           },
@@ -1274,13 +1075,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/media/bulk_delete",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "media",
-                "bulk_delete"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["media", "bulk_delete"]
             },
             "description": "Requires login session.",
             "body": {
@@ -1307,12 +1103,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/document_commitment_categories",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "document_commitment_categories"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["document_commitment_categories"]
             },
             "description": "Public."
           },
@@ -1325,13 +1117,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/document_commitment_categories/{{categoryId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "document_commitment_categories",
-                "{{categoryId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["document_commitment_categories", "{{categoryId}}"]
             },
             "description": "Public."
           },
@@ -1349,12 +1136,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/document_commitment_categories",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "document_commitment_categories"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["document_commitment_categories"]
             },
             "description": "Requires login session.",
             "body": {
@@ -1381,13 +1164,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/document_commitment_categories/{{categoryId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "document_commitment_categories",
-                "{{categoryId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["document_commitment_categories", "{{categoryId}}"]
             },
             "description": "Requires login session. Partial update; omitted fields stay unchanged.",
             "body": {
@@ -1409,13 +1187,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/document_commitment_categories/{{categoryId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "document_commitment_categories",
-                "{{categoryId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["document_commitment_categories", "{{categoryId}}"]
             },
             "description": "Requires login session."
           },
@@ -1433,12 +1206,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/document_commitments?page=1&limit=20",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "document_commitments"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["document_commitments"],
               "query": [
                 {
                   "key": "page",
@@ -1478,13 +1247,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/document_commitments/{{documentId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "document_commitments",
-                "{{documentId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["document_commitments", "{{documentId}}"]
             },
             "description": "Public."
           },
@@ -1497,12 +1261,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/document_commitments",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "document_commitments"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["document_commitments"]
             },
             "description": "Requires login session.",
             "body": {
@@ -1540,13 +1300,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/document_commitments/{{documentId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "document_commitments",
-                "{{documentId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["document_commitments", "{{documentId}}"]
             },
             "description": "Requires login session. Partial update; omitted fields stay unchanged.",
             "body": {
@@ -1574,13 +1329,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/document_commitments/{{documentId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "document_commitments",
-                "{{documentId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["document_commitments", "{{documentId}}"]
             },
             "description": "Requires login session."
           },
@@ -1598,12 +1348,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/faqs",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "faqs"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["faqs"],
               "query": [
                 {
                   "key": "status",
@@ -1623,13 +1369,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/faqs/{{faqId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "faqs",
-                "{{faqId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["faqs", "{{faqId}}"]
             },
             "description": "Public."
           },
@@ -1647,13 +1388,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/faqs/reorder",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "faqs",
-                "reorder"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["faqs", "reorder"]
             },
             "description": "Requires login session.",
             "body": {
@@ -1680,12 +1416,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/faqs",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "faqs"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["faqs"]
             },
             "description": "Requires login session.",
             "body": {
@@ -1712,13 +1444,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/faqs/{{faqId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "faqs",
-                "{{faqId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["faqs", "{{faqId}}"]
             },
             "description": "Requires login session. Partial update; omitted fields stay unchanged.",
             "body": {
@@ -1740,13 +1467,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/faqs/{{faqId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "faqs",
-                "{{faqId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["faqs", "{{faqId}}"]
             },
             "description": "Requires login session."
           },
@@ -1764,12 +1486,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/clients",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "clients"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["clients"]
             },
             "description": "Public."
           },
@@ -1782,13 +1500,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/clients/{{clientId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "clients",
-                "{{clientId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["clients", "{{clientId}}"]
             },
             "description": "Public."
           },
@@ -1806,13 +1519,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/clients/reorder",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "clients",
-                "reorder"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["clients", "reorder"]
             },
             "description": "Requires login session.",
             "body": {
@@ -1834,12 +1542,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/clients",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "clients"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["clients"]
             },
             "description": "Requires login session.",
             "body": {
@@ -1867,13 +1571,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/clients/{{clientId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "clients",
-                "{{clientId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["clients", "{{clientId}}"]
             },
             "description": "Requires login session. Partial update; omitted fields stay unchanged.",
             "body": {
@@ -1896,13 +1595,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/clients/{{clientId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "clients",
-                "{{clientId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["clients", "{{clientId}}"]
             },
             "description": "Requires login session."
           },
@@ -1920,12 +1614,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/inbox-subjects",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "inbox-subjects"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["inbox-subjects"]
             },
             "description": "Public."
           },
@@ -1943,12 +1633,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/inboxes",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "inboxes"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["inboxes"]
             },
             "description": "Public. Called by the landing-page contact form.",
             "body": {
@@ -1970,12 +1656,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/inboxes?page=1&limit=20",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "inboxes"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["inboxes"],
               "query": [
                 {
                   "key": "page",
@@ -2010,13 +1692,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/inboxes/counts",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "inboxes",
-                "counts"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["inboxes", "counts"]
             },
             "description": "Requires login session."
           },
@@ -2034,13 +1711,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/inboxes/{{inboxId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "inboxes",
-                "{{inboxId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["inboxes", "{{inboxId}}"]
             },
             "description": "Requires login session.",
             "body": {
@@ -2062,13 +1734,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/inboxes/read-all",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "inboxes",
-                "read-all"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["inboxes", "read-all"]
             },
             "description": "Requires login session."
           },
@@ -2081,13 +1748,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/inboxes/{{inboxId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "inboxes",
-                "{{inboxId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["inboxes", "{{inboxId}}"]
             },
             "description": "Requires login session. Permanent delete."
           },
@@ -2105,12 +1767,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/health",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "health"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
             },
             "description": "Public."
           },

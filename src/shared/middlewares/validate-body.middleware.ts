@@ -12,7 +12,8 @@ export function validateBody<TSchema extends z.ZodType>(
     if (!result.success) {
       const issue = result.error.issues[0];
       const arrayIndex = options.includeArrayIndexInError
-        ? issue?.path[0]
+        ? // First numeric segment, so nested arrays like `items[2]` are reported too.
+          issue?.path.find((segment) => typeof segment === 'number')
         : undefined;
       const message =
         typeof arrayIndex === 'number'

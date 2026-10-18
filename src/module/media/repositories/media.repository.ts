@@ -31,6 +31,13 @@ export class MediaRepository {
     return transaction.media.findMany({ where: { id: { in: ids } } });
   }
 
+  findManyByPaths(paths: string[]) {
+    return prisma.media.findMany({
+      where: { path: { in: paths } },
+      select: { path: true },
+    });
+  }
+
   deleteMany(ids: number[], transaction: Prisma.TransactionClient) {
     return transaction.media.deleteMany({ where: { id: { in: ids } } });
   }

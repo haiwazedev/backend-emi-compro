@@ -1883,7 +1883,6 @@ stable keys; show your own labels in the UI.
 ```json
 {
   "permissions": [
-    { "id": 1, "name": "view" },
     { "id": 2, "name": "write" },
     { "id": 3, "name": "publish" },
     { "id": 4, "name": "delete" },
@@ -1910,7 +1909,7 @@ stable keys; show your own labels in the UI.
   "rolePermissions": [
     {
       "role_id": 2,
-      "permission_id": 1,
+      "permission_id": 2,
       "is_allowed": true,
       "updated_at": "2026-10-18T08:05:00.000Z",
       "updated_by": "Neni Ariyani"

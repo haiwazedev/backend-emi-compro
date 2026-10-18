@@ -60,7 +60,6 @@ const siteSettingSeedKeys = [
 
 // shortcut: permissions added later get no role_permissions rows for existing roles, backfill them in a migration when that happens.
 const permissionSeedNames = [
-  'view',
   'write',
   'publish',
   'delete',

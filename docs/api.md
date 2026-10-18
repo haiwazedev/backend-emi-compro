@@ -36,7 +36,7 @@ form endpoint, which accepts requests from any origin.
 
 ## Browser Sessions
 
-Registration and login create a server-side session in Redis and set the
+Login creates a server-side session in Redis and sets the
 host-only `pln_emi.sid` HttpOnly cookie. The cookie is `SameSite=Lax`, lasts
 three hours, and is marked `Secure` in production. Its lifetime is fixed and is
 not extended by activity. JavaScript cannot read the session cookie.
@@ -54,80 +54,6 @@ For Fetch examples, define the base URL once:
 
 ```js
 const API_BASE_URL = 'http://localhost:8000';
-```
-
-## Register
-
-`POST /auth/register`
-
-Create an account and start a session.
-
-### Request body
-
-| Field      | Type   | Rules                                                           |
-| ---------- | ------ | --------------------------------------------------------------- |
-| `name`     | string | Required; whitespace around the value is trimmed.               |
-| `email`    | string | Required; must be a valid email. It is trimmed and lowercased.  |
-| `password` | string | Required and non-empty. It is sent as provided and not trimmed. |
-
-```json
-{
-  "name": "Ari Putra",
-  "email": "ari@example.com",
-  "password": "correct-horse-battery-staple"
-}
-```
-
-### Success response — `201 Created`
-
-The response sets the session cookie and returns:
-
-```json
-{
-  "user": {
-    "name": "Ari Putra",
-    "email": "ari@example.com"
-  }
-}
-```
-
-### Errors
-
-| Status                    | Message                                                                                                             |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `400 Bad Request`         | `Name, email, and password are required.` for missing or empty fields; `Email must be valid.` for an invalid email. |
-| `403 Forbidden`           | `Request origin is not allowed.` when `Origin`/`Referer` is missing or does not match the configured origin.        |
-| `409 Conflict`            | `Email is already registered.`                                                                                      |
-| `503 Service Unavailable` | `Session service is unavailable.` when Redis session storage fails.                                                 |
-
-### Fetch example
-
-```js
-const response = await fetch(`${API_BASE_URL}/auth/register`, {
-  method: 'POST',
-  credentials: 'include',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    name: 'Ari Putra',
-    email: 'ari@example.com',
-    password: 'correct-horse-battery-staple',
-  }),
-});
-
-const data = await response.json();
-if (!response.ok) throw new Error(data.message);
-
-const { user } = data;
-```
-
-### cURL example
-
-```sh
-curl -i -X POST http://localhost:8000/auth/register \
-  -H 'Origin: http://localhost:3000' \
-  -H 'Content-Type: application/json' \
-  -d '{"name":"Ari Putra","email":"ari@example.com","password":"correct-horse-battery-staple"}' \
-  -c cookies.txt
 ```
 
 ## Login
@@ -150,8 +76,8 @@ The request body is:
 }
 ```
 
-The `200 OK` response sets the session cookie and returns the same
-`{ "user": ... }` shape as registration.
+The `200 OK` response sets the session cookie and returns the signed-in user,
+in the same shape as [Get the Current User](#get-the-current-user).
 
 ### Errors
 
@@ -159,6 +85,7 @@ The `200 OK` response sets the session cookie and returns the same
 | ------------------------- | ------------------------------------------------------------------------------------------------------------ |
 | `400 Bad Request`         | `Email and password are required.` for missing or empty fields; `Email must be valid.` for an invalid email. |
 | `401 Unauthorized`        | `Invalid email or password.`                                                                                 |
+| `403 Forbidden`           | `Your account is inactive.` when the user's status is inactive (checked after the password).                 |
 | `403 Forbidden`           | `Request origin is not allowed.` when `Origin`/`Referer` is missing or does not match the configured origin. |
 | `503 Service Unavailable` | `Session service is unavailable.` when Redis session storage fails.                                          |
 
@@ -195,7 +122,9 @@ curl -i -X POST http://localhost:8000/auth/login \
 
 `GET /auth/me`
 
-Return the current user's name and email using the session cookie.
+Return the current user's name, email, role, and allowed permission keys using
+the session cookie. `role` is `null` and `permissions` is empty for a user
+without a role. Use `permissions` to hide actions the user cannot perform.
 
 ### Success response — `200 OK`
 
@@ -203,7 +132,9 @@ Return the current user's name and email using the session cookie.
 {
   "user": {
     "name": "Ari Putra",
-    "email": "ari@example.com"
+    "email": "ari@example.com",
+    "role": { "id": 1, "name": "Super Admin" },
+    "permissions": ["write", "publish", "delete", "manage_users"]
   }
 }
 ```
@@ -270,6 +201,29 @@ curl -i -X POST http://localhost:8000/auth/logout \
   -H 'Origin: http://localhost:3000' \
   -b cookies.txt
 ```
+
+## Permissions
+
+Every protected endpoint loads the signed-in user's role permissions from the
+database on each request, so role changes apply immediately. A user whose
+status is inactive gets `401 Unauthorized` on every protected request and
+`403 Forbidden` at login.
+
+| Action                                                                                           | Needs                |
+| ------------------------------------------------------------------------------------------------ | -------------------- |
+| Any `GET`, inbox mark-as-read and read-all, activity logs                                        | Any signed-in user   |
+| Create, update, and reorder content, categories, media uploads, site settings, and site contents | `write` or `publish` |
+| `DELETE` endpoints and `POST /media/bulk_delete`                                                 | `delete`             |
+| `/users`, `/roles`, `/permissions`, and `/role_permissions` (reads included)                     | `manage_users`       |
+
+Without `publish`, saves of articles, FAQs, divisions, and document
+commitments are stored with `status: "DRAFT"`, whatever the body sends.
+Editing a published item therefore unpublishes it. On `PUT /site_settings`,
+existing social links keep their current status and new links start as
+`DRAFT`.
+
+A missing permission returns `403 Forbidden` with
+`You do not have permission to perform this action.`
 
 ## Site Contents
 
@@ -1835,8 +1789,8 @@ setting key missing from the seed returns `500 Internal Server Error`.
 
 All user, role, and permission endpoints require an authenticated session and
 the configured frontend `Origin` or `Referer`, as described under
-[Browser Sessions](#browser-sessions). Requests use JSON. Permissions are
-stored only; they do not restrict any endpoint yet.
+[Browser Sessions](#browser-sessions). Requests use JSON. All of them need the
+`manage_users` permission, as described under [Permissions](#permissions).
 
 ### Roles
 

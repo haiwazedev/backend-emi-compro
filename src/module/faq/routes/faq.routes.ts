@@ -1,5 +1,10 @@
 import { Router } from 'express';
-import { createAuthMiddleware } from '../../auth/auth.middleware.js';
+import {
+  createAuthMiddleware,
+  forceDraftUnlessPublisher,
+  requireDelete,
+  requireWrite,
+} from '../../auth/auth.middleware.js';
 import { AuthService } from '../../auth/auth.service.js';
 import { validateBody } from '../../../shared/middlewares/validate-body.middleware.js';
 import { validateQuery } from '../../../shared/middlewares/validate-query.middleware.js';
@@ -26,19 +31,24 @@ faqRouter.get('/faqs/:faqId', controller.get);
 faqRouter.post(
   '/faqs/reorder',
   requireAuth,
+  requireWrite,
   validateBody(reorderFaqsBodySchema),
   controller.reorder,
 );
 faqRouter.post(
   '/faqs',
   requireAuth,
+  requireWrite,
   validateBody(createFaqBodySchema),
+  forceDraftUnlessPublisher,
   controller.create,
 );
 faqRouter.put(
   '/faqs/:faqId',
   requireAuth,
+  requireWrite,
   validateBody(updateFaqBodySchema),
+  forceDraftUnlessPublisher,
   controller.update,
 );
-faqRouter.delete('/faqs/:faqId', requireAuth, controller.delete);
+faqRouter.delete('/faqs/:faqId', requireAuth, requireDelete, controller.delete);

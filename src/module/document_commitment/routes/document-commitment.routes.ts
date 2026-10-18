@@ -1,5 +1,10 @@
 import { Router } from 'express';
-import { createAuthMiddleware } from '../../auth/auth.middleware.js';
+import {
+  createAuthMiddleware,
+  forceDraftUnlessPublisher,
+  requireDelete,
+  requireWrite,
+} from '../../auth/auth.middleware.js';
 import { AuthService } from '../../auth/auth.service.js';
 import { validateBody } from '../../../shared/middlewares/validate-body.middleware.js';
 import { validateQuery } from '../../../shared/middlewares/validate-query.middleware.js';
@@ -32,19 +37,24 @@ documentCommitmentRouter.get(
 documentCommitmentRouter.post(
   '/document_commitments',
   requireAuth,
+  requireWrite,
   uploadDocumentCommitmentFile,
   validateBody(createDocumentCommitmentBodySchema),
+  forceDraftUnlessPublisher,
   controller.create,
 );
 documentCommitmentRouter.put(
   '/document_commitments/:documentId',
   requireAuth,
+  requireWrite,
   uploadDocumentCommitmentFile,
   validateBody(updateDocumentCommitmentBodySchema),
+  forceDraftUnlessPublisher,
   controller.update,
 );
 documentCommitmentRouter.delete(
   '/document_commitments/:documentId',
   requireAuth,
+  requireDelete,
   controller.delete,
 );

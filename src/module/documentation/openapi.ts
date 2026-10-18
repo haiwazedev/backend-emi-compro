@@ -9,7 +9,7 @@ import {
   createArticleBodySchema,
   updateArticleBodySchema,
 } from '../article/schemas/article.schema.js';
-import { loginBodySchema, registerBodySchema } from '../auth/auth.schemas.js';
+import { loginBodySchema } from '../auth/auth.schemas.js';
 import {
   createBoardMemberTypeBodySchema,
   updateBoardMemberTypeBodySchema,
@@ -134,14 +134,6 @@ const boardMemberResponseSchema = z
   .strict();
 
 const routes: Routes = {
-  '/auth/register': {
-    post: {
-      tag: 'Auth',
-      summary: 'Register a user',
-      status: 201,
-      body: registerBodySchema,
-    },
-  },
   '/auth/login': {
     post: { tag: 'Auth', summary: 'Log in', body: loginBodySchema },
   },

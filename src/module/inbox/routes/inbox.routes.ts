@@ -1,5 +1,8 @@
 import { Router } from 'express';
-import { createAuthMiddleware } from '../../auth/auth.middleware.js';
+import {
+  createAuthMiddleware,
+  requireDelete,
+} from '../../auth/auth.middleware.js';
 import { AuthService } from '../../auth/auth.service.js';
 import { validateBody } from '../../../shared/middlewares/validate-body.middleware.js';
 import { validateQuery } from '../../../shared/middlewares/validate-query.middleware.js';
@@ -36,4 +39,9 @@ inboxRouter.put(
   validateBody(updateInboxBodySchema),
   controller.update,
 );
-inboxRouter.delete('/inboxes/:inboxId', requireAuth, controller.delete);
+inboxRouter.delete(
+  '/inboxes/:inboxId',
+  requireAuth,
+  requireDelete,
+  controller.delete,
+);

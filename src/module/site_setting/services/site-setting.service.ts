@@ -139,7 +139,12 @@ export class SiteSettingService {
         const fields = {
           platformName: socialMedia.platform_name,
           platformUrlOrAccountName: socialMedia.platform_url_or_account_name,
-          status: socialMedia.status,
+          // Without publish, existing links keep their status and new ones start as drafts.
+          status: user.permissions.includes('publish')
+            ? socialMedia.status
+            : ((socialMedia.id === undefined
+                ? undefined
+                : currentById.get(socialMedia.id)?.status) ?? 'DRAFT'),
           sortOrder: index + 1,
           ...toFileFields('icon', icon),
         };

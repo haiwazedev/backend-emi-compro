@@ -1,5 +1,8 @@
 import { Router } from 'express';
-import { createAuthMiddleware } from '../../auth/auth.middleware.js';
+import {
+  createAuthMiddleware,
+  requireWrite,
+} from '../../auth/auth.middleware.js';
 import { AuthService } from '../../auth/auth.service.js';
 import { validateBody } from '../../../shared/middlewares/validate-body.middleware.js';
 import { validateQuery } from '../../../shared/middlewares/validate-query.middleware.js';
@@ -27,6 +30,7 @@ siteSettingRouter.get(
 siteSettingRouter.put(
   '/site_settings',
   requireAuth,
+  requireWrite,
   uploadSiteSettingFiles,
   parseSiteSettingData,
   validateBody(saveSiteSettingBodySchema),

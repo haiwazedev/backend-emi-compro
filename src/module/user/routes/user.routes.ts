@@ -1,7 +1,10 @@
 import { Router } from 'express';
 import { validateBody } from '../../../shared/middlewares/validate-body.middleware.js';
 import { validateQuery } from '../../../shared/middlewares/validate-query.middleware.js';
-import { createAuthMiddleware } from '../../auth/auth.middleware.js';
+import {
+  createAuthMiddleware,
+  requireManageUsers,
+} from '../../auth/auth.middleware.js';
 import { AuthService } from '../../auth/auth.service.js';
 import { UserController } from '../controllers/user.controller.js';
 import {
@@ -18,20 +21,33 @@ export const userRouter = Router();
 userRouter.get(
   '/users',
   requireAuth,
+  requireManageUsers,
   validateQuery(userListQuerySchema, 'userListQuery'),
   controller.list,
 );
-userRouter.get('/users/:userId', requireAuth, controller.get);
+userRouter.get(
+  '/users/:userId',
+  requireAuth,
+  requireManageUsers,
+  controller.get,
+);
 userRouter.post(
   '/users',
   requireAuth,
+  requireManageUsers,
   validateBody(createUserBodySchema),
   controller.create,
 );
 userRouter.put(
   '/users/:userId',
   requireAuth,
+  requireManageUsers,
   validateBody(updateUserBodySchema),
   controller.update,
 );
-userRouter.delete('/users/:userId', requireAuth, controller.delete);
+userRouter.delete(
+  '/users/:userId',
+  requireAuth,
+  requireManageUsers,
+  controller.delete,
+);

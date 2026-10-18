@@ -1,5 +1,8 @@
 import { Router } from 'express';
-import { createAuthMiddleware } from '../../auth/auth.middleware.js';
+import {
+  createAuthMiddleware,
+  requireWrite,
+} from '../../auth/auth.middleware.js';
 import { AuthService } from '../../auth/auth.service.js';
 import { validateBody } from '../../../shared/middlewares/validate-body.middleware.js';
 import { validateQuery } from '../../../shared/middlewares/validate-query.middleware.js';
@@ -23,6 +26,7 @@ siteContentRouter.get(
 siteContentRouter.put(
   '/site_contents',
   requireAuth,
+  requireWrite,
   validateBody(saveSiteContentsBodySchema, { includeArrayIndexInError: true }),
   controller.save,
 );

@@ -224,7 +224,6 @@ model Media {
   createdBy    String         @map("created_by") @db.VarChar(100)
   createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   articles     Article[]
-  contents     Content[]
   serviceLinks ServiceMedia[]
 
   @@index([type])
@@ -269,6 +268,7 @@ model Language {
   updatedBy        String?           @map("updated_by") @db.VarChar(100)
   articleContents  ArticleContent[]
   siteSettings     SiteSetting[]
+  siteContentItems SiteContentItem[]
   divisionContents DivisionContent[]
   serviceContents  ServiceContent[]
 
@@ -296,22 +296,37 @@ model ArticleContent {
   @@map("article_contents")
 }
 
-model Content {
-  id        Int       @id @default(autoincrement())
-  page      String    @db.VarChar(100)
-  blockKey  String    @map("block_key") @db.VarChar(100)
-  blockType String    @map("block_type") @db.VarChar(100)
-  sortOrder Int       @default(1) @map("sort_order")
-  data      Json?     @db.JsonB
-  mediaId   Int?      @map("media_id")
-  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  createdBy String    @map("created_by") @db.VarChar(100)
-  updatedAt DateTime? @default(now()) @map("updated_at") @db.Timestamptz(6)
-  updatedBy String?   @map("updated_by") @db.VarChar(100)
-  media     Media?    @relation(fields: [mediaId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+// Allowed blocks live in site-content-definitions.ts; rows are created on first save.
+model SiteContent {
+  id        Int               @id @default(autoincrement())
+  page      String            @db.VarChar(100)
+  blockKey  String            @map("block_key") @db.VarChar(100)
+  blockType String            @map("block_type") @db.VarChar(100)
+  createdAt DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy String            @map("created_by") @db.VarChar(100)
+  items     SiteContentItem[]
 
-  @@unique([page, blockKey, blockType, sortOrder])
-  @@map("contents")
+  @@unique([page, blockKey, blockType])
+  @@map("site_contents")
+}
+
+model SiteContentItem {
+  id            Int         @id @default(autoincrement())
+  siteContentId Int         @map("site_content_id")
+  languageId    String      @map("language_id") @db.VarChar(10)
+  sortOrder     Int         @default(1) @map("sort_order")
+  // Block fields; media blocks hold `media_filepath` (a media.path, no FK).
+  data          Json?       @db.JsonB
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy     String      @map("created_by") @db.VarChar(100)
+  updatedAt     DateTime?   @map("updated_at") @db.Timestamptz(6)
+  updatedBy     String?     @map("updated_by") @db.VarChar(100)
+  siteContent   SiteContent @relation(fields: [siteContentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  language      Language    @relation(fields: [languageId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([siteContentId, languageId, sortOrder])
+  @@index([languageId])
+  @@map("site_content_items")
 }
 
 model InboxSubject {

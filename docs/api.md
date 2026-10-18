@@ -268,85 +268,15 @@ curl -i -X POST http://localhost:8000/auth/logout \
   -b cookies.txt
 ```
 
-## Content Blocks
+## Site Contents
 
-Content reads are public. Updating a content row requires an authenticated
-session and the configured frontend `Origin` or `Referer`, as described under
-[Browser Sessions](#browser-sessions).
+Per-language content for the Beranda (`home`) and Tentang Kami (`about-us`)
+pages.
 
-### List content
-
-`GET /contents`
-
-Returns all content rows, ordered by `page`, `block_key`, `block_type`, and
-`sort_order`. The optional filters can be combined:
-
-For example, filtering by page=home, block_key=statistic, and
-block_type=statistic-item returns the ordered home statistics.
-
-| Query parameter | Type   | Rules                     |
-| --------------- | ------ | ------------------------- |
-| `page`          | string | Optional page identifier. |
-| `block_key`     | string | Optional block key.       |
-| `block_type`    | string | Optional block type.      |
-
-Example response:
-
-```json
-{
-  "contents": [
-    {
-      "id": 1,
-      "page": "home",
-      "block_key": "statistic",
-      "block_type": "statistic-item",
-      "sort_order": 1,
-      "data": {
-        "label": "Customers",
-        "number": "250",
-        "description": "Across Indonesia"
-      },
-      "media_id": null,
-      "created_at": "2026-10-10T10:30:00.000Z",
-      "created_by": "Ari Putra",
-      "updated_at": "2026-10-10T10:30:00.000Z",
-      "updated_by": "Ari Putra"
-    }
-  ]
-}
-```
-
-### Replace content lists
-
-`PUT /contents`
-
-The request body must be a non-empty JSON array. Each item selects an available
-page/block combination and describes one content row. Non-sortable items are
-upserted at `sort_order` 1.
-
-For each sortable combination represented in the request, include its complete
-desired list. Its `sort_order` values must be exactly `1..N`. The server deletes
-the stored list for that combination and recreates it from the request. A
-sortable combination absent from the request is left unchanged. Recreated rows
-receive new IDs and create metadata. If a sortable item omits `media_id`, its
-media link is cleared. For non-sortable upserts, an omitted `media_id` leaves an
-existing link unchanged.
-
-The complete request is validated before writing and applied in one database
-transaction. If any item fails, the request is rejected and no changes are
-applied. Item-specific error messages include the item’s zero-based array index.
-
-| Field        | Type           | Rules                                                                                        |
-| ------------ | -------------- | -------------------------------------------------------------------------------------------- |
-| `page`       | string         | Required; must be an available page/block combination.                                       |
-| `block_key`  | string         | Required; must match the selected combination.                                               |
-| `block_type` | string         | Required; must match the selected combination.                                               |
-| `sort_order` | number         | Required for sortable combinations; positive integer and contiguous from 1 within each list. |
-| `data`       | object or null | Required object for data blocks; omitted or null for pictures.                               |
-| `media_id`   | number or null | Optional; existing media ID, only for combinations that support media.                       |
-
-Every data object must contain exactly the listed fields. Each value must be a
-string.
+Each block (`page`, `block_key`, `block_type`) is a `site_contents` header row,
+created on its first save. Its items live in `site_content_items`, one set per
+language. Nothing is shared across languages, including pictures. Media blocks
+store a picked media file's `path` in `data.media_filepath`.
 
 | Page       | Block key          | Block type        | Sortable | Media | Data fields                      |
 | ---------- | ------------------ | ----------------- | -------- | ----- | -------------------------------- |
@@ -359,49 +289,111 @@ string.
 | `about-us` | `company-profile`  | `company-picture` | No       | Yes   | None                             |
 | `about-us` | `mission-vision`   | `vision`          | No       | No    | `content`                        |
 | `about-us` | `mission-vision`   | `mission-item`    | Yes      | No    | `title`, `description`           |
-| `about-us` | `history_timeline` | `timeline-item`   | Yes      | No    | `period`, `description`          |
+| `about-us` | `history_timeline` | `timeline-item`   | Yes      | No    | `period`, `title`, `description` |
 
-Example request containing a complete two-item carousel list:
+Reads are public. Saving requires an authenticated session and the configured
+frontend `Origin` or `Referer`, as described under
+[Browser Sessions](#browser-sessions).
+
+### List site contents
+
+`GET /site_contents?page=home&language_id=en`
+
+| Query parameter | Type   | Rules                                                              |
+| --------------- | ------ | ------------------------------------------------------------------ |
+| `page`          | string | Required; `home` or `about-us`.                                    |
+| `language_id`   | string | Optional active language code, case-insensitive. Defaults to `id`. |
+
+Items are ordered by `block_key`, `block_type`, then `sort_order`. A language
+without saved items returns an empty `items` array; there is no fallback to
+Bahasa Indonesia. An unknown or inactive language returns `400 Bad Request`.
 
 ```json
-[
-  {
-    "page": "home",
-    "block_key": "hero-carousel",
-    "block_type": "carousel-slide",
-    "sort_order": 1,
-    "data": {
-      "title_1": "First slide",
-      "title_2": "First highlight",
-      "subtitle": "First description"
-    },
-    "media_id": 12
-  },
-  {
-    "page": "home",
-    "block_key": "hero-carousel",
-    "block_type": "carousel-slide",
-    "sort_order": 2,
-    "data": {
-      "title_1": "Second slide",
-      "title_2": "Second highlight",
-      "subtitle": "Second description"
-    },
-    "media_id": 13
+{
+  "site_contents": {
+    "language_id": "en",
+    "items": [
+      {
+        "id": 7,
+        "site_content_id": 1,
+        "page": "home",
+        "block_key": "hero-carousel",
+        "block_type": "carousel-slide",
+        "sort_order": 1,
+        "data": {
+          "title_1": "First slide",
+          "title_2": "First highlight",
+          "subtitle": "First description",
+          "media_filepath": "/public/media/slide-1.webp"
+        },
+        "created_at": "2026-10-18T10:30:00.000Z",
+        "created_by": "Ari Putra",
+        "updated_at": null,
+        "updated_by": "Ari Putra"
+      }
+    ]
   }
-]
+}
 ```
 
-A successful request returns `200 OK` with `{ "contents": [...] }` in request
-order. Recreated rows set `created_by` and `updated_by` to the authenticated
-user's name, and `updated_at` defaults to the current time. Updating an existing
-non-sortable row refreshes `updated_at` and `updated_by`. Send `null` for
-`media_id` to clear a non-sortable row's reference. Any existing media type is
-accepted for supported combinations.
+### Save site contents
 
-Invalid combinations, data fields, sort order, duplicate rows, or media
-references return `400 Bad Request`. Missing authentication returns `401
-Unauthorized`; a missing or disallowed request origin returns `403 Forbidden`.
+`PUT /site_contents`
+
+```json
+{
+  "language_id": "en",
+  "items": [
+    {
+      "page": "home",
+      "block_key": "hero-carousel",
+      "block_type": "carousel-slide",
+      "sort_order": 1,
+      "data": {
+        "title_1": "First slide",
+        "title_2": "First highlight",
+        "subtitle": "First description",
+        "media_filepath": "/public/media/slide-1.webp"
+      }
+    },
+    {
+      "page": "home",
+      "block_key": "teaser",
+      "block_type": "teaser-title",
+      "data": { "title": "Why us" }
+    }
+  ]
+}
+```
+
+| Field                | Type   | Rules                                                                                        |
+| -------------------- | ------ | -------------------------------------------------------------------------------------------- |
+| `language_id`        | string | Required active language code, case-insensitive. Applies to every item.                      |
+| `items`              | array  | Required, non-empty.                                                                         |
+| `items[].page`       | string | Required; with `block_key` and `block_type` must be an available combination.                |
+| `items[].sort_order` | number | Required for sortable blocks; contiguous from 1 within each block. Omit or `1` otherwise.    |
+| `items[].data`       | object | Required. Exactly the block's data fields as strings. Media blocks may add `media_filepath`. |
+
+`data.media_filepath` is a string up to 255 characters or `null`, accepted only
+on media blocks (`carousel-slide`, `company-picture`). A string must equal an
+existing media item's `path`. The path is not linked by ID, so deleting that
+media later leaves the stored path pointing at a missing file.
+
+Saving applies to one language: for each sortable block in the request, include
+its complete list; that language's stored items are deleted and recreated from
+the request (new IDs, new create metadata). Non-sortable items are upserted at
+`sort_order` 1. Blocks absent from the request are left unchanged. Everything is validated first and written in
+one transaction.
+
+Bahasa Indonesia first: saving any language other than `id` requires at least
+one saved `id` item on any page, otherwise `400 Bad Request` with
+`Bahasa Indonesia is required before adding another language.`
+
+A successful request returns `200 OK` with `{ "site_contents": { "language_id", "items": [...] } }`,
+items in request order. Invalid combinations, data fields, sort order,
+duplicates, media paths, or languages return `400 Bad Request` (item errors
+include the zero-based item index). Missing authentication returns `401
+Unauthorized`; a missing or disallowed origin returns `403 Forbidden`.
 
 ## Languages
 

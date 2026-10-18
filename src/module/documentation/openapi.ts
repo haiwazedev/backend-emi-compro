@@ -24,10 +24,6 @@ import {
   updateClientBodySchema,
 } from '../client/schemas/client.schema.js';
 import {
-  contentListQuerySchema,
-  upsertContentsBodySchema,
-} from '../content/schemas/content.schema.js';
-import {
   createDivisionBodySchema,
   divisionListQuerySchema,
   reorderDivisionsBodySchema,
@@ -67,6 +63,10 @@ import {
   saveSiteSettingBodySchema,
   siteSettingQuerySchema,
 } from '../site_setting/schemas/site-setting.schema.js';
+import {
+  saveSiteContentsBodySchema,
+  siteContentQuerySchema,
+} from '../site_content/schemas/site-content.schema.js';
 import { sessionCookieName } from '../../shared/config/session.js';
 
 type Operation = {
@@ -107,17 +107,17 @@ const routes: Routes = {
 
   '/languages': { get: { tag: 'Languages', summary: 'List languages' } },
 
-  '/contents': {
+  '/site_contents': {
     get: {
-      tag: 'Contents',
-      summary: 'List content blocks',
-      query: contentListQuerySchema,
+      tag: 'Site contents',
+      summary: "List a page's content items for one language",
+      query: siteContentQuerySchema,
     },
     put: {
-      tag: 'Contents',
-      summary: 'Replace content lists',
+      tag: 'Site contents',
+      summary: "Save a page's content items for one language",
       auth: true,
-      body: upsertContentsBodySchema,
+      body: saveSiteContentsBodySchema,
     },
   },
 

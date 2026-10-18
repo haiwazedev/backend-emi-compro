@@ -1,5 +1,10 @@
 import { Router } from 'express';
-import { createAuthMiddleware } from '../../auth/auth.middleware.js';
+import {
+  createAuthMiddleware,
+  forceDraftUnlessPublisher,
+  requireDelete,
+  requireWrite,
+} from '../../auth/auth.middleware.js';
 import { AuthService } from '../../auth/auth.service.js';
 import { validateBody } from '../../../shared/middlewares/validate-body.middleware.js';
 import { validateQuery } from '../../../shared/middlewares/validate-query.middleware.js';
@@ -26,19 +31,29 @@ divisionRouter.get('/divisions/:divisionId', controller.get);
 divisionRouter.post(
   '/divisions/reorder',
   requireAuth,
+  requireWrite,
   validateBody(reorderDivisionsBodySchema),
   controller.reorder,
 );
 divisionRouter.post(
   '/divisions',
   requireAuth,
+  requireWrite,
   validateBody(createDivisionBodySchema),
+  forceDraftUnlessPublisher,
   controller.create,
 );
 divisionRouter.put(
   '/divisions/:divisionId',
   requireAuth,
+  requireWrite,
   validateBody(updateDivisionBodySchema),
+  forceDraftUnlessPublisher,
   controller.update,
 );
-divisionRouter.delete('/divisions/:divisionId', requireAuth, controller.delete);
+divisionRouter.delete(
+  '/divisions/:divisionId',
+  requireAuth,
+  requireDelete,
+  controller.delete,
+);

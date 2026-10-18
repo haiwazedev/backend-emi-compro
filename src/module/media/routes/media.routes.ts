@@ -1,5 +1,9 @@
 import { Router } from 'express';
-import { createAuthMiddleware } from '../../auth/auth.middleware.js';
+import {
+  createAuthMiddleware,
+  requireDelete,
+  requireWrite,
+} from '../../auth/auth.middleware.js';
 import { AuthService } from '../../auth/auth.service.js';
 import { validateBody } from '../../../shared/middlewares/validate-body.middleware.js';
 import { validateQuery } from '../../../shared/middlewares/validate-query.middleware.js';
@@ -26,14 +30,21 @@ mediaRouter.get('/media/:mediaId', controller.get);
 mediaRouter.post(
   '/media',
   requireAuth,
+  requireWrite,
   uploadMediaFile,
   validateBody(uploadMediaBodySchema),
   controller.upload,
 );
-mediaRouter.delete('/media/:mediaId', requireAuth, controller.delete);
+mediaRouter.delete(
+  '/media/:mediaId',
+  requireAuth,
+  requireDelete,
+  controller.delete,
+);
 mediaRouter.post(
   '/media/bulk_delete',
   requireAuth,
+  requireDelete,
   validateBody(bulkDeleteMediaBodySchema),
   controller.bulkDelete,
 );

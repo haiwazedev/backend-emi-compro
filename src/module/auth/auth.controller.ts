@@ -9,12 +9,6 @@ import { AuthService } from './auth.service.js';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  register = async (req: Request, res: Response): Promise<void> => {
-    const result = await this.authService.register(req.body);
-    await establishSession(req, result.userId);
-    res.status(201).json({ user: result.user });
-  };
-
   login = async (req: Request, res: Response): Promise<void> => {
     const result = await this.authService.login(req.body);
     await establishSession(req, result.userId);

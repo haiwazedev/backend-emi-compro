@@ -36,7 +36,7 @@ form endpoint, which accepts requests from any origin.
 
 ## Browser Sessions
 
-Registration and login create a server-side session in Redis and set the
+Login creates a server-side session in Redis and sets the
 host-only `pln_emi.sid` HttpOnly cookie. The cookie is `SameSite=Lax`, lasts
 three hours, and is marked `Secure` in production. Its lifetime is fixed and is
 not extended by activity. JavaScript cannot read the session cookie.
@@ -54,80 +54,6 @@ For Fetch examples, define the base URL once:
 
 ```js
 const API_BASE_URL = 'http://localhost:8000';
-```
-
-## Register
-
-`POST /auth/register`
-
-Create an account and start a session.
-
-### Request body
-
-| Field      | Type   | Rules                                                           |
-| ---------- | ------ | --------------------------------------------------------------- |
-| `name`     | string | Required; whitespace around the value is trimmed.               |
-| `email`    | string | Required; must be a valid email. It is trimmed and lowercased.  |
-| `password` | string | Required and non-empty. It is sent as provided and not trimmed. |
-
-```json
-{
-  "name": "Ari Putra",
-  "email": "ari@example.com",
-  "password": "correct-horse-battery-staple"
-}
-```
-
-### Success response — `201 Created`
-
-The response sets the session cookie and returns:
-
-```json
-{
-  "user": {
-    "name": "Ari Putra",
-    "email": "ari@example.com"
-  }
-}
-```
-
-### Errors
-
-| Status                    | Message                                                                                                             |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `400 Bad Request`         | `Name, email, and password are required.` for missing or empty fields; `Email must be valid.` for an invalid email. |
-| `403 Forbidden`           | `Request origin is not allowed.` when `Origin`/`Referer` is missing or does not match the configured origin.        |
-| `409 Conflict`            | `Email is already registered.`                                                                                      |
-| `503 Service Unavailable` | `Session service is unavailable.` when Redis session storage fails.                                                 |
-
-### Fetch example
-
-```js
-const response = await fetch(`${API_BASE_URL}/auth/register`, {
-  method: 'POST',
-  credentials: 'include',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    name: 'Ari Putra',
-    email: 'ari@example.com',
-    password: 'correct-horse-battery-staple',
-  }),
-});
-
-const data = await response.json();
-if (!response.ok) throw new Error(data.message);
-
-const { user } = data;
-```
-
-### cURL example
-
-```sh
-curl -i -X POST http://localhost:8000/auth/register \
-  -H 'Origin: http://localhost:3000' \
-  -H 'Content-Type: application/json' \
-  -d '{"name":"Ari Putra","email":"ari@example.com","password":"correct-horse-battery-staple"}' \
-  -c cookies.txt
 ```
 
 ## Login
@@ -150,8 +76,8 @@ The request body is:
 }
 ```
 
-The `200 OK` response sets the session cookie and returns the same
-`{ "user": ... }` shape as registration.
+The `200 OK` response sets the session cookie and returns the signed-in user,
+in the same shape as [Get the Current User](#get-the-current-user).
 
 ### Errors
 
@@ -159,6 +85,7 @@ The `200 OK` response sets the session cookie and returns the same
 | ------------------------- | ------------------------------------------------------------------------------------------------------------ |
 | `400 Bad Request`         | `Email and password are required.` for missing or empty fields; `Email must be valid.` for an invalid email. |
 | `401 Unauthorized`        | `Invalid email or password.`                                                                                 |
+| `403 Forbidden`           | `Your account is inactive.` when the user's status is inactive (checked after the password).                 |
 | `403 Forbidden`           | `Request origin is not allowed.` when `Origin`/`Referer` is missing or does not match the configured origin. |
 | `503 Service Unavailable` | `Session service is unavailable.` when Redis session storage fails.                                          |
 
@@ -195,7 +122,9 @@ curl -i -X POST http://localhost:8000/auth/login \
 
 `GET /auth/me`
 
-Return the current user's name and email using the session cookie.
+Return the current user's name, email, role, and allowed permission keys using
+the session cookie. `role` is `null` and `permissions` is empty for a user
+without a role. Use `permissions` to hide actions the user cannot perform.
 
 ### Success response — `200 OK`
 
@@ -203,7 +132,9 @@ Return the current user's name and email using the session cookie.
 {
   "user": {
     "name": "Ari Putra",
-    "email": "ari@example.com"
+    "email": "ari@example.com",
+    "role": { "id": 1, "name": "Super Admin" },
+    "permissions": ["write", "publish", "delete", "manage_users"]
   }
 }
 ```
@@ -270,6 +201,29 @@ curl -i -X POST http://localhost:8000/auth/logout \
   -H 'Origin: http://localhost:3000' \
   -b cookies.txt
 ```
+
+## Permissions
+
+Every protected endpoint loads the signed-in user's role permissions from the
+database on each request, so role changes apply immediately. A user whose
+status is inactive gets `401 Unauthorized` on every protected request and
+`403 Forbidden` at login.
+
+| Action                                                                                           | Needs                |
+| ------------------------------------------------------------------------------------------------ | -------------------- |
+| Any `GET`, inbox mark-as-read and read-all, activity logs                                        | Any signed-in user   |
+| Create, update, and reorder content, categories, media uploads, site settings, and site contents | `write` or `publish` |
+| `DELETE` endpoints and `POST /media/bulk_delete`                                                 | `delete`             |
+| `/users`, `/roles`, `/permissions`, and `/role_permissions` (reads included)                     | `manage_users`       |
+
+Without `publish`, saves of articles, FAQs, divisions, and document
+commitments are stored with `status: "DRAFT"`, whatever the body sends.
+Editing a published item therefore unpublishes it. On `PUT /site_settings`,
+existing social links keep their current status and new links start as
+`DRAFT`.
+
+A missing permission returns `403 Forbidden` with
+`You do not have permission to perform this action.`
 
 ## Site Contents
 
@@ -1831,6 +1785,151 @@ Invalid fields, files, or `icon_index` references return
 `404 Not Found`; files over their size limit return `413 Payload Too Large`; a
 setting key missing from the seed returns `500 Internal Server Error`.
 
+## Users and Roles
+
+All user, role, and permission endpoints require an authenticated session and
+the configured frontend `Origin` or `Referer`, as described under
+[Browser Sessions](#browser-sessions). Requests use JSON. All of them need the
+`manage_users` permission, as described under [Permissions](#permissions).
+
+### Roles
+
+- `GET /roles` returns `{ "roles": [...] }` with `200 OK`, sorted by ID.
+- `GET /roles/:roleId` returns `{ "role": ... }` with `200 OK`.
+- `POST /roles` creates a role and returns `{ "role": ... }` with
+  `201 Created`. It also creates one `role_permissions` row per permission
+  with `is_allowed: false`.
+- `PUT /roles/:roleId` partially updates a role and returns `{ "role": ... }`
+  with `200 OK`.
+- `DELETE /roles/:roleId` returns `204 No Content`. It also deletes every user
+  assigned to the role and the role's permission rows, in one transaction.
+  Deleting a role you hold returns `400 Bad Request`.
+
+Roles include `user_count`, the number of users assigned to the role.
+Bodies accept `name` (1–100 characters, unique) and `description` (up to 500
+characters, or `null`). `name` is required on create; omitted fields remain
+unchanged on update. A duplicate name returns `409 Conflict`.
+
+```json
+{ "name": "Editor", "description": "Mengelola semua konten" }
+```
+
+```json
+{
+  "role": {
+    "id": 2,
+    "name": "Editor",
+    "description": "Mengelola semua konten",
+    "user_count": 2,
+    "created_at": "2026-10-18T08:00:00.000Z",
+    "created_by": "Neni Ariyani",
+    "updated_at": null,
+    "updated_by": null
+  }
+}
+```
+
+### Permissions
+
+`GET /permissions` returns the seeded permissions with `200 OK`. Names are
+stable keys; show your own labels in the UI.
+
+```json
+{
+  "permissions": [
+    { "id": 2, "name": "write" },
+    { "id": 3, "name": "publish" },
+    { "id": 4, "name": "delete" },
+    { "id": 5, "name": "manage_users" }
+  ]
+}
+```
+
+### Role Permissions
+
+- `GET /role_permissions` returns every role and permission pair with
+  `200 OK`, sorted by `role_id` then `permission_id`.
+- `PUT /role_permissions/:roleId/:permissionId` sets `is_allowed` and returns
+  `{ "rolePermission": ... }` with `200 OK`. The body sets the value rather
+  than flipping it, so retries are safe. An unknown pair returns
+  `404 Not Found`.
+
+```json
+{ "is_allowed": true }
+```
+
+```json
+{
+  "rolePermissions": [
+    {
+      "role_id": 2,
+      "permission_id": 2,
+      "is_allowed": true,
+      "updated_at": "2026-10-18T08:05:00.000Z",
+      "updated_by": "Neni Ariyani"
+    }
+  ]
+}
+```
+
+### Users
+
+- `GET /users` returns `{ "users": [...], "pagination": ... }` with `200 OK`,
+  sorted by name.
+- `GET /users/:userId` returns `{ "user": ... }` with `200 OK`.
+- `POST /users` creates a user and returns `{ "user": ... }` with
+  `201 Created`. The password is set to the server's `DEFAULT_USER_PASSWORD`;
+  the request returns `500` if that variable is missing.
+- `PUT /users/:userId` partially updates a user and returns
+  `{ "user": ... }` with `200 OK`.
+- `DELETE /users/:userId` returns `204 No Content`. Deleting your own account
+  returns `400 Bad Request`. The user's activity log entries are kept.
+
+| Query parameter | Type   | Rules                                                            |
+| --------------- | ------ | ---------------------------------------------------------------- |
+| `search`        | string | Optional, up to 200 characters; matches name or email, any case. |
+| `role_id`       | number | Optional; only users with this role.                             |
+| `page`          | number | Optional, 1-based; default `1`.                                  |
+| `limit`         | number | Optional; default `20`, minimum `1`, maximum `100`.              |
+
+```json
+{
+  "users": [],
+  "pagination": { "page": 1, "limit": 20, "totalItems": 0, "totalPages": 0 }
+}
+```
+
+Bodies accept `name` (1–100 characters), `email` (valid, lowercased, unique),
+`role_id` (an existing role id, or `null` for no role), and `is_active`
+(boolean). All fields are required on create; omitted fields remain unchanged
+on update. An unknown `role_id` returns `400 Bad Request`; a duplicate email
+returns `409 Conflict`.
+
+```json
+{
+  "name": "Andi Lala",
+  "email": "andi.lala@emipersero.co.id",
+  "role_id": 3,
+  "is_active": true
+}
+```
+
+Responses never include the password. `last_signed_in` is set on each
+successful login and is `null` until the first one.
+
+```json
+{
+  "user": {
+    "id": 4,
+    "name": "Andi Lala",
+    "email": "andi.lala@emipersero.co.id",
+    "role": { "id": 3, "name": "Kontributor" },
+    "is_active": true,
+    "last_signed_in": null
+  }
+}
+```
+
 ## Activity Logs
 
 `GET /activity-logs` requires login and returns
@@ -1857,9 +1956,10 @@ setting key missing from the seed returns `500 Internal Server Error`.
 }
 ```
 
-`name` is the user's name. Entries are written by the server after each
+`name` is the user's name at the time of the action; it is stored on the
+entry, so entries remain after the user is deleted. Entries are written by the server after each
 successful content create, update, delete, or reorder (articles, article
-categories, board members and types, clients, divisions, services, documents
+categories, roles, role permissions, users, board members and types, clients, divisions, services, documents
 and their categories, FAQs, media, site contents, and site settings).
 `action_type` is a verb plus the resource, such as `menambahkan artikel`,
 `memperbarui layanan`, `menghapus dokumen`, or `memperbarui urutan`.

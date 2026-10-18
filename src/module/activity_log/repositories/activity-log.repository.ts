@@ -8,7 +8,6 @@ export class ActivityLogRepository {
       skip: (query.page - 1) * query.limit,
       take: query.limit,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      include: { user: { select: { name: true } } },
     });
   }
 

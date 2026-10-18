@@ -33,7 +33,7 @@ export class ActivityLogService {
   ): Promise<void> {
     try {
       await this.repository.create({
-        userId: user.id,
+        userName: user.name.slice(0, 100),
         actionType: actionType.slice(0, MAX_TEXT_LENGTH),
         actionResult: actionResult.slice(0, MAX_TEXT_LENGTH),
         createdBy: user.name.slice(0, 100),

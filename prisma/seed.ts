@@ -58,6 +58,14 @@ const siteSettingSeedKeys = [
   'operational_end_time',
 ] as const;
 
+// shortcut: permissions added later get no role_permissions rows for existing roles, backfill them in a migration when that happens.
+const permissionSeedNames = [
+  'write',
+  'publish',
+  'delete',
+  'manage_users',
+] as const;
+
 // 1x1 transparent PNG; replace the real logos through the CMS.
 const placeholderLogo = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGNgAAIAAAUAAXpeqz8AAAAASUVORK5CYII=',
@@ -144,12 +152,20 @@ async function seedSiteSettings(): Promise<void> {
   });
 }
 
+async function seedPermissions(): Promise<void> {
+  await prisma.permission.createMany({
+    data: permissionSeedNames.map((name) => ({ name, createdBy: 'system' })),
+    skipDuplicates: true,
+  });
+}
+
 async function seed(): Promise<void> {
   await seedLanguages();
   await seedFaqs();
   await seedClients();
   await seedInboxSubjects();
   await seedSiteSettings();
+  await seedPermissions();
 }
 
 seed()

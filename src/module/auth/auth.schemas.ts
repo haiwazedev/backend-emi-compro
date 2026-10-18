@@ -1,6 +1,5 @@
 import { z } from 'zod';
 
-const registerRequiredMessage = 'Name, email, and password are required.';
 const loginRequiredMessage = 'Email and password are required.';
 
 function asBodyObject(value: unknown): unknown {
@@ -8,25 +7,6 @@ function asBodyObject(value: unknown): unknown {
     ? value
     : {};
 }
-
-export const registerBodySchema = z.preprocess(
-  asBodyObject,
-  z.object({
-    name: z
-      .string({ error: registerRequiredMessage })
-      .trim()
-      .min(1, registerRequiredMessage),
-    email: z
-      .string({ error: registerRequiredMessage })
-      .trim()
-      .min(1, registerRequiredMessage)
-      .toLowerCase()
-      .email('Email must be valid.'),
-    password: z
-      .string({ error: registerRequiredMessage })
-      .min(1, registerRequiredMessage),
-  }),
-);
 
 export const loginBodySchema = z.preprocess(
   asBodyObject,
@@ -43,5 +23,4 @@ export const loginBodySchema = z.preprocess(
   }),
 );
 
-export type RegisterInput = z.infer<typeof registerBodySchema>;
 export type LoginInput = z.infer<typeof loginBodySchema>;

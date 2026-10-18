@@ -2,32 +2,133 @@ import { Prisma } from '../../../generated/prisma/client.js';
 import { prisma } from '../../../shared/db/prisma.js';
 import type { DivisionListQuery } from '../schemas/division.schema.js';
 
+const divisionInclude = {
+  contents: {
+    orderBy: [{ language: { sortOrder: 'asc' } }, { languageId: 'asc' }],
+  },
+} satisfies Prisma.DivisionInclude;
+
+type DivisionContentWrite = {
+  languageId: string;
+  name?: string;
+  abbr?: string;
+  description?: string | null;
+};
+
 export class DivisionRepository {
   findMany(query: DivisionListQuery) {
     return prisma.division.findMany({
       where: query.status ? { status: query.status } : {},
       orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+      include: divisionInclude,
     });
   }
 
   findById(id: number) {
-    return prisma.division.findUnique({ where: { id } });
+    return prisma.division.findUnique({
+      where: { id },
+      include: divisionInclude,
+    });
   }
 
-  create(data: Prisma.DivisionUncheckedCreateInput) {
+  create(
+    data: Prisma.DivisionUncheckedCreateInput,
+    content: Required<
+      Pick<DivisionContentWrite, 'languageId' | 'name' | 'abbr'>
+    > &
+      Pick<DivisionContentWrite, 'description'>,
+  ) {
     return prisma.$transaction(async (transaction) => {
       const current = await transaction.division.aggregate({
         _max: { sortOrder: true },
       });
 
-      return transaction.division.create({
+      const division = await transaction.division.create({
         data: { ...data, sortOrder: (current._max.sortOrder ?? 0) + 1 },
+        select: { id: true },
+      });
+
+      await transaction.divisionContent.create({
+        data: {
+          divisionId: division.id,
+          languageId: content.languageId,
+          name: content.name,
+          abbr: content.abbr,
+          description: content.description ?? null,
+        },
+      });
+
+      return transaction.division.findUniqueOrThrow({
+        where: { id: division.id },
+        include: divisionInclude,
       });
     });
   }
 
-  update(id: number, data: Prisma.DivisionUncheckedUpdateInput) {
-    return prisma.division.update({ where: { id }, data });
+  update(
+    id: number,
+    data: Prisma.DivisionUncheckedUpdateInput,
+    content?: DivisionContentWrite,
+  ) {
+    return prisma.$transaction(async (transaction) => {
+      const existingContent = content
+        ? await transaction.divisionContent.findUnique({
+            where: {
+              divisionId_languageId: {
+                divisionId: id,
+                languageId: content.languageId,
+              },
+            },
+          })
+        : null;
+
+      if (
+        content &&
+        !existingContent &&
+        (content.name === undefined || content.abbr === undefined)
+      ) {
+        return null;
+      }
+
+      await transaction.division.update({ where: { id }, data });
+
+      if (content) {
+        const where = {
+          divisionId_languageId: {
+            divisionId: id,
+            languageId: content.languageId,
+          },
+        };
+
+        if (existingContent) {
+          await transaction.divisionContent.update({
+            where,
+            data: {
+              ...(content.name !== undefined ? { name: content.name } : {}),
+              ...(content.abbr !== undefined ? { abbr: content.abbr } : {}),
+              ...(content.description !== undefined
+                ? { description: content.description }
+                : {}),
+            },
+          });
+        } else {
+          await transaction.divisionContent.create({
+            data: {
+              divisionId: id,
+              languageId: content.languageId,
+              name: content.name!,
+              abbr: content.abbr!,
+              description: content.description ?? null,
+            },
+          });
+        }
+      }
+
+      return transaction.division.findUniqueOrThrow({
+        where: { id },
+        include: divisionInclude,
+      });
+    });
   }
 
   delete(id: number) {
@@ -61,6 +162,7 @@ export class DivisionRepository {
 
       return transaction.division.findMany({
         orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+        include: divisionInclude,
       });
     });
   }

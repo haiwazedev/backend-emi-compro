@@ -68,6 +68,16 @@ import {
   saveSiteContentsBodySchema,
   siteContentQuerySchema,
 } from '../site_content/schemas/site-content.schema.js';
+import { updateRolePermissionBodySchema } from '../role/schemas/role-permission.schema.js';
+import {
+  createRoleBodySchema,
+  updateRoleBodySchema,
+} from '../role/schemas/role.schema.js';
+import {
+  createUserBodySchema,
+  updateUserBodySchema,
+  userListQuerySchema,
+} from '../user/schemas/user.schema.js';
 import { sessionCookieName } from '../../shared/config/session.js';
 
 type Operation = {
@@ -595,6 +605,69 @@ const routes: Routes = {
         social_icons: 'multiple',
       },
     },
+  },
+
+  '/roles': {
+    get: { tag: 'Roles', summary: 'List roles', auth: true },
+    post: {
+      tag: 'Roles',
+      summary: 'Create a role with all permissions disallowed',
+      auth: true,
+      status: 201,
+      body: createRoleBodySchema,
+    },
+  },
+  '/roles/{roleId}': {
+    get: { tag: 'Roles', summary: 'Get a role', auth: true },
+    put: {
+      tag: 'Roles',
+      summary: 'Update a role',
+      auth: true,
+      body: updateRoleBodySchema,
+    },
+    delete: { tag: 'Roles', summary: 'Delete a role', auth: true, status: 204 },
+  },
+
+  '/permissions': {
+    get: { tag: 'Roles', summary: 'List permissions', auth: true },
+  },
+
+  '/role_permissions': {
+    get: { tag: 'Roles', summary: 'List role permissions', auth: true },
+  },
+  '/role_permissions/{roleId}/{permissionId}': {
+    put: {
+      tag: 'Roles',
+      summary: 'Allow or disallow a permission for a role',
+      auth: true,
+      body: updateRolePermissionBodySchema,
+    },
+  },
+
+  '/users': {
+    get: {
+      tag: 'Users',
+      summary: 'List users with their role',
+      auth: true,
+      query: userListQuerySchema,
+    },
+    post: {
+      tag: 'Users',
+      summary: 'Create a user with the default password',
+      auth: true,
+      status: 201,
+      body: createUserBodySchema,
+    },
+  },
+  '/users/{userId}': {
+    get: { tag: 'Users', summary: 'Get a user with their role', auth: true },
+    put: {
+      tag: 'Users',
+      summary: 'Update a user and their role',
+      auth: true,
+      body: updateUserBodySchema,
+    },
+    delete: { tag: 'Users', summary: 'Delete a user', auth: true, status: 204 },
   },
 
   '/health': { get: { tag: 'Health', summary: 'Health check' } },

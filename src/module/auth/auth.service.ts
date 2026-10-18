@@ -1,6 +1,7 @@
 import * as argon2 from 'argon2';
 import { ApiError } from '../../shared/errors/api-error.js';
 import { AuthRepository } from './auth.repository.js';
+import { hashPassword } from './password.js';
 import type { LoginInput, RegisterInput } from './auth.schemas.js';
 import type { PublicUser } from './auth.types.js';
 
@@ -21,12 +22,7 @@ export class AuthService {
       throw new ApiError(409, 'Email is already registered.');
     }
 
-    const passwordHash = await argon2.hash(password, {
-      type: argon2.argon2id,
-      memoryCost: 19_456,
-      timeCost: 2,
-      parallelism: 1,
-    });
+    const passwordHash = await hashPassword(password);
 
     let user;
 
@@ -55,6 +51,8 @@ export class AuthService {
     if (!user || !passwordMatches) {
       throw new ApiError(401, 'Invalid email or password.');
     }
+
+    await this.repository.updateLastSignedIn(user.id);
 
     return this.createAuthResult(user.id, user);
   }

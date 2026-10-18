@@ -1831,6 +1831,152 @@ Invalid fields, files, or `icon_index` references return
 `404 Not Found`; files over their size limit return `413 Payload Too Large`; a
 setting key missing from the seed returns `500 Internal Server Error`.
 
+## Users and Roles
+
+All user, role, and permission endpoints require an authenticated session and
+the configured frontend `Origin` or `Referer`, as described under
+[Browser Sessions](#browser-sessions). Requests use JSON. Permissions are
+stored only; they do not restrict any endpoint yet.
+
+### Roles
+
+- `GET /roles` returns `{ "roles": [...] }` with `200 OK`, sorted by ID.
+- `GET /roles/:roleId` returns `{ "role": ... }` with `200 OK`.
+- `POST /roles` creates a role and returns `{ "role": ... }` with
+  `201 Created`. It also creates one `role_permissions` row per permission
+  with `is_allowed: false`.
+- `PUT /roles/:roleId` partially updates a role and returns `{ "role": ... }`
+  with `200 OK`.
+- `DELETE /roles/:roleId` returns `204 No Content`. It also deletes every user
+  assigned to the role and the role's permission rows, in one transaction.
+  Deleting a role you hold returns `400 Bad Request`.
+
+Roles include `user_count`, the number of users assigned to the role.
+Bodies accept `name` (1–100 characters, unique) and `description` (up to 500
+characters, or `null`). `name` is required on create; omitted fields remain
+unchanged on update. A duplicate name returns `409 Conflict`.
+
+```json
+{ "name": "Editor", "description": "Mengelola semua konten" }
+```
+
+```json
+{
+  "role": {
+    "id": 2,
+    "name": "Editor",
+    "description": "Mengelola semua konten",
+    "user_count": 2,
+    "created_at": "2026-10-18T08:00:00.000Z",
+    "created_by": "Neni Ariyani",
+    "updated_at": null,
+    "updated_by": null
+  }
+}
+```
+
+### Permissions
+
+`GET /permissions` returns the seeded permissions with `200 OK`. Names are
+stable keys; show your own labels in the UI.
+
+```json
+{
+  "permissions": [
+    { "id": 1, "name": "view" },
+    { "id": 2, "name": "write" },
+    { "id": 3, "name": "publish" },
+    { "id": 4, "name": "delete" },
+    { "id": 5, "name": "manage_users" }
+  ]
+}
+```
+
+### Role Permissions
+
+- `GET /role_permissions` returns every role and permission pair with
+  `200 OK`, sorted by `role_id` then `permission_id`.
+- `PUT /role_permissions/:roleId/:permissionId` sets `is_allowed` and returns
+  `{ "rolePermission": ... }` with `200 OK`. The body sets the value rather
+  than flipping it, so retries are safe. An unknown pair returns
+  `404 Not Found`.
+
+```json
+{ "is_allowed": true }
+```
+
+```json
+{
+  "rolePermissions": [
+    {
+      "role_id": 2,
+      "permission_id": 1,
+      "is_allowed": true,
+      "updated_at": "2026-10-18T08:05:00.000Z",
+      "updated_by": "Neni Ariyani"
+    }
+  ]
+}
+```
+
+### Users
+
+- `GET /users` returns `{ "users": [...], "pagination": ... }` with `200 OK`,
+  sorted by name.
+- `GET /users/:userId` returns `{ "user": ... }` with `200 OK`.
+- `POST /users` creates a user and returns `{ "user": ... }` with
+  `201 Created`. The password is set to the server's `DEFAULT_USER_PASSWORD`;
+  the request returns `500` if that variable is missing.
+- `PUT /users/:userId` partially updates a user and returns
+  `{ "user": ... }` with `200 OK`.
+- `DELETE /users/:userId` returns `204 No Content`. Deleting your own account
+  returns `400 Bad Request`. The user's activity log entries are kept.
+
+| Query parameter | Type   | Rules                                                            |
+| --------------- | ------ | ---------------------------------------------------------------- |
+| `search`        | string | Optional, up to 200 characters; matches name or email, any case. |
+| `role_id`       | number | Optional; only users with this role.                             |
+| `page`          | number | Optional, 1-based; default `1`.                                  |
+| `limit`         | number | Optional; default `20`, minimum `1`, maximum `100`.              |
+
+```json
+{
+  "users": [],
+  "pagination": { "page": 1, "limit": 20, "totalItems": 0, "totalPages": 0 }
+}
+```
+
+Bodies accept `name` (1–100 characters), `email` (valid, lowercased, unique),
+`role_id` (an existing role id, or `null` for no role), and `is_active`
+(boolean). All fields are required on create; omitted fields remain unchanged
+on update. An unknown `role_id` returns `400 Bad Request`; a duplicate email
+returns `409 Conflict`.
+
+```json
+{
+  "name": "Andi Lala",
+  "email": "andi.lala@emipersero.co.id",
+  "role_id": 3,
+  "is_active": true
+}
+```
+
+Responses never include the password. `last_signed_in` is set on each
+successful login and is `null` until the first one.
+
+```json
+{
+  "user": {
+    "id": 4,
+    "name": "Andi Lala",
+    "email": "andi.lala@emipersero.co.id",
+    "role": { "id": 3, "name": "Kontributor" },
+    "is_active": true,
+    "last_signed_in": null
+  }
+}
+```
+
 ## Activity Logs
 
 `GET /activity-logs` requires login and returns
@@ -1857,9 +2003,10 @@ setting key missing from the seed returns `500 Internal Server Error`.
 }
 ```
 
-`name` is the user's name. Entries are written by the server after each
+`name` is the user's name at the time of the action; it is stored on the
+entry, so entries remain after the user is deleted. Entries are written by the server after each
 successful content create, update, delete, or reorder (articles, article
-categories, board members and types, clients, divisions, services, documents
+categories, roles, role permissions, users, board members and types, clients, divisions, services, documents
 and their categories, FAQs, media, site contents, and site settings).
 `action_type` is a verb plus the resource, such as `menambahkan artikel`,
 `memperbarui layanan`, `menghapus dokumen`, or `memperbarui urutan`.

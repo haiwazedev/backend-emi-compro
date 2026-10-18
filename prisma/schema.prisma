@@ -133,18 +133,35 @@ model Client {
 }
 
 model Faq {
-  id        Int       @id @default(autoincrement())
-  question  String    @db.VarChar(200)
-  answer    String    @db.Text
-  status    FaqStatus @default(DRAFT)
-  sortOrder Int       @default(1) @map("sort_order")
-  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  createdBy String    @map("created_by") @db.VarChar(100)
-  updatedAt DateTime? @map("updated_at") @db.Timestamptz(6)
-  updatedBy String?   @map("updated_by") @db.VarChar(100)
+  id        Int          @id @default(autoincrement())
+  sortOrder Int          @default(1) @map("sort_order")
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy String       @map("created_by") @db.VarChar(100)
+  updatedAt DateTime?    @map("updated_at") @db.Timestamptz(6)
+  updatedBy String?      @map("updated_by") @db.VarChar(100)
+  contents  FaqContent[]
 
-  @@index([status, sortOrder])
+  @@index([sortOrder])
   @@map("faqs")
+}
+
+model FaqContent {
+  id         Int       @id @default(autoincrement())
+  faqId      Int       @map("faq_id")
+  languageId String    @map("language_id") @db.VarChar(10)
+  question   String    @db.VarChar(200)
+  answer     String    @db.Text
+  status     FaqStatus @default(DRAFT)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy  String    @map("created_by") @db.VarChar(100)
+  updatedAt  DateTime? @map("updated_at") @db.Timestamptz(6)
+  updatedBy  String?   @map("updated_by") @db.VarChar(100)
+  faq        Faq       @relation(fields: [faqId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  language   Language  @relation(fields: [languageId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([faqId, languageId])
+  @@index([languageId, status])
+  @@map("faq_contents")
 }
 
 model Service {
@@ -291,6 +308,7 @@ model Language {
   serviceContents     ServiceContent[]
   boardMemberTypes    BoardMemberType[]
   boardMemberContents BoardMemberContent[]
+  faqContents         FaqContent[]
 
   @@map("languages")
 }

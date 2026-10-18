@@ -69,14 +69,22 @@ async function seedFaqs(): Promise<void> {
     return;
   }
 
-  await prisma.faq.createMany({
-    data: faqSeedData.map((faq, index) => ({
-      ...faq,
-      status: 'PUBLISHED',
-      sortOrder: index + 1,
-      createdBy: 'system',
-    })),
-  });
+  for (const [index, faq] of faqSeedData.entries()) {
+    await prisma.faq.create({
+      data: {
+        sortOrder: index + 1,
+        createdBy: 'system',
+        contents: {
+          create: {
+            ...faq,
+            languageId: 'id',
+            status: 'PUBLISHED',
+            createdBy: 'system',
+          },
+        },
+      },
+    });
+  }
 }
 
 async function seedClients(): Promise<void> {
@@ -137,10 +145,10 @@ async function seedSiteSettings(): Promise<void> {
 }
 
 async function seed(): Promise<void> {
+  await seedLanguages();
   await seedFaqs();
   await seedClients();
   await seedInboxSubjects();
-  await seedLanguages();
   await seedSiteSettings();
 }
 

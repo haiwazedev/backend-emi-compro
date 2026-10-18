@@ -1281,59 +1281,110 @@ FAQ reads are public. Creating, updating, deleting, and reordering require an
 authenticated session and the configured frontend `Origin` or `Referer`, as
 described under [Browser Sessions](#browser-sessions). Requests use JSON.
 
+An FAQ has one shared order (`sort_order`) and one content per language
+(`question`, `answer`, `status`), like articles. Bahasa Indonesia (`id`)
+content must exist before any other language.
+
 - `GET /faqs` returns `{ "faqs": [...] }` with `200 OK`, ordered by
-  `sort_order` and then ID. The optional `status` query parameter filters the
-  results to `DRAFT` or `PUBLISHED`; omitting it returns all FAQs. The public
-  site should request `GET /faqs?status=PUBLISHED`.
-- `GET /faqs/:faqId` returns `{ "faq": ... }` with `200 OK`.
-- `POST /faqs` creates an FAQ and returns `{ "faq": ... }` with
-  `201 Created`. The FAQ is appended to the current list. To duplicate an FAQ,
-  send its copied fields to this endpoint.
-- `PUT /faqs/:faqId` partially updates an FAQ and returns `{ "faq": ... }` with
-  `200 OK`.
+  `sort_order` and then ID. Optional `language_id` and `status` query
+  parameters keep FAQs that have one content matching both; omitting both
+  returns all FAQs. The public site should request
+  `GET /faqs?language_id=en&status=PUBLISHED`.
+- `GET /faqs/:faqId` returns `{ "faq": ... }` with every language's content
+  and `200 OK`.
+- `POST /faqs` creates an FAQ with its first content and returns
+  `{ "faq": ... }` with `201 Created`. The FAQ is appended to the list. The
+  first content must use `language_id: "id"`; other languages return
+  `400 Bad Request`.
+- `PUT /faqs/:faqId` creates or replaces the content for `language_id` and
+  returns `{ "faq": ... }` with `200 OK`. Other languages' content is
+  unchanged. A non-`id` language returns `400 Bad Request` until the FAQ has
+  `id` content.
 - `POST /faqs/reorder` reorders all FAQs and returns `{ "faqs": [...] }` with
   `200 OK`.
-- `DELETE /faqs/:faqId` returns `204 No Content` and compacts the remaining
-  FAQs' order.
+- `DELETE /faqs/:faqId` deletes the FAQ with every language's content, returns
+  `204 No Content`, and compacts the remaining FAQs' order.
 
 Create and update bodies accept these fields:
 
-| Field      | Type   | Rules                                                            |
-| ---------- | ------ | ---------------------------------------------------------------- |
-| `question` | string | Required on create; trimmed; 1–200 characters.                   |
-| `answer`   | string | Required on create; HTML from the rich-text editor; not empty.   |
-| `status`   | string | Optional; `DRAFT` or `PUBLISHED`; defaults to `DRAFT` on create. |
+| Field         | Type   | Rules                                                  |
+| ------------- | ------ | ------------------------------------------------------ |
+| `language_id` | string | Required; active language code, e.g. `id`.             |
+| `question`    | string | Required; trimmed; 1–200 characters.                   |
+| `answer`      | string | Required; HTML from the rich-text editor; not empty.   |
+| `status`      | string | Optional; `DRAFT` or `PUBLISHED`; defaults to `DRAFT`. |
 
-On update, omitted fields remain unchanged; an empty body returns
-`400 Bad Request`. The authenticated user's name is stored in `created_by`;
-updates set `updated_by` and `updated_at`. The `answer` HTML is stored as sent,
-so clients rendering it on the public site should sanitize it.
+The authenticated user's name is stored in `created_by`; updates set
+`updated_by` and `updated_at` on the FAQ and on the saved content. The `answer`
+HTML is stored as sent, so clients rendering it on the public site should
+sanitize it.
 
 Example create request:
 
 ```json
 {
+  "language_id": "id",
   "question": "Apa itu REC dan SPE?",
   "answer": "<p>REC adalah instrumen berupa sertifikat...</p>",
   "status": "PUBLISHED"
 }
 ```
 
-The response shape is:
+`GET /faqs/:faqId`, `POST /faqs`, and `PUT /faqs/:faqId` return:
 
 ```json
 {
   "faq": {
     "id": 1,
-    "question": "Apa itu REC dan SPE?",
-    "answer": "<p>REC adalah instrumen berupa sertifikat...</p>",
-    "status": "PUBLISHED",
     "sort_order": 1,
     "created_at": "2026-10-13T10:30:00.000Z",
     "created_by": "Ari Putra",
     "updated_at": null,
-    "updated_by": null
+    "updated_by": null,
+    "contents": [
+      {
+        "id": 1,
+        "language_id": "id",
+        "question": "Apa itu REC dan SPE?",
+        "answer": "<p>REC adalah instrumen berupa sertifikat...</p>",
+        "status": "PUBLISHED",
+        "created_at": "2026-10-13T10:30:00.000Z",
+        "created_by": "Ari Putra",
+        "updated_at": null,
+        "updated_by": null
+      }
+    ]
   }
+}
+```
+
+`contents` is ordered by language `sort_order`. `GET /faqs` and
+`POST /faqs/reorder` return list items instead. `language_id`, `question`,
+`answer`, and `status` come from the content in the requested `language_id`,
+or from the first language with content when none is requested. `languages`
+lists every active language with its content status, or `null` when that
+language has no content:
+
+```json
+{
+  "faqs": [
+    {
+      "id": 1,
+      "sort_order": 1,
+      "created_at": "2026-10-13T10:30:00.000Z",
+      "created_by": "Ari Putra",
+      "updated_at": null,
+      "updated_by": null,
+      "language_id": "id",
+      "question": "Apa itu REC dan SPE?",
+      "answer": "<p>REC adalah instrumen berupa sertifikat...</p>",
+      "status": "PUBLISHED",
+      "languages": [
+        { "language_id": "id", "status": "PUBLISHED" },
+        { "language_id": "en", "status": null }
+      ]
+    }
+  ]
 }
 ```
 
@@ -1341,14 +1392,15 @@ The response shape is:
 order. Every existing ID must appear exactly once; duplicate, missing, or
 unknown IDs return `400 Bad Request` without changing the order. An empty array
 succeeds only when there are no FAQs. A successful reorder assigns `sort_order`
-values starting at 1 in the submitted order.
+values starting at 1 in the submitted order. The order is shared by every
+language.
 
 ```json
 { "faq_ids": [3, 1, 2, 4] }
 ```
 
-Invalid IDs, fields, status values, and unknown query parameters return
-`400 Bad Request`; a missing FAQ returns `404 Not Found`.
+Invalid IDs, fields, status values, inactive languages, and unknown query
+parameters return `400 Bad Request`; a missing FAQ returns `404 Not Found`.
 
 ### Fetch example
 

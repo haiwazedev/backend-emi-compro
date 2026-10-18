@@ -1795,6 +1795,7 @@ The response shape is:
     "operational_day": "Senin - Jumat",
     "operational_start_time": "08:00",
     "operational_end_time": "17:00",
+    "landing_site_url": "https://www.example.com",
     "social_medias": [
       {
         "id": 2,
@@ -1820,6 +1821,10 @@ The response shape is:
   }
 }
 ```
+
+`landing_site_url` is read-only here: it is set directly in the
+`site_settings` table (key `landing_site_url`) and is `null` when that row is
+missing for the language. The CMS reads it from `language_id=id`.
 
 Invalid fields, files, or `icon_index` references return
 `400 Bad Request`; an unknown social media `id` returns

@@ -289,7 +289,7 @@ store a picked media file's `path` in `data.media_filepath`.
 | `about-us` | `company-profile`  | `company-picture` | No       | Yes   | None                             |
 | `about-us` | `mission-vision`   | `vision`          | No       | No    | `content`                        |
 | `about-us` | `mission-vision`   | `mission-item`    | Yes      | No    | `title`, `description`           |
-| `about-us` | `history_timeline` | `timeline-item`   | Yes      | No    | `period`, `description`          |
+| `about-us` | `history_timeline` | `timeline-item`   | Yes      | No    | `period`, `title`, `description` |
 
 Reads are public. Saving requires an authenticated session and the configured
 frontend `Origin` or `Referer`, as described under

@@ -86,7 +86,7 @@ export const contentDefinitions = [
     blockType: 'timeline-item',
     supportsOrder: true,
     supportsMedia: false,
-    dataFields: ['period', 'description'],
+    dataFields: ['period', 'title', 'description'],
   },
 ] as const satisfies readonly ContentDefinition[];
 

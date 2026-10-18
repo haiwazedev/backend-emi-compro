@@ -1,6 +1,7 @@
 import { Prisma } from '../../../generated/prisma/client.js';
 import { prisma } from '../../../shared/db/prisma.js';
 import { ApiError } from '../../../shared/errors/api-error.js';
+import { LanguageService } from '../../language/services/language.service.js';
 import { BoardMemberRepository } from '../repositories/board-member.repository.js';
 import { BoardMemberTypeRepository } from '../repositories/board-member-type.repository.js';
 import type {
@@ -18,6 +19,7 @@ export class BoardMemberService {
     private readonly repository = new BoardMemberRepository(),
     private readonly typeRepository = new BoardMemberTypeRepository(),
     private readonly fileService = new BoardMemberFileService(),
+    private readonly languageService = new LanguageService(),
   ) {}
 
   list(query: BoardMemberListQuery) {
@@ -39,23 +41,33 @@ export class BoardMemberService {
     photo: Express.Multer.File | undefined,
     userName: string,
   ) {
-    await this.requireType(input.board_member_type_id);
+    await this.languageService.requireActive(input.language_id);
+    await this.requireType(input.board_member_type_id, input.language_id);
 
     const details = photo ? this.fileService.describeUpload(photo) : undefined;
     const data: Prisma.BoardMemberUncheckedCreateInput = {
       name: input.name,
-      role: input.role,
-      boardMemberTypeId: input.board_member_type_id,
+      companyName: input.company_name ?? null,
       ...(input.sort_order !== undefined
         ? { sortOrder: input.sort_order }
         : {}),
       createdBy: getAuditName(userName),
     };
+    const content = {
+      languageId: input.language_id,
+      role: input.role,
+      boardMemberTypeId: input.board_member_type_id,
+      description: input.description ?? null,
+    };
     let replacement: BoardMemberPhotoReplacement | undefined;
 
     try {
       const result = await prisma.$transaction(async (transaction) => {
-        const created = await this.repository.create(data, transaction);
+        const created = await this.repository.create(
+          data,
+          content,
+          transaction,
+        );
         if (created.status === 'invalid-sort-order') return created;
 
         if (!photo || !details) return created;
@@ -78,7 +90,7 @@ export class BoardMemberService {
       if (result.status === 'invalid-sort-order') {
         throw new ApiError(
           400,
-          'sort_order must be between 1 and the member count for this type plus one.',
+          'sort_order must be between 1 and the total board member count plus one.',
         );
       }
 
@@ -103,7 +115,10 @@ export class BoardMemberService {
     }
 
     if (input.board_member_type_id !== undefined) {
-      await this.requireType(input.board_member_type_id);
+      await this.requireType(input.board_member_type_id, input.language_id!);
+    }
+    if (input.language_id !== undefined) {
+      await this.languageService.requireActive(input.language_id);
     }
 
     const details = photo ? this.fileService.describeUpload(photo) : undefined;
@@ -113,17 +128,35 @@ export class BoardMemberService {
     };
 
     if (input.name !== undefined) data.name = input.name;
-    if (input.role !== undefined) data.role = input.role;
-    if (input.board_member_type_id !== undefined) {
-      data.boardMemberTypeId = input.board_member_type_id;
+    if (input.company_name !== undefined) {
+      data.companyName = input.company_name;
     }
     if (input.sort_order !== undefined) data.sortOrder = input.sort_order;
+
+    const content =
+      input.language_id !== undefined
+        ? {
+            languageId: input.language_id,
+            ...(input.role !== undefined ? { role: input.role } : {}),
+            ...(input.board_member_type_id !== undefined
+              ? { boardMemberTypeId: input.board_member_type_id }
+              : {}),
+            ...(input.description !== undefined
+              ? { description: input.description }
+              : {}),
+          }
+        : undefined;
 
     let replacement: BoardMemberPhotoReplacement | undefined;
 
     try {
       const member = await prisma.$transaction(async (transaction) => {
-        const updated = await this.repository.update(id, data, transaction);
+        const updated = await this.repository.update(
+          id,
+          data,
+          content,
+          transaction,
+        );
 
         if (updated.status === 'not-found') {
           throw new ApiError(404, 'Board member was not found.');
@@ -131,7 +164,13 @@ export class BoardMemberService {
         if (updated.status === 'invalid-sort-order') {
           throw new ApiError(
             400,
-            'sort_order must be between 1 and the resulting member count for this type.',
+            'sort_order must be between 1 and the total board member count.',
+          );
+        }
+        if (updated.status === 'missing-required-content') {
+          throw new ApiError(
+            400,
+            'role and board_member_type_id are required when adding a board member translation.',
           );
         }
 
@@ -169,9 +208,18 @@ export class BoardMemberService {
     await this.fileService.removeAfterCommit(deleted.photo);
   }
 
-  private async requireType(id: number): Promise<void> {
-    if (!(await this.typeRepository.findById(id))) {
+  private async requireType(id: number, languageId: string): Promise<void> {
+    const type = await this.typeRepository.findById(id);
+
+    if (!type) {
       throw new ApiError(400, 'Board member type does not exist.');
+    }
+
+    if (type.languageId !== languageId) {
+      throw new ApiError(
+        400,
+        'Board member type must use the same language as the board member content.',
+      );
     }
   }
 }
@@ -186,7 +234,10 @@ function getAuditName(name: string): string {
 
 function mapBoardMemberError(error: unknown): unknown {
   if (isPrismaError(error, 'P2003')) {
-    return new ApiError(400, 'Board member type does not exist.');
+    return new ApiError(
+      400,
+      'Board member type does not exist or does not use the selected language.',
+    );
   }
 
   if (isPrismaError(error, 'P2025')) {

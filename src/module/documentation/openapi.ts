@@ -76,6 +76,7 @@ type Operation = {
   status?: 200 | 201 | 204;
   query?: z.ZodType;
   body?: z.ZodType;
+  response?: z.ZodType;
   // Multipart routes: form fields come from `body`, files are listed here.
   files?: Record<string, 'single' | 'multiple'>;
   // Site settings sends its JSON payload as a single "data" form field.
@@ -87,6 +88,39 @@ type Method = 'get' | 'post' | 'put' | 'delete';
 
 const toSchema = (schema: z.ZodType) =>
   z.toJSONSchema(schema, { io: 'input', unrepresentable: 'any' });
+
+const boardMemberTypeResponseSchema = z
+  .object({
+    id: z.number().int().positive(),
+    type: z.string(),
+    language_id: z.string(),
+  })
+  .strict();
+
+const boardMemberResponseSchema = z
+  .object({
+    id: z.number().int().positive(),
+    name: z.string(),
+    company_name: z.string().nullable(),
+    photo: z.string().nullable(),
+    sort_order: z.number().int().positive(),
+    created_at: z.string(),
+    created_by: z.string(),
+    updated_at: z.string().nullable(),
+    updated_by: z.string().nullable(),
+    contents: z.array(
+      z
+        .object({
+          language_id: z.string(),
+          role: z.string(),
+          board_member_type_id: z.number().int().positive(),
+          description: z.string().nullable(),
+          board_member_type: boardMemberTypeResponseSchema,
+        })
+        .strict(),
+    ),
+  })
+  .strict();
 
 const routes: Routes = {
   '/auth/register': {
@@ -210,22 +244,34 @@ const routes: Routes = {
   },
 
   '/board_member_types': {
-    get: { tag: 'Board members', summary: 'List board member types' },
+    get: {
+      tag: 'Board members',
+      summary: 'List board member types',
+      response: z.object({
+        board_member_types: z.array(boardMemberTypeResponseSchema),
+      }),
+    },
     post: {
       tag: 'Board members',
       summary: 'Create a board member type',
       auth: true,
       status: 201,
       body: createBoardMemberTypeBodySchema,
+      response: z.object({ board_member_type: boardMemberTypeResponseSchema }),
     },
   },
   '/board_member_types/{typeId}': {
-    get: { tag: 'Board members', summary: 'Get a board member type' },
+    get: {
+      tag: 'Board members',
+      summary: 'Get a board member type',
+      response: z.object({ board_member_type: boardMemberTypeResponseSchema }),
+    },
     put: {
       tag: 'Board members',
       summary: 'Update a board member type',
       auth: true,
       body: updateBoardMemberTypeBodySchema,
+      response: z.object({ board_member_type: boardMemberTypeResponseSchema }),
     },
     delete: {
       tag: 'Board members',
@@ -239,6 +285,7 @@ const routes: Routes = {
       tag: 'Board members',
       summary: 'List board members',
       query: boardMemberListQuerySchema,
+      response: z.object({ board_members: z.array(boardMemberResponseSchema) }),
     },
     post: {
       tag: 'Board members',
@@ -247,16 +294,22 @@ const routes: Routes = {
       status: 201,
       body: createBoardMemberBodySchema,
       files: { photo: 'single' },
+      response: z.object({ board_member: boardMemberResponseSchema }),
     },
   },
   '/board_members/{memberId}': {
-    get: { tag: 'Board members', summary: 'Get a board member' },
+    get: {
+      tag: 'Board members',
+      summary: 'Get a board member',
+      response: z.object({ board_member: boardMemberResponseSchema }),
+    },
     put: {
       tag: 'Board members',
       summary: 'Update a board member',
       auth: true,
       body: updateBoardMemberBodySchema,
       files: { photo: 'single' },
+      response: z.object({ board_member: boardMemberResponseSchema }),
     },
     delete: {
       tag: 'Board members',
@@ -552,7 +605,13 @@ function buildOperation(path: string, operation: Operation) {
       [status]: {
         description: status === 204 ? 'No content' : 'Success',
         ...(status !== 204 && {
-          content: { 'application/json': { schema: { type: 'object' } } },
+          content: {
+            'application/json': {
+              schema: operation.response
+                ? toSchema(operation.response)
+                : { type: 'object' },
+            },
+          },
         }),
       },
       default: {

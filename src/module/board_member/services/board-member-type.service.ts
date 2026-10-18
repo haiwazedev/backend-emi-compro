@@ -1,4 +1,5 @@
 import { ApiError } from '../../../shared/errors/api-error.js';
+import { LanguageService } from '../../language/services/language.service.js';
 import { BoardMemberFileService } from './board-member-file.service.js';
 import { BoardMemberTypeRepository } from '../repositories/board-member-type.repository.js';
 import type {
@@ -10,6 +11,7 @@ export class BoardMemberTypeService {
   constructor(
     private readonly repository = new BoardMemberTypeRepository(),
     private readonly fileService = new BoardMemberFileService(),
+    private readonly languageService = new LanguageService(),
   ) {}
 
   list() {
@@ -27,7 +29,17 @@ export class BoardMemberTypeService {
   }
 
   async create(input: CreateBoardMemberTypeInput) {
-    return this.repository.create(input);
+    await this.languageService.requireActive(input.language_id);
+
+    try {
+      return await this.repository.create(input);
+    } catch (error) {
+      if (isPrismaError(error, 'P2003')) {
+        throw new ApiError(400, 'Language does not exist or is inactive.');
+      }
+
+      throw error;
+    }
   }
 
   async update(id: number, input: UpdateBoardMemberTypeInput) {

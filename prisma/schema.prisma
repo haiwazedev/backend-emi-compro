@@ -189,28 +189,46 @@ model ServiceMedia {
 }
 
 model BoardMemberType {
-  id      Int           @id @default(autoincrement())
-  type    String        @db.VarChar(100)
-  members BoardMember[]
+  id         Int                  @id @default(autoincrement())
+  type       String               @db.VarChar(100)
+  languageId String               @map("language_id") @db.VarChar(10)
+  language   Language             @relation(fields: [languageId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  contents   BoardMemberContent[]
 
+  @@unique([id, languageId])
+  @@index([languageId])
   @@map("board_member_types")
 }
 
 model BoardMember {
-  id                Int             @id @default(autoincrement())
-  name              String          @db.VarChar(200)
+  id          Int                  @id @default(autoincrement())
+  name        String               @db.VarChar(200)
+  companyName String?              @map("company_name") @db.VarChar(100)
+  photo       String?              @db.VarChar(255)
+  sortOrder   Int                  @default(1) @map("sort_order")
+  createdAt   DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy   String               @map("created_by") @db.VarChar(100)
+  updatedAt   DateTime?            @map("updated_at") @db.Timestamptz(6)
+  updatedBy   String?              @map("updated_by") @db.VarChar(100)
+  contents    BoardMemberContent[]
+
+  @@index([sortOrder])
+  @@map("board_members")
+}
+
+model BoardMemberContent {
+  boardMemberId     Int             @map("board_member_id")
+  languageId        String          @map("language_id") @db.VarChar(10)
   role              String          @db.VarChar(100)
   boardMemberTypeId Int             @map("board_member_type_id")
-  photo             String?         @db.VarChar(255)
-  sortOrder         Int             @default(1) @map("sort_order")
-  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  createdBy         String          @map("created_by") @db.VarChar(100)
-  updatedAt         DateTime?       @map("updated_at") @db.Timestamptz(6)
-  updatedBy         String?         @map("updated_by") @db.VarChar(100)
-  boardMemberType   BoardMemberType @relation(fields: [boardMemberTypeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  description       String?         @db.Text
+  boardMember       BoardMember     @relation(fields: [boardMemberId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  language          Language        @relation(fields: [languageId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  boardMemberType   BoardMemberType @relation(fields: [boardMemberTypeId, languageId], references: [id, languageId], onDelete: Cascade, onUpdate: Cascade)
 
-  @@index([boardMemberTypeId, sortOrder])
-  @@map("board_members")
+  @@id([boardMemberId, languageId])
+  @@index([boardMemberTypeId, languageId])
+  @@map("board_member_contents")
 }
 
 model Media {
@@ -256,21 +274,23 @@ model Article {
 
 model Language {
   // Lowercase language code, e.g. "id", "en".
-  id               String            @id @db.VarChar(10)
-  language         String            @db.VarChar(255)
+  id                  String               @id @db.VarChar(10)
+  language            String               @db.VarChar(255)
   // Flag emoji; subdivision flags span up to 7 code points.
-  flag             String            @db.VarChar(16)
-  sortOrder        Int               @default(1) @map("sort_order")
-  isActive         Boolean           @default(true) @map("is_active")
-  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  createdBy        String            @map("created_by") @db.VarChar(100)
-  updatedAt        DateTime?         @map("updated_at") @db.Timestamptz(6)
-  updatedBy        String?           @map("updated_by") @db.VarChar(100)
-  articleContents  ArticleContent[]
-  siteSettings     SiteSetting[]
-  siteContentItems SiteContentItem[]
-  divisionContents DivisionContent[]
-  serviceContents  ServiceContent[]
+  flag                String               @db.VarChar(16)
+  sortOrder           Int                  @default(1) @map("sort_order")
+  isActive            Boolean              @default(true) @map("is_active")
+  createdAt           DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy           String               @map("created_by") @db.VarChar(100)
+  updatedAt           DateTime?            @map("updated_at") @db.Timestamptz(6)
+  updatedBy           String?              @map("updated_by") @db.VarChar(100)
+  articleContents     ArticleContent[]
+  siteSettings        SiteSetting[]
+  siteContentItems    SiteContentItem[]
+  divisionContents    DivisionContent[]
+  serviceContents     ServiceContent[]
+  boardMemberTypes    BoardMemberType[]
+  boardMemberContents BoardMemberContent[]
 
   @@map("languages")
 }

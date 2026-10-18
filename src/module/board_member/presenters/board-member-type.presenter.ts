@@ -4,5 +4,6 @@ export function presentBoardMemberType(boardMemberType: BoardMemberType) {
   return {
     id: boardMemberType.id,
     type: boardMemberType.type,
+    language_id: boardMemberType.languageId,
   };
 }

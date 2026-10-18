@@ -3,12 +3,27 @@ import { prisma } from '../../../shared/db/prisma.js';
 import type { ServiceWithRelations } from '../presenters/service.presenter.js';
 
 const serviceInclude = {
-  division: true,
+  contents: {
+    orderBy: [{ language: { sortOrder: 'asc' } }, { languageId: 'asc' }],
+  },
+  division: {
+    include: {
+      contents: {
+        orderBy: [{ language: { sortOrder: 'asc' } }, { languageId: 'asc' }],
+      },
+    },
+  },
   mediaLinks: {
     orderBy: [{ sortOrder: 'asc' }, { mediaId: 'asc' }],
     include: { media: true },
   },
 } satisfies Prisma.ServiceInclude;
+
+type ServiceContentWrite = {
+  languageId: string;
+  name?: string;
+  description?: string | null;
+};
 
 export type ReorderServicesResult =
   | { status: 'division-not-found' }
@@ -30,7 +45,12 @@ export class ServiceRepository {
     });
   }
 
-  create(data: Prisma.ServiceUncheckedCreateInput, mediaIds: number[]) {
+  create(
+    data: Prisma.ServiceUncheckedCreateInput,
+    content: Required<Pick<ServiceContentWrite, 'languageId' | 'name'>> &
+      Pick<ServiceContentWrite, 'description'>,
+    mediaIds: number[],
+  ) {
     return prisma.$transaction(async (transaction) => {
       const current = await transaction.service.aggregate({
         where: { divisionId: data.divisionId },
@@ -45,6 +65,15 @@ export class ServiceRepository {
         select: { id: true },
       });
 
+      await transaction.serviceContent.create({
+        data: {
+          serviceId: service.id,
+          languageId: content.languageId,
+          name: content.name,
+          description: content.description ?? null,
+        },
+      });
+
       await replaceServiceMedia(transaction, service.id, mediaIds);
 
       return transaction.service.findUniqueOrThrow({
@@ -57,6 +86,7 @@ export class ServiceRepository {
   update(
     id: number,
     data: Prisma.ServiceUncheckedUpdateInput,
+    content: ServiceContentWrite | undefined,
     targetDivisionId?: number,
     mediaIds?: number[],
   ) {
@@ -68,6 +98,20 @@ export class ServiceRepository {
 
       let updateData = data;
       let previousDivisionId: number | undefined;
+      const existingContent = content
+        ? await transaction.serviceContent.findUnique({
+            where: {
+              serviceId_languageId: {
+                serviceId: id,
+                languageId: content.languageId,
+              },
+            },
+          })
+        : null;
+
+      if (content && !existingContent && content.name === undefined) {
+        return null;
+      }
 
       if (
         current &&
@@ -91,6 +135,36 @@ export class ServiceRepository {
         where: { id },
         data: updateData,
       });
+
+      if (content) {
+        const where = {
+          serviceId_languageId: {
+            serviceId: id,
+            languageId: content.languageId,
+          },
+        };
+
+        if (existingContent) {
+          await transaction.serviceContent.update({
+            where,
+            data: {
+              ...(content.name !== undefined ? { name: content.name } : {}),
+              ...(content.description !== undefined
+                ? { description: content.description }
+                : {}),
+            },
+          });
+        } else {
+          await transaction.serviceContent.create({
+            data: {
+              serviceId: id,
+              languageId: content.languageId,
+              name: content.name!,
+              description: content.description ?? null,
+            },
+          });
+        }
+      }
 
       if (mediaIds !== undefined) {
         await replaceServiceMedia(transaction, id, mediaIds);

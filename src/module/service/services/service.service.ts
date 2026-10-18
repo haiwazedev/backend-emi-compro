@@ -1,6 +1,7 @@
 import { Prisma } from '../../../generated/prisma/client.js';
 import { ApiError } from '../../../shared/errors/api-error.js';
 import { DivisionRepository } from '../../division/repositories/division.repository.js';
+import { LanguageService } from '../../language/services/language.service.js';
 import { MediaRepository } from '../../media/repositories/media.repository.js';
 import { ServiceRepository } from '../repositories/service.repository.js';
 import type {
@@ -14,6 +15,7 @@ export class ServiceService {
     private readonly repository = new ServiceRepository(),
     private readonly divisionRepository = new DivisionRepository(),
     private readonly mediaRepository = new MediaRepository(),
+    private readonly languageService = new LanguageService(),
   ) {}
 
   list() {
@@ -32,6 +34,7 @@ export class ServiceService {
 
   async create(input: CreateServiceInput, userName: string) {
     await this.requireDivision(input.division_id);
+    await this.languageService.requireActive(input.language_id);
     const mediaIds = input.media_ids ?? [];
     await this.requirePictureMedia(mediaIds);
 
@@ -39,9 +42,12 @@ export class ServiceService {
       return await this.repository.create(
         {
           divisionId: input.division_id,
+          createdBy: getAuditName(userName),
+        },
+        {
+          languageId: input.language_id,
           name: input.name,
           description: input.description ?? null,
-          createdBy: getAuditName(userName),
         },
         mediaIds,
       );
@@ -60,6 +66,9 @@ export class ServiceService {
     if (input.division_id !== undefined) {
       await this.requireDivision(input.division_id);
     }
+    if (input.language_id !== undefined) {
+      await this.languageService.requireActive(input.language_id);
+    }
     if (input.media_ids !== undefined) {
       await this.requirePictureMedia(input.media_ids);
     }
@@ -70,16 +79,35 @@ export class ServiceService {
     };
 
     if (input.division_id !== undefined) data.divisionId = input.division_id;
-    if (input.name !== undefined) data.name = input.name;
-    if (input.description !== undefined) data.description = input.description;
+
+    const content =
+      input.language_id !== undefined
+        ? {
+            languageId: input.language_id,
+            ...(input.name !== undefined ? { name: input.name } : {}),
+            ...(input.description !== undefined
+              ? { description: input.description }
+              : {}),
+          }
+        : undefined;
 
     try {
-      return await this.repository.update(
+      const service = await this.repository.update(
         id,
         data,
+        content,
         input.division_id,
         input.media_ids,
       );
+
+      if (!service) {
+        throw new ApiError(
+          400,
+          'name is required when adding a service translation.',
+        );
+      }
+
+      return service;
     } catch (error) {
       throw mapServiceError(error);
     }
@@ -154,7 +182,7 @@ function mapServiceError(error: unknown): unknown {
   if (isPrismaError(error, 'P2003')) {
     return new ApiError(
       400,
-      'A referenced division or picture media item does not exist.',
+      'A referenced division, language, or picture media item does not exist.',
     );
   }
 

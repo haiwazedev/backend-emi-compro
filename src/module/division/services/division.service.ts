@@ -1,5 +1,6 @@
 import { Prisma } from '../../../generated/prisma/client.js';
 import { ApiError } from '../../../shared/errors/api-error.js';
+import { LanguageService } from '../../language/services/language.service.js';
 import { DivisionRepository } from '../repositories/division.repository.js';
 import type {
   CreateDivisionInput,
@@ -9,7 +10,10 @@ import type {
 } from '../schemas/division.schema.js';
 
 export class DivisionService {
-  constructor(private readonly repository = new DivisionRepository()) {}
+  constructor(
+    private readonly repository = new DivisionRepository(),
+    private readonly languageService = new LanguageService(),
+  ) {}
 
   list(query: DivisionListQuery) {
     return this.repository.findMany(query);
@@ -39,14 +43,25 @@ export class DivisionService {
   }
 
   async create(input: CreateDivisionInput, userName: string) {
-    return this.repository.create({
-      name: input.name,
-      abbr: input.abbr,
-      iconSvg: input.icon_svg ?? null,
-      description: input.description ?? null,
-      ...(input.status !== undefined ? { status: input.status } : {}),
-      createdBy: getAuditName(userName),
-    });
+    await this.languageService.requireActive(input.language_id);
+
+    try {
+      return await this.repository.create(
+        {
+          iconSvg: input.icon_svg ?? null,
+          ...(input.status !== undefined ? { status: input.status } : {}),
+          createdBy: getAuditName(userName),
+        },
+        {
+          languageId: input.language_id,
+          name: input.name,
+          abbr: input.abbr,
+          description: input.description ?? null,
+        },
+      );
+    } catch (error) {
+      throw mapDivisionError(error);
+    }
   }
 
   async update(id: number, input: UpdateDivisionInput, userName: string) {
@@ -56,27 +71,43 @@ export class DivisionService {
       throw new ApiError(400, 'At least one division field is required.');
     }
 
+    if (input.language_id !== undefined) {
+      await this.languageService.requireActive(input.language_id);
+    }
+
     const data: Prisma.DivisionUncheckedUpdateInput = {
       updatedAt: new Date(),
       updatedBy: getAuditName(userName),
     };
 
-    if (input.name !== undefined) data.name = input.name;
-    if (input.abbr !== undefined) data.abbr = input.abbr;
     if (input.icon_svg !== undefined) data.iconSvg = input.icon_svg;
-    if (input.description !== undefined) {
-      data.description = input.description;
-    }
     if (input.status !== undefined) data.status = input.status;
 
+    const content =
+      input.language_id !== undefined
+        ? {
+            languageId: input.language_id,
+            ...(input.name !== undefined ? { name: input.name } : {}),
+            ...(input.abbr !== undefined ? { abbr: input.abbr } : {}),
+            ...(input.description !== undefined
+              ? { description: input.description }
+              : {}),
+          }
+        : undefined;
+
     try {
-      return await this.repository.update(id, data);
-    } catch (error) {
-      if (isPrismaError(error, 'P2025')) {
-        throw new ApiError(404, 'Division was not found.');
+      const division = await this.repository.update(id, data, content);
+
+      if (!division) {
+        throw new ApiError(
+          400,
+          'name and abbr are required when adding a division translation.',
+        );
       }
 
-      throw error;
+      return division;
+    } catch (error) {
+      throw mapDivisionError(error);
     }
   }
 
@@ -86,11 +117,7 @@ export class DivisionService {
     try {
       await this.repository.delete(id);
     } catch (error) {
-      if (isPrismaError(error, 'P2025')) {
-        throw new ApiError(404, 'Division was not found.');
-      }
-
-      throw error;
+      throw mapDivisionError(error);
     }
   }
 }
@@ -101,6 +128,18 @@ function getAuditName(name: string): string {
   }
 
   return name;
+}
+
+function mapDivisionError(error: unknown): unknown {
+  if (isPrismaError(error, 'P2003')) {
+    return new ApiError(400, 'Language does not exist or is inactive.');
+  }
+
+  if (isPrismaError(error, 'P2025')) {
+    return new ApiError(404, 'Division was not found.');
+  }
+
+  return error;
 }
 
 function isPrismaError(error: unknown, code: string): boolean {

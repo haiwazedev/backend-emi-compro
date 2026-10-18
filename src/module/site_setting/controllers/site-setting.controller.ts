@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { ApiError } from '../../../shared/errors/api-error.js';
+import { getAuthenticatedUser } from '../../auth/authenticated-user.js';
 import { presentSiteSetting } from '../presenters/site-setting.presenter.js';
 import type {
   SaveSiteSettingInput,
@@ -25,14 +25,10 @@ export class SiteSettingController {
   };
 
   save = async (req: Request, res: Response): Promise<void> => {
-    if (!req.authenticatedUser) {
-      throw new ApiError(401, 'Authentication is required.');
-    }
-
     const result = await this.service.save(
       req.body as SaveSiteSettingInput,
       (req.files ?? {}) as SiteSettingFiles,
-      req.authenticatedUser.name,
+      getAuthenticatedUser(req),
     );
 
     res.status(200).json({ site_settings: presentSiteSetting(result) });

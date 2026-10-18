@@ -1,5 +1,7 @@
 import { Prisma } from '../../../generated/prisma/client.js';
 import { ApiError } from '../../../shared/errors/api-error.js';
+import { ActivityLogService } from '../../activity_log/services/activity-log.service.js';
+import type { AuthenticatedUser } from '../../auth/authenticated-user.js';
 import { ClientRepository } from '../repositories/client.repository.js';
 import type {
   CreateClientInput,
@@ -15,6 +17,7 @@ export class ClientService {
   constructor(
     private readonly repository = new ClientRepository(),
     private readonly logoFileService = new ClientLogoFileService(),
+    private readonly activityLogService = new ActivityLogService(),
   ) {}
 
   list() {
@@ -31,7 +34,7 @@ export class ClientService {
     return client;
   }
 
-  async reorder(input: ReorderClientsInput) {
+  async reorder(input: ReorderClientsInput, user: AuthenticatedUser) {
     const clients = await this.repository.reorder(input.client_ids);
 
     if (!clients) {
@@ -41,27 +44,30 @@ export class ClientService {
       );
     }
 
+    await this.activityLogService.log(user, 'memperbarui urutan', 'Klien');
     return clients;
   }
 
   async create(
     input: CreateClientInput,
     logoFile: Express.Multer.File | undefined,
-    userName: string,
+    user: AuthenticatedUser,
   ) {
     if (!logoFile) {
       throw new ApiError(400, 'logo is required.');
     }
 
-    const createdBy = getAuditName(userName);
+    const createdBy = getAuditName(user.name);
     const logo = await this.storeLogo(logoFile);
 
     try {
-      return await this.repository.create({
+      const client = await this.repository.create({
         name: input.name,
         ...toLogoFields(logo),
         createdBy,
       });
+      await this.activityLogService.log(user, 'menambahkan klien', client.name);
+      return client;
     } catch (error) {
       await this.logoFileService.removeAfterCommit(logo.filepath);
       throw error;
@@ -72,7 +78,7 @@ export class ClientService {
     id: number,
     input: UpdateClientInput,
     logoFile: Express.Multer.File | undefined,
-    userName: string,
+    user: AuthenticatedUser,
   ) {
     const current = await this.getById(id);
 
@@ -82,7 +88,7 @@ export class ClientService {
 
     const data: Prisma.ClientUncheckedUpdateInput = {
       updatedAt: new Date(),
-      updatedBy: getAuditName(userName),
+      updatedBy: getAuditName(user.name),
     };
     if (input.name !== undefined) data.name = input.name;
 
@@ -101,10 +107,11 @@ export class ClientService {
       await this.logoFileService.removeAfterCommit(current.logoFilepath);
     }
 
+    await this.activityLogService.log(user, 'memperbarui klien', client.name);
     return client;
   }
 
-  async delete(id: number): Promise<void> {
+  async delete(id: number, user: AuthenticatedUser): Promise<void> {
     const current = await this.getById(id);
 
     try {
@@ -114,6 +121,7 @@ export class ClientService {
     }
 
     await this.logoFileService.removeAfterCommit(current.logoFilepath);
+    await this.activityLogService.log(user, 'menghapus klien', current.name);
   }
 
   private storeLogo(file: Express.Multer.File): Promise<ClientLogo> {

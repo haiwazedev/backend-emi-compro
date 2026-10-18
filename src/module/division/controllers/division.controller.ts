@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { ApiError } from '../../../shared/errors/api-error.js';
+import { getAuthenticatedUser } from '../../auth/authenticated-user.js';
 import { parseIdParam } from '../../../shared/schemas/common.schema.js';
 import { presentDivision } from '../presenters/division.presenter.js';
 import { DivisionService } from '../services/division.service.js';
@@ -31,6 +31,7 @@ export class DivisionController {
   reorder = async (req: Request, res: Response): Promise<void> => {
     const divisions = await this.service.reorder(
       req.body as ReorderDivisionsInput,
+      getAuthenticatedUser(req),
     );
 
     res.status(200).json({ divisions: divisions.map(presentDivision) });
@@ -39,7 +40,7 @@ export class DivisionController {
   create = async (req: Request, res: Response): Promise<void> => {
     const division = await this.service.create(
       req.body as CreateDivisionInput,
-      getAuthenticatedUserName(req),
+      getAuthenticatedUser(req),
     );
 
     res.status(201).json({ division: presentDivision(division) });
@@ -49,22 +50,17 @@ export class DivisionController {
     const division = await this.service.update(
       parseIdParam(req.params.divisionId),
       req.body as UpdateDivisionInput,
-      getAuthenticatedUserName(req),
+      getAuthenticatedUser(req),
     );
 
     res.status(200).json({ division: presentDivision(division) });
   };
 
   delete = async (req: Request, res: Response): Promise<void> => {
-    await this.service.delete(parseIdParam(req.params.divisionId));
+    await this.service.delete(
+      parseIdParam(req.params.divisionId),
+      getAuthenticatedUser(req),
+    );
     res.status(204).end();
   };
-}
-
-function getAuthenticatedUserName(req: Request): string {
-  if (!req.authenticatedUser) {
-    throw new ApiError(401, 'Authentication is required.');
-  }
-
-  return req.authenticatedUser.name;
 }

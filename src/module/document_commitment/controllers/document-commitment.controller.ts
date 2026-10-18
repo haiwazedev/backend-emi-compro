@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { ApiError } from '../../../shared/errors/api-error.js';
+import { getAuthenticatedUser } from '../../auth/authenticated-user.js';
 import { parseIdParam } from '../../../shared/schemas/common.schema.js';
 import { presentDocumentCommitment } from '../presenters/document-commitment.presenter.js';
 import { DocumentCommitmentService } from '../services/document-commitment.service.js';
@@ -37,7 +37,7 @@ export class DocumentCommitmentController {
     const document = await this.service.create(
       req.body as CreateDocumentCommitmentInput,
       req.file,
-      getAuthenticatedUserName(req),
+      getAuthenticatedUser(req),
     );
 
     res.status(201).json({
@@ -50,7 +50,7 @@ export class DocumentCommitmentController {
       parseIdParam(req.params.documentId),
       req.body as UpdateDocumentCommitmentInput,
       req.file,
-      getAuthenticatedUserName(req),
+      getAuthenticatedUser(req),
     );
 
     res.status(200).json({
@@ -59,15 +59,10 @@ export class DocumentCommitmentController {
   };
 
   delete = async (req: Request, res: Response): Promise<void> => {
-    await this.service.delete(parseIdParam(req.params.documentId));
+    await this.service.delete(
+      parseIdParam(req.params.documentId),
+      getAuthenticatedUser(req),
+    );
     res.status(204).end();
   };
-}
-
-function getAuthenticatedUserName(req: Request): string {
-  if (!req.authenticatedUser) {
-    throw new ApiError(401, 'Authentication is required.');
-  }
-
-  return req.authenticatedUser.name;
 }

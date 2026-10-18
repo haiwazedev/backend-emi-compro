@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { ApiError } from '../../../shared/errors/api-error.js';
+import { getAuthenticatedUser } from '../../auth/authenticated-user.js';
 import { parseIdParam } from '../../../shared/schemas/common.schema.js';
 import { presentBoardMember } from '../presenters/board-member.presenter.js';
 import { BoardMemberService } from '../services/board-member.service.js';
@@ -31,7 +31,7 @@ export class BoardMemberController {
     const member = await this.service.create(
       req.body as CreateBoardMemberInput,
       req.file,
-      getAuthenticatedUserName(req),
+      getAuthenticatedUser(req),
     );
 
     res.status(201).json({ board_member: presentBoardMember(member) });
@@ -42,22 +42,17 @@ export class BoardMemberController {
       parseIdParam(req.params.memberId),
       req.body as UpdateBoardMemberInput,
       req.file,
-      getAuthenticatedUserName(req),
+      getAuthenticatedUser(req),
     );
 
     res.status(200).json({ board_member: presentBoardMember(member) });
   };
 
   delete = async (req: Request, res: Response): Promise<void> => {
-    await this.service.delete(parseIdParam(req.params.memberId));
+    await this.service.delete(
+      parseIdParam(req.params.memberId),
+      getAuthenticatedUser(req),
+    );
     res.status(204).end();
   };
-}
-
-function getAuthenticatedUserName(req: Request): string {
-  if (!req.authenticatedUser) {
-    throw new ApiError(401, 'Authentication is required.');
-  }
-
-  return req.authenticatedUser.name;
 }

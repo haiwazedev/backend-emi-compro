@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import { getAuthenticatedUser } from '../../auth/authenticated-user.js';
 import { parseIdParam } from '../../../shared/schemas/common.schema.js';
 import { presentDocumentCommitmentCategory } from '../presenters/document-commitment-category.presenter.js';
 import { DocumentCommitmentCategoryService } from '../services/document-commitment-category.service.js';
@@ -35,6 +36,7 @@ export class DocumentCommitmentCategoryController {
   create = async (req: Request, res: Response): Promise<void> => {
     const category = await this.service.create(
       req.body as CreateDocumentCommitmentCategoryInput,
+      getAuthenticatedUser(req),
     );
 
     res.status(201).json({
@@ -46,6 +48,7 @@ export class DocumentCommitmentCategoryController {
     const category = await this.service.update(
       parseIdParam(req.params.categoryId),
       req.body as UpdateDocumentCommitmentCategoryInput,
+      getAuthenticatedUser(req),
     );
 
     res.status(200).json({
@@ -54,7 +57,10 @@ export class DocumentCommitmentCategoryController {
   };
 
   delete = async (req: Request, res: Response): Promise<void> => {
-    await this.service.delete(parseIdParam(req.params.categoryId));
+    await this.service.delete(
+      parseIdParam(req.params.categoryId),
+      getAuthenticatedUser(req),
+    );
     res.status(204).end();
   };
 }

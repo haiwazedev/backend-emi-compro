@@ -1826,6 +1826,41 @@ Invalid fields, files, or `icon_index` references return
 `404 Not Found`; files over their size limit return `413 Payload Too Large`; a
 setting key missing from the seed returns `500 Internal Server Error`.
 
+## Activity Logs
+
+`GET /activity-logs` requires login and returns
+`{ "activityLogs": [...], "pagination": ... }` with `200 OK`, newest first
+(`created_at` descending, then ID).
+
+| Query parameter | Type   | Rules                                               |
+| --------------- | ------ | --------------------------------------------------- |
+| `page`          | number | Optional, 1-based; default `1`.                     |
+| `limit`         | number | Optional; default `20`, minimum `1`, maximum `100`. |
+
+```json
+{
+  "activityLogs": [
+    {
+      "id": 1,
+      "name": "Neni A.",
+      "action_type": "menambahkan artikel",
+      "action_result": "Kompas.com x PLN EMI",
+      "created_at": "2026-10-18T08:50:01.237Z"
+    }
+  ],
+  "pagination": { "page": 1, "limit": 20, "totalItems": 1, "totalPages": 1 }
+}
+```
+
+`name` is the user's name. Entries are written by the server after each
+successful content create, update, delete, or reorder (articles, article
+categories, board members and types, clients, divisions, services, documents
+and their categories, FAQs, media, site contents, and site settings).
+`action_type` is a verb plus the resource, such as `menambahkan artikel`,
+`memperbarui layanan`, `menghapus dokumen`, or `memperbarui urutan`.
+`action_result` is the item's name or title in the default language. Inbox and
+auth actions are not logged.
+
 ## Public Static Assets
 
 Files in the project `public/` directory are served without authentication at

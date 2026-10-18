@@ -1,5 +1,7 @@
 import { Prisma } from '../../../generated/prisma/client.js';
 import { ApiError } from '../../../shared/errors/api-error.js';
+import { ActivityLogService } from '../../activity_log/services/activity-log.service.js';
+import type { AuthenticatedUser } from '../../auth/authenticated-user.js';
 import { DivisionRepository } from '../../division/repositories/division.repository.js';
 import { LanguageService } from '../../language/services/language.service.js';
 import { MediaRepository } from '../../media/repositories/media.repository.js';
@@ -16,6 +18,7 @@ export class ServiceService {
     private readonly divisionRepository = new DivisionRepository(),
     private readonly mediaRepository = new MediaRepository(),
     private readonly languageService = new LanguageService(),
+    private readonly activityLogService = new ActivityLogService(),
   ) {}
 
   list() {
@@ -32,17 +35,17 @@ export class ServiceService {
     return service;
   }
 
-  async create(input: CreateServiceInput, userName: string) {
+  async create(input: CreateServiceInput, user: AuthenticatedUser) {
     await this.requireDivision(input.division_id);
     await this.languageService.requireActive(input.language_id);
     const mediaIds = input.media_ids ?? [];
     await this.requirePictureMedia(mediaIds);
 
     try {
-      return await this.repository.create(
+      const service = await this.repository.create(
         {
           divisionId: input.division_id,
-          createdBy: getAuditName(userName),
+          createdBy: getAuditName(user.name),
         },
         {
           languageId: input.language_id,
@@ -51,12 +54,18 @@ export class ServiceService {
         },
         mediaIds,
       );
+      await this.activityLogService.log(
+        user,
+        'menambahkan layanan',
+        input.name,
+      );
+      return service;
     } catch (error) {
       throw mapServiceError(error);
     }
   }
 
-  async update(id: number, input: UpdateServiceInput, userName: string) {
+  async update(id: number, input: UpdateServiceInput, user: AuthenticatedUser) {
     await this.getById(id);
 
     if (Object.keys(input).length === 0) {
@@ -75,7 +84,7 @@ export class ServiceService {
 
     const data: Prisma.ServiceUncheckedUpdateInput = {
       updatedAt: new Date(),
-      updatedBy: getAuditName(userName),
+      updatedBy: getAuditName(user.name),
     };
 
     if (input.division_id !== undefined) data.divisionId = input.division_id;
@@ -107,13 +116,18 @@ export class ServiceService {
         );
       }
 
+      await this.activityLogService.log(
+        user,
+        'memperbarui layanan',
+        serviceName(service),
+      );
       return service;
     } catch (error) {
       throw mapServiceError(error);
     }
   }
 
-  async reorder(input: ReorderServicesInput) {
+  async reorder(input: ReorderServicesInput, user: AuthenticatedUser) {
     const result = await this.repository.reorderByDivision(
       input.division_id,
       input.service_ids,
@@ -130,17 +144,24 @@ export class ServiceService {
       );
     }
 
+    await this.activityLogService.log(user, 'memperbarui urutan', 'Layanan');
     return result.services;
   }
 
-  async delete(id: number): Promise<void> {
-    await this.getById(id);
+  async delete(id: number, user: AuthenticatedUser): Promise<void> {
+    const service = await this.getById(id);
 
     try {
       await this.repository.delete(id);
     } catch (error) {
       throw mapServiceError(error);
     }
+
+    await this.activityLogService.log(
+      user,
+      'menghapus layanan',
+      serviceName(service),
+    );
   }
 
   private async requireDivision(id: number): Promise<void> {
@@ -168,6 +189,11 @@ export class ServiceService {
       );
     }
   }
+}
+
+// Contents are ordered by language, so the first is the default name.
+function serviceName(service: { id: number; contents: { name: string }[] }) {
+  return service.contents[0]?.name ?? `Layanan #${service.id}`;
 }
 
 function getAuditName(name: string): string {

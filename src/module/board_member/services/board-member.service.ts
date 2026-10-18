@@ -1,6 +1,8 @@
 import { Prisma } from '../../../generated/prisma/client.js';
 import { prisma } from '../../../shared/db/prisma.js';
 import { ApiError } from '../../../shared/errors/api-error.js';
+import { ActivityLogService } from '../../activity_log/services/activity-log.service.js';
+import type { AuthenticatedUser } from '../../auth/authenticated-user.js';
 import { LanguageService } from '../../language/services/language.service.js';
 import { BoardMemberRepository } from '../repositories/board-member.repository.js';
 import { BoardMemberTypeRepository } from '../repositories/board-member-type.repository.js';
@@ -20,6 +22,7 @@ export class BoardMemberService {
     private readonly typeRepository = new BoardMemberTypeRepository(),
     private readonly fileService = new BoardMemberFileService(),
     private readonly languageService = new LanguageService(),
+    private readonly activityLogService = new ActivityLogService(),
   ) {}
 
   list(query: BoardMemberListQuery) {
@@ -39,7 +42,7 @@ export class BoardMemberService {
   async create(
     input: CreateBoardMemberInput,
     photo: Express.Multer.File | undefined,
-    userName: string,
+    user: AuthenticatedUser,
   ) {
     await this.languageService.requireActive(input.language_id);
     await this.requireType(input.board_member_type_id, input.language_id);
@@ -51,7 +54,7 @@ export class BoardMemberService {
       ...(input.sort_order !== undefined
         ? { sortOrder: input.sort_order }
         : {}),
-      createdBy: getAuditName(userName),
+      createdBy: getAuditName(user.name),
     };
     const content = {
       languageId: input.language_id,
@@ -95,6 +98,11 @@ export class BoardMemberService {
       }
 
       await replacement?.commitAfterTransaction();
+      await this.activityLogService.log(
+        user,
+        'menambahkan anggota direksi',
+        result.member.name,
+      );
       return result.member;
     } catch (error) {
       await replacement?.rollbackAfterFailure();
@@ -106,7 +114,7 @@ export class BoardMemberService {
     id: number,
     input: UpdateBoardMemberInput,
     photo: Express.Multer.File | undefined,
-    userName: string,
+    user: AuthenticatedUser,
   ) {
     const current = await this.getById(id);
 
@@ -124,7 +132,7 @@ export class BoardMemberService {
     const details = photo ? this.fileService.describeUpload(photo) : undefined;
     const data: Prisma.BoardMemberUncheckedUpdateInput = {
       updatedAt: new Date(),
-      updatedBy: getAuditName(userName),
+      updatedBy: getAuditName(user.name),
     };
 
     if (input.name !== undefined) data.name = input.name;
@@ -191,6 +199,11 @@ export class BoardMemberService {
       });
 
       await replacement?.commitAfterTransaction();
+      await this.activityLogService.log(
+        user,
+        'memperbarui anggota direksi',
+        member.name,
+      );
       return member;
     } catch (error) {
       await replacement?.rollbackAfterFailure();
@@ -198,7 +211,8 @@ export class BoardMemberService {
     }
   }
 
-  async delete(id: number): Promise<void> {
+  async delete(id: number, user: AuthenticatedUser): Promise<void> {
+    const member = await this.getById(id);
     const deleted = await this.repository.delete(id);
 
     if (!deleted) {
@@ -206,6 +220,11 @@ export class BoardMemberService {
     }
 
     await this.fileService.removeAfterCommit(deleted.photo);
+    await this.activityLogService.log(
+      user,
+      'menghapus anggota direksi',
+      member.name,
+    );
   }
 
   private async requireType(id: number, languageId: string): Promise<void> {

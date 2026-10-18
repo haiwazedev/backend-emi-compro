@@ -1,4 +1,6 @@
 import { ApiError } from '../../../shared/errors/api-error.js';
+import { ActivityLogService } from '../../activity_log/services/activity-log.service.js';
+import type { AuthenticatedUser } from '../../auth/authenticated-user.js';
 import {
   DEFAULT_LANGUAGE_ID,
   LanguageService,
@@ -14,6 +16,7 @@ export class FaqService {
   constructor(
     private readonly repository = new FaqRepository(),
     private readonly languageService = new LanguageService(),
+    private readonly activityLogService = new ActivityLogService(),
   ) {}
 
   async list(query: FaqListQuery) {
@@ -35,7 +38,7 @@ export class FaqService {
     return faq;
   }
 
-  async reorder(input: ReorderFaqsInput) {
+  async reorder(input: ReorderFaqsInput, user: AuthenticatedUser) {
     const [faqs, languages] = await Promise.all([
       this.repository.reorder(input.faq_ids),
       this.languageService.listActive(),
@@ -48,29 +51,38 @@ export class FaqService {
       );
     }
 
+    await this.activityLogService.log(user, 'memperbarui urutan', 'FAQ');
     return { faqs, languages };
   }
 
-  async create(input: FaqContentInput, userName: string) {
-    const createdBy = getAuditName(userName);
+  async create(input: FaqContentInput, user: AuthenticatedUser) {
+    const createdBy = getAuditName(user.name);
     requireDefaultLanguageFirst(input.language_id, []);
     await this.languageService.requireActive(input.language_id);
 
-    return this.repository.create(toContentData(input), createdBy);
+    const faq = await this.repository.create(toContentData(input), createdBy);
+    await this.activityLogService.log(user, 'menambahkan FAQ', input.question);
+    return faq;
   }
 
-  async update(id: number, input: FaqContentInput, userName: string) {
-    const updatedBy = getAuditName(userName);
+  async update(id: number, input: FaqContentInput, user: AuthenticatedUser) {
+    const updatedBy = getAuditName(user.name);
     const faq = await this.getById(id);
     requireDefaultLanguageFirst(input.language_id, faq.contents);
     await this.languageService.requireActive(input.language_id);
 
     try {
-      return await this.repository.updateWithContent(
+      const updated = await this.repository.updateWithContent(
         id,
         toContentData(input),
         updatedBy,
       );
+      await this.activityLogService.log(
+        user,
+        'memperbarui FAQ',
+        input.question,
+      );
+      return updated;
     } catch (error) {
       if (isPrismaError(error, 'P2025')) {
         throw new ApiError(404, 'FAQ was not found.');
@@ -80,11 +92,17 @@ export class FaqService {
     }
   }
 
-  async delete(id: number): Promise<void> {
-    await this.getById(id);
+  async delete(id: number, user: AuthenticatedUser): Promise<void> {
+    const faq = await this.getById(id);
 
     try {
       await this.repository.delete(id);
+      // Contents are ordered by language, so the first is the default question.
+      await this.activityLogService.log(
+        user,
+        'menghapus FAQ',
+        faq.contents[0]?.question ?? `FAQ #${id}`,
+      );
     } catch (error) {
       if (isPrismaError(error, 'P2025')) {
         throw new ApiError(404, 'FAQ was not found.');

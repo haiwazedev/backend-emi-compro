@@ -2,6 +2,7 @@ import cors from 'cors';
 import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import path from 'node:path';
+import { activityLogRouter } from './module/activity_log/routes/activity-log.routes.js';
 import { articleCategoryRouter } from './module/article/routes/article-category.routes.js';
 import { articleRouter } from './module/article/routes/article.routes.js';
 import { authRouter } from './module/auth/auth.routes.js';
@@ -80,6 +81,7 @@ app.use(clientRouter);
 app.use(inboxRouter);
 app.use(siteSettingRouter);
 app.use(siteContentRouter);
+app.use(activityLogRouter);
 
 app.get('/health', (req: Request, res: Response) => {
   res.send({ message: 'OK' });

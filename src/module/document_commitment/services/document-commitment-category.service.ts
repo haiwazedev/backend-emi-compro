@@ -1,4 +1,6 @@
 import { ApiError } from '../../../shared/errors/api-error.js';
+import { ActivityLogService } from '../../activity_log/services/activity-log.service.js';
+import type { AuthenticatedUser } from '../../auth/authenticated-user.js';
 import { DocumentCommitmentCategoryRepository } from '../repositories/document-commitment-category.repository.js';
 import { DocumentCommitmentFileService } from './document-commitment-file.service.js';
 import type {
@@ -10,6 +12,7 @@ export class DocumentCommitmentCategoryService {
   constructor(
     private readonly repository = new DocumentCommitmentCategoryRepository(),
     private readonly fileService = new DocumentCommitmentFileService(),
+    private readonly activityLogService = new ActivityLogService(),
   ) {}
 
   list() {
@@ -26,11 +29,24 @@ export class DocumentCommitmentCategoryService {
     return category;
   }
 
-  create(input: CreateDocumentCommitmentCategoryInput) {
-    return this.repository.create({ name: input.name });
+  async create(
+    input: CreateDocumentCommitmentCategoryInput,
+    user: AuthenticatedUser,
+  ) {
+    const category = await this.repository.create({ name: input.name });
+    await this.activityLogService.log(
+      user,
+      'menambahkan kategori dokumen',
+      category.name,
+    );
+    return category;
   }
 
-  async update(id: number, input: UpdateDocumentCommitmentCategoryInput) {
+  async update(
+    id: number,
+    input: UpdateDocumentCommitmentCategoryInput,
+    user: AuthenticatedUser,
+  ) {
     await this.getById(id);
 
     if (Object.keys(input).length === 0) {
@@ -38,7 +54,13 @@ export class DocumentCommitmentCategoryService {
     }
 
     try {
-      return await this.repository.update(id, input);
+      const category = await this.repository.update(id, input);
+      await this.activityLogService.log(
+        user,
+        'memperbarui kategori dokumen',
+        category.name,
+      );
+      return category;
     } catch (error) {
       if (isPrismaError(error, 'P2025')) {
         throw new ApiError(404, 'Document commitment category was not found.');
@@ -48,7 +70,8 @@ export class DocumentCommitmentCategoryService {
     }
   }
 
-  async delete(id: number): Promise<void> {
+  async delete(id: number, user: AuthenticatedUser): Promise<void> {
+    const category = await this.getById(id);
     const documents = await this.repository.deleteWithDocuments(id);
 
     if (!documents) {
@@ -59,6 +82,11 @@ export class DocumentCommitmentCategoryService {
       documents.map(({ filename }) =>
         this.fileService.removeAfterCommit(filename),
       ),
+    );
+    await this.activityLogService.log(
+      user,
+      'menghapus kategori dokumen',
+      category.name,
     );
   }
 }

@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import { getAuthenticatedUser } from '../../auth/authenticated-user.js';
 import { parseIdParam } from '../../../shared/schemas/common.schema.js';
 import { ArticleCategoryService } from '../services/article-category.service.js';
 import { presentArticleCategory } from '../presenters/article-category.presenter.js';
@@ -29,6 +30,7 @@ export class ArticleCategoryController {
   create = async (req: Request, res: Response): Promise<void> => {
     const category = await this.service.create(
       req.body as CreateArticleCategoryInput,
+      getAuthenticatedUser(req),
     );
 
     res.status(201).json({ articleCategory: presentArticleCategory(category) });
@@ -38,13 +40,17 @@ export class ArticleCategoryController {
     const category = await this.service.update(
       parseIdParam(req.params.articleCategoryId),
       req.body as UpdateArticleCategoryInput,
+      getAuthenticatedUser(req),
     );
 
     res.status(200).json({ articleCategory: presentArticleCategory(category) });
   };
 
   delete = async (req: Request, res: Response): Promise<void> => {
-    await this.service.delete(parseIdParam(req.params.articleCategoryId));
+    await this.service.delete(
+      parseIdParam(req.params.articleCategoryId),
+      getAuthenticatedUser(req),
+    );
     res.status(204).end();
   };
 }

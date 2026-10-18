@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { activityLogListQuerySchema } from '../activity_log/schemas/activity-log.schema.js';
 import {
   createArticleCategoryBodySchema,
   updateArticleCategoryBodySchema,
@@ -139,6 +140,15 @@ const routes: Routes = {
   },
   '/auth/logout': { post: { tag: 'Auth', summary: 'Log out', status: 204 } },
 
+  '/activity-logs': {
+    get: {
+      tag: 'Activity logs',
+      summary: 'List activity logs',
+      auth: true,
+      query: activityLogListQuerySchema,
+    },
+  },
+
   '/languages': { get: { tag: 'Languages', summary: 'List languages' } },
 
   '/site_contents': {
@@ -193,6 +203,13 @@ const routes: Routes = {
       auth: true,
       status: 201,
       body: createArticleBodySchema,
+    },
+  },
+  '/articles/count': {
+    get: {
+      tag: 'Articles',
+      summary: 'Count articles per language and status',
+      auth: true,
     },
   },
   '/articles/slug/{slug}': {

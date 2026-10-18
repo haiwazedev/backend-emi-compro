@@ -43,10 +43,11 @@ enum MediaType {
 }
 
 model User {
-  id       Int    @id @default(autoincrement())
-  name     String
-  email    String @unique
-  password String
+  id           Int           @id @default(autoincrement())
+  name         String
+  email        String        @unique
+  password     String
+  activityLogs ActivityLog[]
 
   @@map("users")
 }
@@ -430,4 +431,20 @@ model SiteSocialMedia {
 
   @@index([status, sortOrder])
   @@map("site_social_medias")
+}
+
+model ActivityLog {
+  id           Int       @id @default(autoincrement())
+  userId       Int       @map("user_id")
+  actionType   String    @map("action_type") @db.VarChar(255)
+  actionResult String    @map("action_result") @db.VarChar(255)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy    String    @map("created_by") @db.VarChar(100)
+  updatedAt    DateTime? @map("updated_at") @db.Timestamptz(6)
+  updatedBy    String?   @map("updated_by") @db.VarChar(100)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("activity_logs")
 }

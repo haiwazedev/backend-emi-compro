@@ -31,7 +31,8 @@ query parameters are generated from the server validation schemas. Response
 shapes and examples are documented in this file.
 
 "Try it out" works for public `GET` routes. Write routes reject requests whose
-origin is not `FRONTEND_ORIGIN`, so call them from the frontend instead.
+origin is not `FRONTEND_ORIGIN`, except for the public `POST /inboxes` contact
+form endpoint, which accepts requests from any origin.
 
 ## Browser Sessions
 
@@ -43,8 +44,10 @@ not extended by activity. JavaScript cannot read the session cookie.
 The frontend and API may use different origins on the same site. The API allows
 credentialed browser requests only from the configured `FRONTEND_ORIGIN`. Use
 `credentials: 'include'` in Fetch requests so the browser sends and receives the
-session cookie. State-changing requests must include an `Origin` or `Referer`
-that matches `FRONTEND_ORIGIN`; browsers add these headers automatically.
+session cookie. All other state-changing requests must include an `Origin` or
+`Referer` that matches `FRONTEND_ORIGIN`; browsers add these headers
+automatically. The public `POST /inboxes` contact form endpoint is an exception:
+it accepts any origin and does not use session credentials.
 Bearer JWTs are no longer accepted. Sign in again to create a session.
 
 For Fetch examples, define the base URL once:
@@ -1477,16 +1480,17 @@ Inboxes store messages sent from the public site's contact form. Listing
 subjects and submitting a message are public. Listing, counting, updating,
 marking all as read, and deleting require an authenticated session and the
 configured frontend `Origin` or `Referer`, as described under
-[Browser Sessions](#browser-sessions). Requests use JSON.
-
-> The public submit endpoint is still subject to the `Origin` check, so the
-> landing page cannot call it yet. It also has no rate limiting or spam
-> protection yet.
+[Browser Sessions](#browser-sessions). Requests use JSON. `POST /inboxes`
+accepts browser requests from any origin without credentials and is limited to
+five attempts per IP address every 15 minutes. Exceeding the limit returns
+`429 Too Many Requests` with a `Retry-After` header. If Redis is unavailable,
+submissions return `503 Service Unavailable`.
 
 - `GET /inbox-subjects` returns `{ "inbox_subjects": [...] }` with `200 OK`,
   ordered by ID. Subjects are seeded and cannot be managed through the API.
 - `POST /inboxes` submits a contact-form message and returns `{ "inbox": ... }`
-  with `201 Created`. New messages are unread.
+  with `201 Created`. New messages are unread. It does not require a session or
+  an `Origin`/`Referer` header.
 - `GET /inboxes` returns `{ "inboxes": [...], "pagination": ... }` with
   `200 OK`, newest first.
 - `GET /inboxes/counts` returns `{ "unreadCount": 2, "readCount": 3 }` with

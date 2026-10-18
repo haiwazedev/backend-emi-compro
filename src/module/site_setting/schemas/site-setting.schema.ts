@@ -41,6 +41,8 @@ export const saveSiteSettingBodySchema = z
     company_name: z.string().trim().min(1).max(200),
     company_short_name: optionalText(50),
     company_address: z.string().trim().min(1).max(500),
+    company_location_lat: z.number().min(-90).max(90).nullish(),
+    company_location_long: z.number().min(-180).max(180).nullish(),
     company_phone_number: optionalText(30),
     company_whatsapp_number: optionalText(30),
     main_email: optionalEmail,

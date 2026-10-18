@@ -1455,9 +1455,12 @@ links shown in the landing page navbar, footer, and "Hubungi Kami" page. Each
 setting is a key/value row per language; keys are seeded master data for each
 language. Social media items are shared by all languages.
 
-In the response, a configured key is a string (`""` until a value is saved)
-and a key with no row for that language is `null`. The CMS disables inputs
-whose key is `null`.
+Company location coordinates are sent and returned as numbers. Latitude must
+be between `-90` and `90`, and longitude between `-180` and `180`.
+
+In the response, configured text keys are strings (`""` until a value is
+saved), while unset coordinates are `null`. A key with no row for that
+language is also `null`. The CMS disables inputs whose key is `null`.
 
 - `GET /site_settings?language_id=id` is public and returns
   `{ "site_settings": ... }` with `200 OK`. `language_id` is optional and
@@ -1486,6 +1489,8 @@ The `data` payload:
 | `company_name`            | string         | Required; trimmed; 1–200 characters.                          |
 | `company_short_name`      | string \| null | Optional; up to 50 characters; blank is `null`.               |
 | `company_address`         | string         | Required; trimmed; 1–500 characters.                          |
+| `company_location_lat`    | number \| null | Optional; latitude from `-90` to `90`; `null` clears it.      |
+| `company_location_long`   | number \| null | Optional; longitude from `-180` to `180`; `null` clears it.   |
 | `company_phone_number`    | string \| null | Optional; up to 30 characters; blank is `null`.               |
 | `company_whatsapp_number` | string \| null | Optional; up to 30 characters; blank is `null`.               |
 | `main_email`              | string \| null | Optional; valid email; blank is `null`.                       |
@@ -1536,6 +1541,8 @@ formData.append(
     company_name: 'PT Energy Management Indonesia (Persero)',
     company_short_name: 'PLN EMI',
     company_address: 'Menara Sentraya Lt. 17, Jakarta Selatan 12160',
+    company_location_lat: -6.2249,
+    company_location_long: 106.8172,
     company_phone_number: '021-27881925',
     company_whatsapp_number: '0821-1779-291',
     main_email: 'emi@pln.co.id',
@@ -1583,6 +1590,8 @@ The response shape is:
     "danantara_logo_filepath": "",
     "pln_logo_filepath": "/public/site-logo-pln-emi-1792136400000.svg",
     "company_address": "Menara Sentraya Lt. 17, Jakarta Selatan 12160",
+    "company_location_lat": -6.2249,
+    "company_location_long": 106.8172,
     "company_phone_number": "021-27881925",
     "company_whatsapp_number": "0821-1779-291",
     "main_email": "emi@pln.co.id",

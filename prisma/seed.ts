@@ -136,6 +136,8 @@ const siteSettingSeedKeys = [
   'danantara_logo',
   'pln_logo',
   'company_address',
+  'company_location_lat',
+  'company_location_long',
   'company_phone_number',
   'company_whatsapp_number',
   'main_email',

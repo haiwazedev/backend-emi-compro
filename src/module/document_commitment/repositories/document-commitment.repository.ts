@@ -7,9 +7,9 @@ const documentInclude = {
 } satisfies Prisma.DocumentCommitmentInclude;
 
 export class DocumentCommitmentRepository {
-  findMany(query: DocumentCommitmentListQuery) {
+  findMany(query: DocumentCommitmentListQuery, includeDrafts: boolean) {
     return prisma.documentCommitment.findMany({
-      where: this.buildWhere(query),
+      where: this.buildWhere(query, includeDrafts),
       skip: (query.page - 1) * query.limit,
       take: query.limit,
       orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }],
@@ -17,13 +17,22 @@ export class DocumentCommitmentRepository {
     });
   }
 
-  count(query: DocumentCommitmentListQuery) {
-    return prisma.documentCommitment.count({ where: this.buildWhere(query) });
+  count(query: DocumentCommitmentListQuery, includeDrafts: boolean) {
+    return prisma.documentCommitment.count({
+      where: this.buildWhere(query, includeDrafts),
+    });
   }
 
   findById(id: number, transaction?: Prisma.TransactionClient) {
     return (transaction ?? prisma).documentCommitment.findUnique({
       where: { id },
+      include: documentInclude,
+    });
+  }
+
+  findPublishedById(id: number) {
+    return prisma.documentCommitment.findUnique({
+      where: { id, status: 'PUBLISHED' },
       include: documentInclude,
     });
   }
@@ -66,6 +75,7 @@ export class DocumentCommitmentRepository {
 
   private buildWhere(
     query: DocumentCommitmentListQuery,
+    includeDrafts: boolean,
   ): Prisma.DocumentCommitmentWhereInput {
     return {
       ...(query.search
@@ -77,6 +87,8 @@ export class DocumentCommitmentRepository {
           }
         : {}),
       ...(query.status ? { status: query.status } : {}),
+      // Last, so the public view overrides any requested status.
+      ...(includeDrafts ? {} : { status: 'PUBLISHED' }),
     };
   }
 }

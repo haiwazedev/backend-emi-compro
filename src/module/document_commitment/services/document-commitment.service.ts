@@ -23,10 +23,10 @@ export class DocumentCommitmentService {
     private readonly activityLogService = new ActivityLogService(),
   ) {}
 
-  async list(query: DocumentCommitmentListQuery) {
+  async list(query: DocumentCommitmentListQuery, includeDrafts: boolean) {
     const [documents, totalItems] = await Promise.all([
-      this.repository.findMany(query),
-      this.repository.count(query),
+      this.repository.findMany(query, includeDrafts),
+      this.repository.count(query, includeDrafts),
     ]);
 
     return {
@@ -40,8 +40,10 @@ export class DocumentCommitmentService {
     };
   }
 
-  async getById(id: number) {
-    const document = await this.repository.findById(id);
+  async getById(id: number, includeDrafts = true) {
+    const document = includeDrafts
+      ? await this.repository.findById(id)
+      : await this.repository.findPublishedById(id);
 
     if (!document) {
       throw new ApiError(404, 'Document commitment was not found.');

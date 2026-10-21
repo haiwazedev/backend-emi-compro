@@ -217,6 +217,21 @@ const routes: Routes = {
   '/articles/slug/{slug}': {
     get: { tag: 'Articles', summary: 'Get a published article by slug' },
   },
+  '/admin/articles': {
+    get: {
+      tag: 'Articles',
+      summary: 'List articles, drafts included',
+      auth: true,
+      query: articleListQuerySchema,
+    },
+  },
+  '/admin/articles/{articleId}': {
+    get: {
+      tag: 'Articles',
+      summary: 'Get an article, drafts included',
+      auth: true,
+    },
+  },
   '/articles/{articleId}': {
     get: { tag: 'Articles', summary: 'Get an article' },
     put: {
@@ -401,6 +416,22 @@ const routes: Routes = {
     },
   },
 
+  '/admin/document_commitments': {
+    get: {
+      tag: 'Document commitments',
+      summary: 'List document commitments, drafts included',
+      auth: true,
+      query: documentCommitmentListQuerySchema,
+    },
+  },
+  '/admin/document_commitments/{documentId}': {
+    get: {
+      tag: 'Document commitments',
+      summary: 'Get a document commitment, drafts included',
+      auth: true,
+    },
+  },
+
   '/divisions': {
     get: {
       tag: 'Divisions',
@@ -439,6 +470,22 @@ const routes: Routes = {
     },
   },
 
+  '/admin/divisions': {
+    get: {
+      tag: 'Divisions',
+      summary: 'List divisions, drafts included',
+      auth: true,
+      query: divisionListQuerySchema,
+    },
+  },
+  '/admin/divisions/{divisionId}': {
+    get: {
+      tag: 'Divisions',
+      summary: 'Get a division, drafts included',
+      auth: true,
+    },
+  },
+
   '/services': {
     get: { tag: 'Services', summary: 'List services' },
     post: {
@@ -473,6 +520,21 @@ const routes: Routes = {
     },
   },
 
+  '/admin/services': {
+    get: {
+      tag: 'Services',
+      summary: 'List services, drafts included',
+      auth: true,
+    },
+  },
+  '/admin/services/{serviceId}': {
+    get: {
+      tag: 'Services',
+      summary: 'Get a service, drafts included',
+      auth: true,
+    },
+  },
+
   '/faqs': {
     get: { tag: 'FAQs', summary: 'List FAQs', query: faqListQuerySchema },
     post: {
@@ -482,6 +544,17 @@ const routes: Routes = {
       status: 201,
       body: createFaqBodySchema,
     },
+  },
+  '/admin/faqs': {
+    get: {
+      tag: 'FAQs',
+      summary: 'List FAQs, drafts included',
+      auth: true,
+      query: faqListQuerySchema,
+    },
+  },
+  '/admin/faqs/{faqId}': {
+    get: { tag: 'FAQs', summary: 'Get an FAQ, drafts included', auth: true },
   },
   '/faqs/reorder': {
     post: {
@@ -579,6 +652,14 @@ const routes: Routes = {
     },
   },
 
+  '/admin/site_settings': {
+    get: {
+      tag: 'Site settings',
+      summary: 'Get site settings, drafts included',
+      auth: true,
+      query: siteSettingQuerySchema,
+    },
+  },
   '/site_settings': {
     get: {
       tag: 'Site settings',

@@ -11,14 +11,25 @@ export const articleInclude = {
   },
 } satisfies Prisma.ArticleInclude;
 
+// Public view: only published content in active languages.
+const publicContent = {
+  status: 'PUBLISHED',
+  language: { isActive: true },
+} satisfies Prisma.ArticleContentWhereInput;
+
+const publicArticleInclude = {
+  ...articleInclude,
+  contents: { ...articleInclude.contents, where: publicContent },
+} satisfies Prisma.ArticleInclude;
+
 type ArticleContentData = Omit<
   Prisma.ArticleContentUncheckedCreateWithoutArticleInput,
   'createdBy'
 >;
 
 export class ArticleRepository {
-  findMany(query: ArticleListQuery) {
-    const where = this.buildWhere(query);
+  findMany(query: ArticleListQuery, includeDrafts: boolean) {
+    const where = this.buildWhere(query, includeDrafts);
     const direction = query.sort_order;
     // Issue date and updated_at are nullable; undated articles go last.
     const orderBy: Prisma.ArticleOrderByWithRelationInput[] =
@@ -35,12 +46,14 @@ export class ArticleRepository {
       skip: (query.page - 1) * query.limit,
       take: query.limit,
       orderBy,
-      include: articleInclude,
+      include: includeDrafts ? articleInclude : publicArticleInclude,
     });
   }
 
-  count(query: ArticleListQuery) {
-    return prisma.article.count({ where: this.buildWhere(query) });
+  count(query: ArticleListQuery, includeDrafts: boolean) {
+    return prisma.article.count({
+      where: this.buildWhere(query, includeDrafts),
+    });
   }
 
   countAll() {
@@ -54,26 +67,24 @@ export class ArticleRepository {
     });
   }
 
-  findById(id: number) {
-    return prisma.article.findUnique({
-      where: { id },
-      include: articleInclude,
+  findById(id: number, includeDrafts = true) {
+    if (includeDrafts) {
+      return prisma.article.findUnique({
+        where: { id },
+        include: articleInclude,
+      });
+    }
+
+    return prisma.article.findFirst({
+      where: { id, contents: { some: publicContent } },
+      include: publicArticleInclude,
     });
   }
 
-  // Public view: only published content in active languages.
   findPublishedBySlug(slug: string) {
-    const publicContent = {
-      status: 'PUBLISHED',
-      language: { isActive: true },
-    } satisfies Prisma.ArticleContentWhereInput;
-
     return prisma.article.findFirst({
       where: { contents: { some: { ...publicContent, slug } } },
-      include: {
-        ...articleInclude,
-        contents: { ...articleInclude.contents, where: publicContent },
-      },
+      include: publicArticleInclude,
     });
   }
 
@@ -129,7 +140,10 @@ export class ArticleRepository {
     return prisma.article.delete({ where: { id } });
   }
 
-  private buildWhere(query: ArticleListQuery): Prisma.ArticleWhereInput {
+  private buildWhere(
+    query: ArticleListQuery,
+    includeDrafts: boolean,
+  ): Prisma.ArticleWhereInput {
     // One content row must match every content filter together.
     const contentWhere: Prisma.ArticleContentWhereInput = {
       ...(query.language_id ? { languageId: query.language_id } : {}),
@@ -137,6 +151,8 @@ export class ArticleRepository {
         ? { title: { contains: query.search, mode: 'insensitive' } }
         : {}),
       ...(query.status ? { status: query.status } : {}),
+      // Last, so the public view overrides any requested status.
+      ...(includeDrafts ? {} : publicContent),
     };
 
     return {

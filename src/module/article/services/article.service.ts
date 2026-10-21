@@ -30,10 +30,10 @@ export class ArticleService {
     private readonly activityLogService = new ActivityLogService(),
   ) {}
 
-  async list(query: ArticleListQuery) {
+  async list(query: ArticleListQuery, includeDrafts: boolean) {
     const [articles, totalItems, languages] = await Promise.all([
-      this.repository.findMany(query),
-      this.repository.count(query),
+      this.repository.findMany(query, includeDrafts),
+      this.repository.count(query, includeDrafts),
       this.languageService.listActive(),
     ]);
 
@@ -75,8 +75,8 @@ export class ArticleService {
     };
   }
 
-  async getById(id: number) {
-    const article = await this.repository.findById(id);
+  async getById(id: number, includeDrafts = true) {
+    const article = await this.repository.findById(id, includeDrafts);
 
     if (!article) {
       throw new ApiError(404, 'Article was not found.');

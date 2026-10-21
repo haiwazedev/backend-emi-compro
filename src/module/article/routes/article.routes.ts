@@ -3,6 +3,7 @@ import { validateBody } from '../../../shared/middlewares/validate-body.middlewa
 import { validateQuery } from '../../../shared/middlewares/validate-query.middleware.js';
 import {
   createAuthMiddleware,
+  includeDrafts,
   forceDraftUnlessPublisher,
   requireDelete,
   requireWrite,
@@ -30,6 +31,19 @@ articleRouter.get(
 articleRouter.get('/articles/count', requireAuth, controller.counts);
 articleRouter.get('/articles/slug/:slug', controller.getBySlug);
 articleRouter.get('/articles/:articleId', controller.get);
+articleRouter.get(
+  '/admin/articles',
+  requireAuth,
+  includeDrafts,
+  validateQuery(articleListQuerySchema, 'articleListQuery'),
+  controller.list,
+);
+articleRouter.get(
+  '/admin/articles/:articleId',
+  requireAuth,
+  includeDrafts,
+  controller.get,
+);
 articleRouter.post(
   '/articles',
   requireAuth,

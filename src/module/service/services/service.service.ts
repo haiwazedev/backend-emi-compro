@@ -21,12 +21,12 @@ export class ServiceService {
     private readonly activityLogService = new ActivityLogService(),
   ) {}
 
-  list() {
-    return this.repository.findMany();
+  list(includeDrafts: boolean) {
+    return this.repository.findMany(includeDrafts);
   }
 
-  async getById(id: number) {
-    const service = await this.repository.findById(id);
+  async getById(id: number, includeDrafts = true) {
+    const service = await this.repository.findById(id, includeDrafts);
 
     if (!service) {
       throw new ApiError(404, 'Service was not found.');

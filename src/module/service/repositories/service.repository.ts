@@ -31,16 +31,18 @@ export type ReorderServicesResult =
   | { status: 'ok'; services: ServiceWithRelations[] };
 
 export class ServiceRepository {
-  findMany() {
+  // Public view hides services under DRAFT divisions.
+  findMany(includeDrafts: boolean) {
     return prisma.service.findMany({
+      where: includeDrafts ? {} : { division: { status: 'PUBLISHED' } },
       orderBy: [{ divisionId: 'asc' }, { sortOrder: 'asc' }, { id: 'asc' }],
       include: serviceInclude,
     });
   }
 
-  findById(id: number) {
+  findById(id: number, includeDrafts = true) {
     return prisma.service.findUnique({
-      where: { id },
+      where: includeDrafts ? { id } : { id, division: { status: 'PUBLISHED' } },
       include: serviceInclude,
     });
   }

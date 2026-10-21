@@ -73,6 +73,7 @@ import {
   createRoleBodySchema,
   updateRoleBodySchema,
 } from '../role/schemas/role.schema.js';
+import { searchQuerySchema } from '../search/schemas/search.schema.js';
 import {
   createUserBodySchema,
   updateUserBodySchema,
@@ -148,6 +149,16 @@ const routes: Routes = {
       summary: 'List activity logs',
       auth: true,
       query: activityLogListQuerySchema,
+    },
+  },
+
+  '/admin/search': {
+    get: {
+      tag: 'Search',
+      summary:
+        'Search content across articles, documents, divisions, services, board members, FAQs, users, and inboxes',
+      auth: true,
+      query: searchQuerySchema,
     },
   },
 

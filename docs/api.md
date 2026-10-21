@@ -2003,6 +2003,49 @@ and their categories, FAQs, media, site contents, and site settings).
 `action_result` is the item's name or title in the default language. Inbox and
 auth actions are not logged.
 
+## Search
+
+`GET /admin/search?q=kompas` requires login and returns up to 5 matches per
+group with `200 OK`. Drafts are included. Matching is a case-insensitive
+substring match across all languages; each item appears once, with the
+language of the matching content.
+
+| Query parameter | Type   | Rules                                   |
+| --------------- | ------ | --------------------------------------- |
+| `q`             | string | Required, trimmed, 2 to 100 characters. |
+
+| Group                  | Matched fields                                      |
+| ---------------------- | --------------------------------------------------- |
+| `articles`             | `title`, `summary`                                  |
+| `document_commitments` | `title`                                             |
+| `divisions`            | `name`, `abbr`, `description`                       |
+| `services`             | `name`, `description`                               |
+| `board_members`        | `name`, `company_name`, `role`, `description`       |
+| `faqs`                 | `question`, `answer`                                |
+| `users`                | `name`, `email`                                     |
+| `inboxes`              | `name`, `email`, `company`, `message`, subject name |
+
+```json
+{
+  "articles": [
+    { "id": 3, "language_id": "id", "title": "Kompas.com x PLN EMI" }
+  ],
+  "document_commitments": [{ "id": 2, "title": "Laporan Tahunan 2025" }],
+  "divisions": [{ "id": 1, "language_id": "id", "title": "Energi Terbarukan" }],
+  "services": [],
+  "board_members": [{ "id": 7, "title": "Budi Santoso" }],
+  "faqs": [{ "id": 4, "language_id": "en", "title": "What is PLN EMI?" }],
+  "users": [{ "id": 2, "title": "Neni A." }],
+  "inboxes": [{ "id": 9, "title": "Budi" }]
+}
+```
+
+`title` is the article/document title, division/service/board member/user/inbox sender name, or FAQ
+question. Document commitments, board members, users, and inboxes have no `language_id`.
+`users` is always empty unless the caller has the `manage_users` permission;
+user emails are matched but never returned. A missing or invalid `q`
+returns `400`.
+
 ## Public Static Assets
 
 Files in the project `public/` directory are served without authentication at

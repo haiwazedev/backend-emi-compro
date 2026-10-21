@@ -18,6 +18,7 @@ import { inboxRouter } from './module/inbox/routes/inbox.routes.js';
 import { languageRouter } from './module/language/routes/language.routes.js';
 import { mediaRouter } from './module/media/routes/media.routes.js';
 import { roleRouter } from './module/role/routes/role.routes.js';
+import { searchRouter } from './module/search/routes/search.routes.js';
 import { serviceRouter } from './module/service/routes/service.routes.js';
 import { siteContentRouter } from './module/site_content/routes/site-content.routes.js';
 import { siteSettingRouter } from './module/site_setting/routes/site-setting.routes.js';
@@ -85,6 +86,7 @@ app.use(siteSettingRouter);
 app.use(siteContentRouter);
 app.use(activityLogRouter);
 app.use(roleRouter);
+app.use(searchRouter);
 app.use(userRouter);
 
 app.get('/health', (req: Request, res: Response) => {

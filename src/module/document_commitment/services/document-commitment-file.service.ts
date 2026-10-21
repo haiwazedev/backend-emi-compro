@@ -24,18 +24,21 @@ export type FileReplacement = {
 
 export class DocumentCommitmentFileService {
   describeUpload(file: Express.Multer.File): DocumentCommitmentFileDetails {
-    const filename = validateFilename(file.originalname);
+    const originalName = validateFilename(file.originalname);
 
     if (file.size > MAX_DOCUMENT_SIZE) {
       throw new ApiError(413, 'Uploaded file must not exceed 50 MiB.');
     }
 
     if (
-      path.extname(filename).toLowerCase() !== '.pdf' ||
+      path.extname(originalName).toLowerCase() !== '.pdf' ||
       !hasPdfSignature(file.buffer)
     ) {
       throw new ApiError(400, 'Document must be a valid PDF file.');
     }
+
+    // A timestamp keeps stored filenames unique when users reuse a name.
+    const filename = `${toSlug(originalName)}-${Date.now()}.pdf`;
 
     return {
       filename,
@@ -193,6 +196,17 @@ function validateFilename(filename: string): string {
   }
 
   return filename;
+}
+
+function toSlug(filename: string): string {
+  const slug = path
+    .parse(filename)
+    .name.toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 200);
+
+  return slug || 'document';
 }
 
 function buildPublicPath(filename: string): string {

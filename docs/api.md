@@ -231,14 +231,14 @@ Public reads return published data only, whether or not a session cookie is
 sent. The CMS reads drafts through `/admin` routes, which require login (any
 signed-in user) and return `401 Unauthorized` without a session.
 
-| Public route (published only)                 | Admin route (drafts included)                       |
-| --------------------------------------------- | --------------------------------------------------- |
-| `GET /articles`, `GET /articles/:articleId`   | `GET /admin/articles`, `GET /admin/articles/:id`    |
-| `GET /divisions`, `GET /divisions/:id`        | `GET /admin/divisions`, `GET /admin/divisions/:id`  |
-| `GET /services`, `GET /services/:id`          | `GET /admin/services`, `GET /admin/services/:id`    |
-| `GET /faqs`, `GET /faqs/:faqId`               | `GET /admin/faqs`, `GET /admin/faqs/:faqId`         |
-| `GET /document_commitments`, `.../:id`        | `GET /admin/document_commitments`, `.../:id`        |
-| `GET /site_settings`                          | `GET /admin/site_settings`                          |
+| Public route (published only)               | Admin route (drafts included)                      |
+| ------------------------------------------- | -------------------------------------------------- |
+| `GET /articles`, `GET /articles/:articleId` | `GET /admin/articles`, `GET /admin/articles/:id`   |
+| `GET /divisions`, `GET /divisions/:id`      | `GET /admin/divisions`, `GET /admin/divisions/:id` |
+| `GET /services`, `GET /services/:id`        | `GET /admin/services`, `GET /admin/services/:id`   |
+| `GET /faqs`, `GET /faqs/:faqId`             | `GET /admin/faqs`, `GET /admin/faqs/:faqId`        |
+| `GET /document_commitments`, `.../:id`      | `GET /admin/document_commitments`, `.../:id`       |
+| `GET /site_settings`                        | `GET /admin/site_settings`                         |
 
 Admin routes take the same query parameters and return the same shapes as their
 public routes. On public routes:
@@ -434,16 +434,16 @@ Results are sorted by `created_at` descending by default, with `id` as a stable
 tie-breaker. `sort_by=issue_date` sorts by `issue_date`, then `updated_at`, then
 `id`, all in `sort_order`; articles without an issue date or update come last.
 
-| Query parameter       | Type   | Rules                                                                     |
-| --------------------- | ------ | ------------------------------------------------------------------------- |
-| `page`                | number | Optional, 1-based; default `1`.                                           |
-| `limit`               | number | Optional; default `20`, minimum `1`, maximum `100`.                       |
-| `search`              | string | Optional, case-insensitive substring search in a content `title`.         |
-| `article_category_id` | number | Optional positive category ID filter.                                     |
-| `language_id`         | string | Optional; only articles with content in this language, shown in it.       |
+| Query parameter       | Type   | Rules                                                                                       |
+| --------------------- | ------ | ------------------------------------------------------------------------------------------- |
+| `page`                | number | Optional, 1-based; default `1`.                                                             |
+| `limit`               | number | Optional; default `20`, minimum `1`, maximum `100`.                                         |
+| `search`              | string | Optional, case-insensitive substring search in a content `title`.                           |
+| `article_category_id` | number | Optional positive category ID filter.                                                       |
+| `language_id`         | string | Optional; only articles with content in this language, shown in it.                         |
 | `status`              | string | Optional; `DRAFT` or `PUBLISHED`; matches a content row with this status. Admin route only. |
-| `sort_by`             | string | Optional; `created_at` or `issue_date`, default `created_at`.             |
-| `sort_order`          | string | Optional; `asc` or `desc`, default `desc`.                                |
+| `sort_by`             | string | Optional; `created_at` or `issue_date`, default `created_at`.                               |
+| `sort_order`          | string | Optional; `asc` or `desc`, default `desc`.                                                  |
 
 Provided filters are combined using AND. `search`, `language_id`, and `status`
 must all match the same content row. Invalid query values return `400 Bad
@@ -1036,8 +1036,11 @@ Uploaded files are publicly available under `/public/media/`.
 ### Upload media
 
 `POST /media` accepts `multipart/form-data` with a `type` field (`PICTURE` or
-`DOCUMENT`) and a file field named `file`. The original filename is preserved
-on disk and must not already exist. Its URL-encoded form is stored in `path`.
+`DOCUMENT`) and a file field named `file`. The file is stored as
+`{name}-{timestamp}.{extension}`, where `{name}` is the uploaded filename
+lowercased with non-alphanumeric characters replaced by `-`, so the same
+filename can be uploaded more than once. `filename` is that stored name and
+`path` is its public path.
 
 | Type       | Accepted extensions  | Maximum size |
 | ---------- | -------------------- | ------------ |
@@ -1055,8 +1058,8 @@ A successful upload returns `201 Created`:
 {
   "media": {
     "id": 18,
-    "filename": "company-news.jpg",
-    "path": "/public/media/company-news.jpg",
+    "filename": "company-news-1791892200000.jpg",
+    "path": "/public/media/company-news-1791892200000.jpg",
     "extension": "jpg",
     "type": "PICTURE",
     "size": 184,
@@ -1208,20 +1211,18 @@ fields:
 | `status`                          | string | Optional; `DRAFT` or `PUBLISHED`; defaults to `DRAFT`. |
 | `file`                            | file   | Required; valid PDF, maximum 50 MiB.                   |
 
-The server stores each file at `public/document_commitment/{filename}`, using
-the original uploaded filename. `file_path` contains the URL-encoded public
-path, and `size` is rounded up to KiB (1024 bytes). Filenames must be safe
-basenames and unique across document commitments. Reusing a filename returns
-`409 Conflict`; the server never overwrites an unrelated file.
+The server stores each file at `public/document_commitment/{filename}`, where
+`filename` is `{name}-{timestamp}.pdf` and `{name}` is the uploaded filename
+lowercased with non-alphanumeric characters replaced by `-`, so the same
+filename can be uploaded more than once. `file_path` is the public path, and
+`size` is rounded up to KiB (1024 bytes).
 The authenticated user's name is stored in `uploaded_by`; `uploaded_at`
 defaults to the current time.
 
 Updates are partial. Send JSON to update metadata only, or use
 `multipart/form-data` to replace the PDF and optionally update metadata. When
-no file is sent, the existing PDF is kept. Replacing a PDF keeps the same
-filename replaces that document's file in place. A filename used by another
-document returns `409 Conflict`. A new filename moves the document to the new
-path and removes the old file after the database update commits. Every update
+no file is sent, the existing PDF is kept. A replacement PDF gets a new stored
+filename, and the old file is removed after the database update commits. Every update
 sets `updated_at` and `updated_by` to the current time and authenticated user's
 name.
 
@@ -1263,8 +1264,8 @@ A document response has this shape:
     "id": 21,
     "document_commitment_category_id": 2,
     "title": "Board decision 2026-10",
-    "file_path": "/public/document_commitment/board-decision-2026-10.pdf",
-    "filename": "board-decision-2026-10.pdf",
+    "file_path": "/public/document_commitment/board-decision-2026-10-1791720600000.pdf",
+    "filename": "board-decision-2026-10-1791720600000.pdf",
     "size": 420,
     "status": "PUBLISHED",
     "uploaded_at": "2026-10-11T10:30:00.000Z",

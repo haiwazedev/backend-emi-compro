@@ -1,11 +1,13 @@
-import { mkdir, open, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { ApiError } from '../../../shared/errors/api-error.js';
 import { getPictureDimensions } from '../../../shared/files/picture-file.js';
+import {
+  contentTypeForPublicPath,
+  s3FileStorage,
+} from '../../../shared/storage/s3-file-storage.js';
 
 export const MAX_LOGO_SIZE = 5 * 1024 * 1024;
 const LOGO_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp'];
-const publicClientDirectory = path.resolve(process.cwd(), 'public', 'clients');
 const publicClientPath = '/public/clients/';
 
 export type ClientLogo = {
@@ -30,12 +32,17 @@ export class ClientLogoFileService {
     const metadata = getPictureDimensions(buffer, extension);
     const filename = `${toSlug(originalName)}-${Date.now()}.${extension}`;
 
-    await mkdir(publicClientDirectory, { recursive: true });
-    await writeNewFile(path.join(publicClientDirectory, filename), buffer);
+    const filepath = publicClientPath + filename;
+    await s3FileStorage.store(
+      filepath,
+      buffer,
+      contentTypeForPublicPath(filepath),
+      'A logo with this filename already exists.',
+    );
 
     return {
       filename,
-      filepath: publicClientPath + filename,
+      filepath,
       extension,
       size: Math.ceil(buffer.length / 1024),
       metadata,
@@ -46,9 +53,8 @@ export class ClientLogoFileService {
     // Only files this service stored are removed; anything else is left alone.
     if (!filepath.startsWith(publicClientPath)) return;
 
-    const filename = path.basename(filepath);
     try {
-      await rm(path.join(publicClientDirectory, filename), { force: true });
+      await s3FileStorage.remove(filepath);
     } catch (error) {
       console.error('Unable to remove a client logo.', error);
     }
@@ -64,35 +70,4 @@ function toSlug(originalName: string): string {
     .slice(0, 200);
 
   return slug || 'logo';
-}
-
-async function writeNewFile(destination: string, buffer: Buffer) {
-  let fileHandle;
-  try {
-    fileHandle = await open(destination, 'wx');
-  } catch (error) {
-    if (isErrorCode(error, 'EEXIST')) {
-      throw new ApiError(409, 'A logo with this filename already exists.');
-    }
-
-    throw error;
-  }
-
-  try {
-    await fileHandle.writeFile(buffer);
-  } catch (error) {
-    await rm(destination, { force: true });
-    throw error;
-  } finally {
-    await fileHandle.close();
-  }
-}
-
-function isErrorCode(error: unknown, code: string): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    error.code === code
-  );
 }

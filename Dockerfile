@@ -18,7 +18,6 @@ FROM dependencies AS build
 COPY prisma ./prisma
 COPY prisma.config.ts tsconfig.json ./
 COPY src ./src
-COPY public ./public
 
 RUN DATABASE_URL="postgresql://build:build@localhost:5432/build" pnpm build
 
@@ -40,10 +39,6 @@ WORKDIR /app
 COPY --from=production-dependencies --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/dist ./dist
 COPY --from=build --chown=node:node /app/package.json ./package.json
-COPY --from=build --chown=node:node /app/public ./public
-
-RUN mkdir -p /app/public/media /app/public/document_commitment /app/public/board_member \
-  && chown -R node:node /app/public
 
 USER node
 

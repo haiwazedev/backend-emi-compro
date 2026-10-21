@@ -1,13 +1,14 @@
-import { open, mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { ApiError } from '../../../shared/errors/api-error.js';
 import { getPictureDimensions } from '../../../shared/files/picture-file.js';
+import {
+  contentTypeForPublicPath,
+  s3FileStorage,
+} from '../../../shared/storage/s3-file-storage.js';
 import type { MediaType } from '../schemas/media.schema.js';
 
 const MAX_PICTURE_SIZE = 2 * 1024 * 1024;
 const MAX_DOCUMENT_SIZE = 5 * 1024 * 1024;
-const publicMediaDirectory = path.resolve(process.cwd(), 'public', 'media');
-
 export type MediaFileDetails = {
   filename: string;
   extension: string;
@@ -59,32 +60,17 @@ export class MediaFileService {
   }
 
   async store(filename: string, buffer: Buffer): Promise<void> {
-    const destination = getFilePath(filename);
-    await mkdir(publicMediaDirectory, { recursive: true });
-
-    let fileHandle;
-    try {
-      fileHandle = await open(destination, 'wx');
-    } catch (error) {
-      if (isFileExistsError(error)) {
-        throw new ApiError(409, 'A file with this filename already exists.');
-      }
-
-      throw error;
-    }
-
-    try {
-      await fileHandle.writeFile(buffer);
-    } catch (error) {
-      await rm(destination, { force: true });
-      throw error;
-    } finally {
-      await fileHandle.close();
-    }
+    const publicPath = buildPublicPath(validateFilename(filename));
+    await s3FileStorage.store(
+      publicPath,
+      buffer,
+      contentTypeForPublicPath(publicPath),
+      'A file with this filename already exists.',
+    );
   }
 
   async remove(filename: string): Promise<void> {
-    await rm(getFilePath(filename), { force: true });
+    await s3FileStorage.remove(buildPublicPath(validateFilename(filename)));
   }
 
   async removeAfterCommit(filename: string): Promise<void> {
@@ -125,20 +111,6 @@ function buildPublicPath(filename: string): string {
   return '/public/media/' + encodeURIComponent(filename);
 }
 
-function getFilePath(filename: string): string {
-  const safeFilename = validateFilename(filename);
-  return path.join(publicMediaDirectory, safeFilename);
-}
-
 function hasPdfSignature(buffer: Buffer): boolean {
   return buffer.length >= 5 && buffer.toString('ascii', 0, 5) === '%PDF-';
-}
-
-function isFileExistsError(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    error.code === 'EEXIST'
-  );
 }

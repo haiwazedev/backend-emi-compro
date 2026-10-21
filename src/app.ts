@@ -1,7 +1,6 @@
 import cors from 'cors';
 import 'dotenv/config';
 import express, { Request, Response } from 'express';
-import path from 'node:path';
 import { activityLogRouter } from './module/activity_log/routes/activity-log.routes.js';
 import { articleCategoryRouter } from './module/article/routes/article-category.routes.js';
 import { articleRouter } from './module/article/routes/article.routes.js';
@@ -26,6 +25,7 @@ import { frontendOrigin } from './shared/config/session.js';
 import { connectRedis, redisClient } from './shared/db/redis.js';
 import { validateRequestOrigin } from './shared/middlewares/csrf.middleware.js';
 import { errorHandler } from './shared/middlewares/error.middleware.js';
+import { publicFileMiddleware } from './shared/middlewares/public-file.middleware.js';
 import { sessionMiddleware } from './shared/middlewares/session.middleware.js';
 
 const app = express();
@@ -33,22 +33,7 @@ const PORT = process.env.PORT || 8000;
 
 app.set('trust proxy', 1);
 
-app.use(
-  '/public',
-  cors(),
-  express.static(path.resolve(process.cwd(), 'public'), {
-    setHeaders: (res, filePath) => {
-      if (path.extname(filePath).toLowerCase() !== '.svg') return;
-
-      // Second layer after upload sanitizing: SVG opened directly cannot run scripts.
-      res.setHeader(
-        'Content-Security-Policy',
-        "default-src 'none'; style-src 'unsafe-inline'; sandbox",
-      );
-      res.setHeader('X-Content-Type-Options', 'nosniff');
-    },
-  }),
-);
+app.use('/public', cors(), publicFileMiddleware);
 // Before session middleware so browsing the docs does not create sessions.
 app.use(documentationRouter);
 const frontendCors = cors({ origin: frontendOrigin, credentials: true });

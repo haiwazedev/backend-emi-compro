@@ -21,7 +21,11 @@ Errors use this shape:
 The server requires `REDIS_URL`, `SESSION_SECRET`, and `FRONTEND_ORIGIN`. Use a
 random session secret of at least 32 bytes. The configured frontend origin must
 be an exact HTTP or HTTPS origin, such as `http://localhost:3000`. The server
-does not start if it cannot connect to Redis.
+does not start if it cannot connect to Redis. File uploads and public file reads
+also require `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, and `S3_SECRET_KEY`
+for the SeaweedFS S3 gateway. `S3_REGION` defaults to `us-east-1`; the bucket
+must already exist. Storage requests return `503 Service Unavailable` when S3
+is unavailable or not configured.
 
 ## Swagger
 
@@ -921,10 +925,10 @@ list length; invalid positions return `400 Bad Request`.
 Requests without a photo use JSON. To upload or replace a photo, send
 `multipart/form-data` with the same fields and an optional file field named
 `photo`. Photos may be PNG, JPG, or JPEG files up to 5 MiB. The server checks
-the image content and stores the file at
-`/public/board_member/{memberId}.{extension}`. The `photo` response field
-contains this public path. Omitting `photo` during an update keeps the current
-photo.
+the image content and stores it in the SeaweedFS bucket under
+`board_member/{memberId}.{extension}`. The `photo` response field contains the
+public path `/public/board_member/{memberId}.{extension}`. Omitting `photo`
+during an update keeps the current photo.
 
 A member response includes every available translation:
 
@@ -1000,13 +1004,15 @@ missing or disallowed request origins return `403 Forbidden`.
 
 Media list and detail reads are public. Upload and delete requests require an
 authenticated session and the configured frontend `Origin` or `Referer`.
-Uploaded files are publicly available under `/public/media/`.
+Uploaded files are stored in the SeaweedFS bucket under `media/` and are
+publicly available under `/public/media/`.
 
 ### Upload media
 
 `POST /media` accepts `multipart/form-data` with a `type` field (`PICTURE` or
 `DOCUMENT`) and a file field named `file`. The original filename is preserved
-on disk and must not already exist. Its URL-encoded form is stored in `path`.
+as the S3 object name and must not already exist. Its URL-encoded public path is
+stored in `path`.
 
 | Type       | Accepted extensions  | Maximum size |
 | ---------- | -------------------- | ------------ |
@@ -1175,9 +1181,10 @@ fields:
 | `status`                          | string | Optional; `DRAFT` or `PUBLISHED`; defaults to `DRAFT`. |
 | `file`                            | file   | Required; valid PDF, maximum 50 MiB.                   |
 
-The server stores each file at `public/document_commitment/{filename}`, using
-the original uploaded filename. `file_path` contains the URL-encoded public
-path, and `size` is rounded up to KiB (1024 bytes). Filenames must be safe
+The server stores each file in the SeaweedFS bucket under
+`document_commitment/{filename}`, using the original uploaded filename.
+`file_path` contains the URL-encoded public path, and `size` is rounded up to
+KiB (1024 bytes). Filenames must be safe
 basenames and unique across document commitments. Reusing a filename returns
 `409 Conflict`; the server never overwrites an unrelated file.
 The authenticated user's name is stored in `uploaded_by`; `uploaded_at`
@@ -1185,7 +1192,7 @@ defaults to the current time.
 
 Updates are partial. Send JSON to update metadata only, or use
 `multipart/form-data` to replace the PDF and optionally update metadata. When
-no file is sent, the existing PDF is kept. Replacing a PDF keeps the same
+no file is sent, the existing PDF is kept. Replacing a PDF with the same
 filename replaces that document's file in place. A filename used by another
 document returns `409 Conflict`. A new filename moves the document to the new
 path and removes the old file after the database update commits. Every update
@@ -1421,10 +1428,12 @@ file. The authenticated user's name is stored in `created_by`; updates set
 `updated_by` and `updated_at`.
 
 Logos are uploaded directly and are not part of the media library. The server
-stores each logo at `/public/clients/{name}-{timestamp}.{extension}`, where
+stores each logo in the SeaweedFS bucket under
+`clients/{name}-{timestamp}.{extension}`, where
 `{name}` is the uploaded filename lowercased with non-alphanumeric characters
 replaced by `-`, and `{timestamp}` is the upload time in milliseconds. The
-response includes:
+response's `logo_filepath` is the corresponding `/public/clients/...` path.
+The response also includes:
 
 - `logo_filename`: the stored filename.
 - `logo_filepath`: the public path; build the logo URL from it, as described
@@ -1462,8 +1471,8 @@ The response shape is:
   "client": {
     "id": 1,
     "name": "Accenture",
-    "logo_filename": "logo-accenture-1791913320264.png",
-    "logo_filepath": "/public/clients/logo-accenture-1791913320264.png",
+    "logo_filename": "accenture-1791913320264.png",
+    "logo_filepath": "/public/clients/accenture-1791913320264.png",
     "logo_extension": "png",
     "logo_size": 18,
     "logo_metadata": { "width": 400, "height": 160 },
@@ -1669,6 +1678,7 @@ Uploaded SVG files are sanitized: scripts, event handlers, `foreignObject`, and
 `javascript:` links are removed, and a file with no valid `<svg>` left returns
 `400 Bad Request`. Logos are stored at `/public/site-logo-{name}-{timestamp}.{extension}`
 and icons at `/public/site-social-medias/site-social-media-{name}-{timestamp}.svg`.
+Both paths resolve to objects in the configured SeaweedFS bucket.
 Only the logo filepath is kept. `icon_metadata` is the pixel `width` and
 `height` for raster images and `{}` for SVG.
 
@@ -1968,19 +1978,16 @@ auth actions are not logged.
 
 ## Public Static Assets
 
-Files in the project `public/` directory are served without authentication at
-the matching `/public/*` path and allow cross-origin reads. SVG files are
-served with `Content-Security-Policy: default-src 'none'; style-src
-'unsafe-inline'; sandbox` and `X-Content-Type-Options: nosniff`, so an SVG
-opened directly cannot run scripts. For example,
-`public/media/company-news.jpg` is available at
-`http://localhost:8000/public/media/company-news.jpg`. A document commitment
-PDF such as `public/document_commitment/board-decision-2026-10.pdf` is
-available at
-`http://localhost:8000/public/document_commitment/board-decision-2026-10.pdf`.
-A client logo such as `public/clients/logo-accenture-1791913320264.png` is
-available at
-`http://localhost:8000/public/clients/logo-accenture-1791913320264.png`.
+Uploaded files are served from the configured SeaweedFS bucket without
+authentication at their matching `/public/*` paths and allow cross-origin
+reads. The bucket key is the path after `/public/`; for example,
+`/public/media/company-news.jpg` maps to `media/company-news.jpg`.
+`GET` and `HEAD` requests support byte ranges. SVG files are served with
+`Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline';
+sandbox` and `X-Content-Type-Options: nosniff`, so an SVG opened directly
+cannot run scripts. Local files are not served or migrated; a path without a
+matching bucket object returns `404 Not Found`. S3 configuration or availability
+failures return `503 Service Unavailable`.
 
 ## Article, Category, Media, and Document Commitment Errors
 

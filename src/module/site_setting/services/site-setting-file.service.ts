@@ -1,14 +1,16 @@
-import { mkdir, open, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { ApiError } from '../../../shared/errors/api-error.js';
 import { getPictureDimensions } from '../../../shared/files/picture-file.js';
 import { sanitizeSvg } from '../../../shared/files/svg-file.js';
+import {
+  contentTypeForPublicPath,
+  s3FileStorage,
+} from '../../../shared/storage/s3-file-storage.js';
 
 export const MAX_LOGO_SIZE = 2 * 1024 * 1024;
 export const MAX_ICON_SIZE = 1 * 1024 * 1024;
 
 type FileRule = {
-  directory: string;
   publicPath: string;
   filenamePrefix: string;
   extensions: string[];
@@ -17,7 +19,6 @@ type FileRule = {
 };
 
 export const LOGO_FILE_RULE: FileRule = {
-  directory: path.resolve(process.cwd(), 'public'),
   publicPath: '/public/',
   filenamePrefix: 'site-logo-',
   extensions: ['png', 'jpg', 'jpeg', 'webp', 'svg'],
@@ -26,7 +27,6 @@ export const LOGO_FILE_RULE: FileRule = {
 };
 
 export const ICON_FILE_RULE: FileRule = {
-  directory: path.resolve(process.cwd(), 'public', 'site-social-medias'),
   publicPath: '/public/site-social-medias/',
   filenamePrefix: 'site-social-media-',
   extensions: ['svg'],
@@ -64,12 +64,17 @@ export class SiteSettingFileService {
     const metadata = isSvg ? {} : getPictureDimensions(buffer, extension);
     const filename = `${rule.filenamePrefix}${toSlug(file.originalname)}-${Date.now()}.${extension}`;
 
-    await mkdir(rule.directory, { recursive: true });
-    await writeNewFile(path.join(rule.directory, filename), buffer);
+    const filepath = rule.publicPath + filename;
+    await s3FileStorage.store(
+      filepath,
+      buffer,
+      contentTypeForPublicPath(filepath),
+      'A file with this filename already exists.',
+    );
 
     return {
       filename,
-      filepath: rule.publicPath + filename,
+      filepath,
       extension,
       size: Math.ceil(buffer.length / 1024),
       metadata,
@@ -84,7 +89,7 @@ export class SiteSettingFileService {
     if (!filename.startsWith(rule.filenamePrefix)) return;
 
     try {
-      await rm(path.join(rule.directory, filename), { force: true });
+      await s3FileStorage.remove(filepath);
     } catch (error) {
       console.error('Unable to remove a site settings file.', error);
     }
@@ -100,35 +105,4 @@ function toSlug(originalName: string): string {
     .slice(0, 200);
 
   return slug || 'file';
-}
-
-async function writeNewFile(destination: string, buffer: Buffer) {
-  let fileHandle;
-  try {
-    fileHandle = await open(destination, 'wx');
-  } catch (error) {
-    if (isErrorCode(error, 'EEXIST')) {
-      throw new ApiError(409, 'A file with this filename already exists.');
-    }
-
-    throw error;
-  }
-
-  try {
-    await fileHandle.writeFile(buffer);
-  } catch (error) {
-    await rm(destination, { force: true });
-    throw error;
-  } finally {
-    await fileHandle.close();
-  }
-}
-
-function isErrorCode(error: unknown, code: string): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    error.code === code
-  );
 }

@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import { canSeeDrafts } from '../../auth/auth.middleware.js';
 import { getAuthenticatedUser } from '../../auth/authenticated-user.js';
 import { parseIdParam } from '../../../shared/schemas/common.schema.js';
 import { presentDivision } from '../presenters/division.presenter.js';
@@ -15,7 +16,7 @@ export class DivisionController {
 
   list = async (_req: Request, res: Response): Promise<void> => {
     const query = res.locals.divisionListQuery as DivisionListQuery;
-    const divisions = await this.service.list(query);
+    const divisions = await this.service.list(query, canSeeDrafts(res));
 
     res.status(200).json({ divisions: divisions.map(presentDivision) });
   };
@@ -23,6 +24,7 @@ export class DivisionController {
   get = async (req: Request, res: Response): Promise<void> => {
     const division = await this.service.getById(
       parseIdParam(req.params.divisionId),
+      canSeeDrafts(res),
     );
 
     res.status(200).json({ division: presentDivision(division) });

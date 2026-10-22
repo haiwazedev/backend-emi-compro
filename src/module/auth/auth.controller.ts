@@ -23,6 +23,20 @@ export class AuthController {
     res.status(200).json({ user: req.authenticatedUser });
   };
 
+  forgotPassword = async (req: Request, res: Response): Promise<void> => {
+    await this.authService.forgotPassword(req.body);
+    res.status(204).end();
+  };
+
+  verifyToken = async (req: Request, res: Response): Promise<void> => {
+    res.status(200).json(await this.authService.verifyToken(req.body));
+  };
+
+  activate = async (req: Request, res: Response): Promise<void> => {
+    await this.authService.activate(req.body);
+    res.status(204).end();
+  };
+
   logout = async (req: Request, res: Response): Promise<void> => {
     await destroySession(req);
     res.clearCookie(sessionCookieName, sessionCookieOptions);
@@ -39,6 +53,7 @@ function establishSession(req: Request, userId: number): Promise<void> {
       }
 
       req.session.userId = userId;
+      req.session.authenticatedAt = Date.now();
       req.session.save((saveError) => {
         if (saveError) {
           req.session.destroy(() => {

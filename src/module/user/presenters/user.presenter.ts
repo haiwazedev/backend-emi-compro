@@ -15,6 +15,8 @@ export function presentUser(user: UserWithRole) {
     email: user.email,
     role: role ? { id: role.id, name: role.name } : null,
     is_active: user.userRole?.isActive ?? true,
+    // True until the user accepts the invite and sets a password.
+    is_pending: user.password === null,
     last_signed_in: user.userRole?.lastSignedIn?.toISOString() ?? null,
   };
 }

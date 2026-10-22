@@ -45,6 +45,12 @@ userRouter.put(
   validateBody(updateUserBodySchema),
   controller.update,
 );
+userRouter.post(
+  '/users/:userId/invite',
+  requireAuth,
+  requireManageUsers,
+  controller.resendInvite,
+);
 userRouter.delete(
   '/users/:userId',
   requireAuth,

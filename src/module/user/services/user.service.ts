@@ -1,7 +1,9 @@
 import { ApiError } from '../../../shared/errors/api-error.js';
 import { ActivityLogService } from '../../activity_log/services/activity-log.service.js';
 import type { AuthenticatedUser } from '../../auth/authenticated-user.js';
-import { hashPassword } from '../../auth/password.js';
+import { sendMail } from '../../../shared/mail/mailer.js';
+import { buildInviteMail } from '../../auth/auth.mails.js';
+import { buildActivationUrl, issueUserToken } from '../../auth/user-token.js';
 import { RoleRepository } from '../../role/repositories/role.repository.js';
 import { UserRepository } from '../repositories/user.repository.js';
 import type {
@@ -45,15 +47,15 @@ export class UserService {
   }
 
   async create(input: CreateUserInput, user: AuthenticatedUser) {
-    const { role_id, is_active, ...data } = input;
+    const { role_id, ...data } = input;
 
     await this.assertEmailAvailable(data.email);
     await this.assertRoleExists(role_id);
 
     try {
       const created = await this.repository.create(
-        { ...data, password: await hashPassword(getDefaultPassword()) },
-        { roleId: role_id, isActive: is_active },
+        data,
+        { roleId: role_id, isActive: false },
         user.name,
       );
       await this.activityLogService.log(
@@ -61,6 +63,7 @@ export class UserService {
         'menambahkan pengguna',
         created.name,
       );
+      await sendInvite(created);
       return created;
     } catch (error) {
       if (isPrismaError(error, 'P2002')) {
@@ -69,6 +72,21 @@ export class UserService {
 
       throw error;
     }
+  }
+
+  async resendInvite(id: number, user: AuthenticatedUser): Promise<void> {
+    const target = await this.getById(id);
+
+    if (target.password !== null) {
+      throw new ApiError(409, 'User has already activated their account.');
+    }
+
+    await sendInvite(target);
+    await this.activityLogService.log(
+      user,
+      'mengirim ulang undangan pengguna',
+      target.name,
+    );
   }
 
   async update(id: number, input: UpdateUserInput, user: AuthenticatedUser) {
@@ -153,14 +171,20 @@ export class UserService {
   }
 }
 
-function getDefaultPassword(): string {
-  const password = process.env.DEFAULT_USER_PASSWORD;
+// The user is already saved, so a mail failure is reported but not rolled back;
+// the admin can resend the invite.
+async function sendInvite(target: { id: number; name: string; email: string }) {
+  const token = await issueUserToken(target.id, 'INVITE');
 
-  if (!password) {
-    throw new Error('DEFAULT_USER_PASSWORD environment variable is required.');
+  try {
+    await sendMail(buildInviteMail(target, buildActivationUrl(token)));
+  } catch (error) {
+    console.error('Failed to send invite email.', error);
+    throw new ApiError(
+      502,
+      'The invite email could not be sent. Try resending the invite.',
+    );
   }
-
-  return password;
 }
 
 function isPrismaError(error: unknown, code: string): boolean {

@@ -1,16 +1,12 @@
-import { randomUUID } from 'node:crypto';
-import { open, mkdir, rename, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { ApiError } from '../../../shared/errors/api-error.js';
+import {
+  contentTypeForPublicPath,
+  s3FileStorage,
+} from '../../../shared/storage/s3-file-storage.js';
 
 const MAX_DOCUMENT_SIZE = 50 * 1024 * 1024;
 const MAX_FILENAME_BYTES = 255;
-const publicDocumentDirectory = path.resolve(
-  process.cwd(),
-  'public',
-  'document_commitment',
-);
-
 export type DocumentCommitmentFileDetails = {
   filename: string;
   filePath: string;
@@ -48,31 +44,13 @@ export class DocumentCommitmentFileService {
   }
 
   async store(filename: string, buffer: Buffer): Promise<void> {
-    const destination = this.getFilePath(filename);
-    await mkdir(publicDocumentDirectory, { recursive: true });
-
-    let fileHandle;
-    try {
-      fileHandle = await open(destination, 'wx');
-    } catch (error) {
-      if (isFileExistsError(error)) {
-        throw new ApiError(
-          409,
-          'A document with this filename already exists.',
-        );
-      }
-
-      throw error;
-    }
-
-    try {
-      await fileHandle.writeFile(buffer);
-    } catch (error) {
-      await rm(destination, { force: true });
-      throw error;
-    } finally {
-      await fileHandle.close();
-    }
+    const publicPath = buildPublicPath(validateFilename(filename));
+    await s3FileStorage.store(
+      publicPath,
+      buffer,
+      contentTypeForPublicPath(publicPath),
+      'A document with this filename already exists.',
+    );
   }
 
   async replace(
@@ -80,9 +58,6 @@ export class DocumentCommitmentFileService {
     filename: string,
     buffer: Buffer,
   ): Promise<FileReplacement> {
-    const destination = this.getFilePath(filename);
-    await mkdir(publicDocumentDirectory, { recursive: true });
-
     if (previousFilename !== filename) {
       await this.store(filename, buffer);
 
@@ -92,85 +67,20 @@ export class DocumentCommitmentFileService {
       };
     }
 
-    return this.replaceSameFilename(destination, buffer);
+    const publicPath = buildPublicPath(validateFilename(filename));
+    return s3FileStorage.replace(
+      publicPath,
+      buffer,
+      contentTypeForPublicPath(publicPath),
+    );
   }
 
   async removeAfterCommit(filename: string): Promise<void> {
     try {
-      await rm(this.getFilePath(filename), { force: true });
+      await s3FileStorage.remove(buildPublicPath(validateFilename(filename)));
     } catch (error) {
       console.error('Unable to remove a document file.', error);
     }
-  }
-
-  private async replaceSameFilename(
-    destination: string,
-    buffer: Buffer,
-  ): Promise<FileReplacement> {
-    const suffix = randomUUID();
-    const temporaryPath = path.join(
-      publicDocumentDirectory,
-      `.document-commitment-${suffix}.tmp`,
-    );
-    const backupPath = path.join(
-      publicDocumentDirectory,
-      `.document-commitment-${suffix}.bak`,
-    );
-
-    await this.writeTemporaryFile(temporaryPath, buffer);
-
-    let backupExists = false;
-    try {
-      try {
-        await rename(destination, backupPath);
-        backupExists = true;
-      } catch (error) {
-        if (!isFileNotFoundError(error)) throw error;
-      }
-
-      await rename(temporaryPath, destination);
-    } catch (error) {
-      await rm(temporaryPath, { force: true });
-      if (backupExists) {
-        await rename(backupPath, destination);
-      }
-
-      throw error;
-    }
-
-    return {
-      commitAfterTransaction: async () => {
-        await rm(backupPath, { force: true }).catch((error: unknown) => {
-          console.error('Unable to remove a replaced document file.', error);
-        });
-      },
-      rollbackAfterFailure: async () => {
-        await rm(destination, { force: true });
-        if (backupExists) {
-          await rename(backupPath, destination);
-        }
-      },
-    };
-  }
-
-  private async writeTemporaryFile(
-    destination: string,
-    buffer: Buffer,
-  ): Promise<void> {
-    const fileHandle = await open(destination, 'wx');
-
-    try {
-      await fileHandle.writeFile(buffer);
-    } catch (error) {
-      await rm(destination, { force: true });
-      throw error;
-    } finally {
-      await fileHandle.close();
-    }
-  }
-
-  private getFilePath(filename: string): string {
-    return path.join(publicDocumentDirectory, validateFilename(filename));
   }
 }
 
@@ -215,21 +125,4 @@ function buildPublicPath(filename: string): string {
 
 function hasPdfSignature(buffer: Buffer): boolean {
   return buffer.length >= 5 && buffer.toString('ascii', 0, 5) === '%PDF-';
-}
-
-function isFileExistsError(error: unknown): boolean {
-  return isFileSystemError(error, 'EEXIST');
-}
-
-function isFileNotFoundError(error: unknown): boolean {
-  return isFileSystemError(error, 'ENOENT');
-}
-
-function isFileSystemError(error: unknown, code: string): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    error.code === code
-  );
 }

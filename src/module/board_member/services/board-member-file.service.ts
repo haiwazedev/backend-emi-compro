@@ -1,16 +1,12 @@
-import { randomUUID } from 'node:crypto';
-import { open, mkdir, rename, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { ApiError } from '../../../shared/errors/api-error.js';
 import { getPictureDimensions } from '../../../shared/files/picture-file.js';
+import {
+  contentTypeForPublicPath,
+  s3FileStorage,
+} from '../../../shared/storage/s3-file-storage.js';
 
 const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
-const publicBoardMemberDirectory = path.resolve(
-  process.cwd(),
-  'public',
-  'board_member',
-);
-
 export type BoardMemberPhotoDetails = {
   extension: string;
 };
@@ -44,56 +40,21 @@ export class BoardMemberFileService {
     buffer: Buffer,
   ): Promise<BoardMemberPhotoReplacement> {
     const photoPath = buildPublicPath(memberId, details.extension);
-    const destination = getFilePath(memberId, details.extension);
-    const suffix = randomUUID();
-    const temporaryPath = path.join(
-      publicBoardMemberDirectory,
-      `.board-member-${suffix}.tmp`,
+    const replacement = await s3FileStorage.replace(
+      photoPath,
+      buffer,
+      contentTypeForPublicPath(photoPath),
     );
-    const backupPath = path.join(
-      publicBoardMemberDirectory,
-      `.board-member-${suffix}.bak`,
-    );
-
-    await mkdir(publicBoardMemberDirectory, { recursive: true });
-    await this.writeTemporaryFile(temporaryPath, buffer);
-
-    let backupExists = false;
-    try {
-      try {
-        await rename(destination, backupPath);
-        backupExists = true;
-      } catch (error) {
-        if (!isFileNotFoundError(error)) throw error;
-      }
-
-      await rename(temporaryPath, destination);
-    } catch (error) {
-      await rm(temporaryPath, { force: true });
-      if (backupExists) await rename(backupPath, destination);
-      throw error;
-    }
 
     return {
       photoPath,
       commitAfterTransaction: async () => {
-        if (backupExists) {
-          await rm(backupPath, { force: true }).catch((error: unknown) => {
-            console.error(
-              'Unable to remove a replaced board member photo.',
-              error,
-            );
-          });
-        }
-
+        await replacement.commitAfterTransaction();
         if (previousPhotoPath !== photoPath) {
           await this.removeAfterCommit(previousPhotoPath);
         }
       },
-      rollbackAfterFailure: async () => {
-        await rm(destination, { force: true });
-        if (backupExists) await rename(backupPath, destination);
-      },
+      rollbackAfterFailure: () => replacement.rollbackAfterFailure(),
     };
   }
 
@@ -102,37 +63,15 @@ export class BoardMemberFileService {
     if (!filename) return;
 
     try {
-      await rm(path.join(publicBoardMemberDirectory, filename), {
-        force: true,
-      });
+      await s3FileStorage.remove(`/public/board_member/${filename}`);
     } catch (error) {
       console.error('Unable to remove a board member photo.', error);
-    }
-  }
-
-  private async writeTemporaryFile(
-    destination: string,
-    buffer: Buffer,
-  ): Promise<void> {
-    const fileHandle = await open(destination, 'wx');
-
-    try {
-      await fileHandle.writeFile(buffer);
-    } catch (error) {
-      await rm(destination, { force: true });
-      throw error;
-    } finally {
-      await fileHandle.close();
     }
   }
 }
 
 function buildPublicPath(memberId: number, extension: string): string {
   return `/public/board_member/${memberId}.${extension}`;
-}
-
-function getFilePath(memberId: number, extension: string): string {
-  return path.join(publicBoardMemberDirectory, `${memberId}.${extension}`);
 }
 
 function getPhotoFilename(photoPath: string | null): string | null {
@@ -143,13 +82,4 @@ function getPhotoFilename(photoPath: string | null): string | null {
   );
 
   return match ? `${match[1]}.${match[2]}` : null;
-}
-
-function isFileNotFoundError(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    error.code === 'ENOENT'
-  );
 }

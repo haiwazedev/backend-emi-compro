@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   createAuthMiddleware,
+  includeDrafts,
   forceDraftUnlessPublisher,
   requireDelete,
   requireWrite,
@@ -28,6 +29,14 @@ faqRouter.get(
   controller.list,
 );
 faqRouter.get('/faqs/:faqId', controller.get);
+faqRouter.get(
+  '/admin/faqs',
+  requireAuth,
+  includeDrafts,
+  validateQuery(faqListQuerySchema, 'faqListQuery'),
+  controller.list,
+);
+faqRouter.get('/admin/faqs/:faqId', requireAuth, includeDrafts, controller.get);
 faqRouter.post(
   '/faqs/reorder',
   requireAuth,

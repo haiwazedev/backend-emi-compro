@@ -16,17 +16,21 @@ type DivisionContentWrite = {
 };
 
 export class DivisionRepository {
-  findMany(query: DivisionListQuery) {
+  findMany(query: DivisionListQuery, includeDrafts: boolean) {
     return prisma.division.findMany({
-      where: query.status ? { status: query.status } : {},
+      where: {
+        ...(query.status ? { status: query.status } : {}),
+        // Last, so the public view overrides any requested status.
+        ...(includeDrafts ? {} : { status: 'PUBLISHED' }),
+      },
       orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
       include: divisionInclude,
     });
   }
 
-  findById(id: number) {
+  findById(id: number, includeDrafts = true) {
     return prisma.division.findUnique({
-      where: { id },
+      where: includeDrafts ? { id } : { id, status: 'PUBLISHED' },
       include: divisionInclude,
     });
   }

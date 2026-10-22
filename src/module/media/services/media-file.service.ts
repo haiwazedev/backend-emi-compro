@@ -19,8 +19,10 @@ export type MediaFileDetails = {
 
 export class MediaFileService {
   describeUpload(file: Express.Multer.File, type: MediaType): MediaFileDetails {
-    const filename = validateFilename(file.originalname);
-    const extension = path.extname(filename).slice(1).toLowerCase();
+    const originalName = validateFilename(file.originalname);
+    const extension = path.extname(originalName).slice(1).toLowerCase();
+    // A timestamp keeps stored filenames unique when users reuse a name.
+    const filename = `${toSlug(originalName)}-${Date.now()}.${extension}`;
     const maxSize = type === 'PICTURE' ? MAX_PICTURE_SIZE : MAX_DOCUMENT_SIZE;
     const maxSizeLabel = type === 'PICTURE' ? '2 MiB' : '5 MiB';
 
@@ -105,6 +107,17 @@ function validateFilename(filename: string): string {
   }
 
   return filename;
+}
+
+function toSlug(filename: string): string {
+  const slug = path
+    .parse(filename)
+    .name.toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 200);
+
+  return slug || 'file';
 }
 
 function buildPublicPath(filename: string): string {

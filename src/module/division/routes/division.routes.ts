@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   createAuthMiddleware,
+  includeDrafts,
   forceDraftUnlessPublisher,
   requireDelete,
   requireWrite,
@@ -28,6 +29,19 @@ divisionRouter.get(
   controller.list,
 );
 divisionRouter.get('/divisions/:divisionId', controller.get);
+divisionRouter.get(
+  '/admin/divisions',
+  requireAuth,
+  includeDrafts,
+  validateQuery(divisionListQuerySchema, 'divisionListQuery'),
+  controller.list,
+);
+divisionRouter.get(
+  '/admin/divisions/:divisionId',
+  requireAuth,
+  includeDrafts,
+  controller.get,
+);
 divisionRouter.post(
   '/divisions/reorder',
   requireAuth,

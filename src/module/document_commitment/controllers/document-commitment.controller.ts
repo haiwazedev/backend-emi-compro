@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import { canSeeDrafts } from '../../auth/auth.middleware.js';
 import { getAuthenticatedUser } from '../../auth/authenticated-user.js';
 import { parseIdParam } from '../../../shared/schemas/common.schema.js';
 import { presentDocumentCommitment } from '../presenters/document-commitment.presenter.js';
@@ -15,7 +16,7 @@ export class DocumentCommitmentController {
   list = async (_req: Request, res: Response): Promise<void> => {
     const query = res.locals
       .documentCommitmentListQuery as DocumentCommitmentListQuery;
-    const result = await this.service.list(query);
+    const result = await this.service.list(query, canSeeDrafts(res));
 
     res.status(200).json({
       documentCommitments: result.documents.map(presentDocumentCommitment),
@@ -26,6 +27,7 @@ export class DocumentCommitmentController {
   get = async (req: Request, res: Response): Promise<void> => {
     const document = await this.service.getById(
       parseIdParam(req.params.documentId),
+      canSeeDrafts(res),
     );
 
     res.status(200).json({

@@ -19,17 +19,17 @@ export class FaqService {
     private readonly activityLogService = new ActivityLogService(),
   ) {}
 
-  async list(query: FaqListQuery) {
+  async list(query: FaqListQuery, includeDrafts: boolean) {
     const [faqs, languages] = await Promise.all([
-      this.repository.findMany(query),
+      this.repository.findMany(query, includeDrafts),
       this.languageService.listActive(),
     ]);
 
     return { faqs, languages };
   }
 
-  async getById(id: number) {
-    const faq = await this.repository.findById(id);
+  async getById(id: number, includeDrafts = true) {
+    const faq = await this.repository.findById(id, includeDrafts);
 
     if (!faq) {
       throw new ApiError(404, 'FAQ was not found.');

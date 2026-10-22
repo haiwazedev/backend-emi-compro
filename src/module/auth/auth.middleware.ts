@@ -1,4 +1,4 @@
-import type { Request, RequestHandler } from 'express';
+import type { Request, RequestHandler, Response } from 'express';
 import { ApiError } from '../../shared/errors/api-error.js';
 import { AuthService } from './auth.service.js';
 import type { Permission } from './auth.types.js';
@@ -40,6 +40,16 @@ export function hasPermission(req: Request, permission: Permission): boolean {
 export const requireWrite = requirePermission('write', 'publish');
 export const requireDelete = requirePermission('delete');
 export const requireManageUsers = requirePermission('manage_users');
+
+// Use after requireAuth on /admin reads. Without it, reads return PUBLISHED data only.
+export const includeDrafts: RequestHandler = (req, res, next) => {
+  res.locals.includeDrafts = req.authenticatedUser !== undefined;
+  next();
+};
+
+export function canSeeDrafts(res: Response): boolean {
+  return res.locals.includeDrafts === true;
+}
 
 // Use after validateBody. Without publish, every save is stored as a draft.
 export const forceDraftUnlessPublisher: RequestHandler = (req, _res, next) => {

@@ -18,12 +18,12 @@ export class DivisionService {
     private readonly activityLogService = new ActivityLogService(),
   ) {}
 
-  list(query: DivisionListQuery) {
-    return this.repository.findMany(query);
+  list(query: DivisionListQuery, includeDrafts: boolean) {
+    return this.repository.findMany(query, includeDrafts);
   }
 
-  async getById(id: number) {
-    const division = await this.repository.findById(id);
+  async getById(id: number, includeDrafts = true) {
+    const division = await this.repository.findById(id, includeDrafts);
 
     if (!division) {
       throw new ApiError(404, 'Division was not found.');

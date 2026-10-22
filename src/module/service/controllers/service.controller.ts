@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import { canSeeDrafts } from '../../auth/auth.middleware.js';
 import { getAuthenticatedUser } from '../../auth/authenticated-user.js';
 import { parseIdParam } from '../../../shared/schemas/common.schema.js';
 import { presentService } from '../presenters/service.presenter.js';
@@ -13,7 +14,7 @@ export class ServiceController {
   constructor(private readonly service = new ServiceService()) {}
 
   list = async (_req: Request, res: Response): Promise<void> => {
-    const services = await this.service.list();
+    const services = await this.service.list(canSeeDrafts(res));
 
     res.status(200).json({ services: services.map(presentService) });
   };
@@ -21,6 +22,7 @@ export class ServiceController {
   get = async (req: Request, res: Response): Promise<void> => {
     const service = await this.service.getById(
       parseIdParam(req.params.serviceId),
+      canSeeDrafts(res),
     );
 
     res.status(200).json({ service: presentService(service) });

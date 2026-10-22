@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import { canSeeDrafts } from '../../auth/auth.middleware.js';
 import { getAuthenticatedUser } from '../../auth/authenticated-user.js';
 import { parseIdParam } from '../../../shared/schemas/common.schema.js';
 import { presentFaq, presentFaqListItem } from '../presenters/faq.presenter.js';
@@ -14,7 +15,10 @@ export class FaqController {
 
   list = async (_req: Request, res: Response): Promise<void> => {
     const query = res.locals.faqListQuery as FaqListQuery;
-    const { faqs, languages } = await this.service.list(query);
+    const { faqs, languages } = await this.service.list(
+      query,
+      canSeeDrafts(res),
+    );
 
     res.status(200).json({
       faqs: faqs.map((faq) =>
@@ -24,7 +28,10 @@ export class FaqController {
   };
 
   get = async (req: Request, res: Response): Promise<void> => {
-    const faq = await this.service.getById(parseIdParam(req.params.faqId));
+    const faq = await this.service.getById(
+      parseIdParam(req.params.faqId),
+      canSeeDrafts(res),
+    );
 
     res.status(200).json({ faq: presentFaq(faq) });
   };

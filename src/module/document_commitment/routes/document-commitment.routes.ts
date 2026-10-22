@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   createAuthMiddleware,
+  includeDrafts,
   forceDraftUnlessPublisher,
   requireDelete,
   requireWrite,
@@ -32,6 +33,22 @@ documentCommitmentRouter.get(
 );
 documentCommitmentRouter.get(
   '/document_commitments/:documentId',
+  controller.get,
+);
+documentCommitmentRouter.get(
+  '/admin/document_commitments',
+  requireAuth,
+  includeDrafts,
+  validateQuery(
+    documentCommitmentListQuerySchema,
+    'documentCommitmentListQuery',
+  ),
+  controller.list,
+);
+documentCommitmentRouter.get(
+  '/admin/document_commitments/:documentId',
+  requireAuth,
+  includeDrafts,
   controller.get,
 );
 documentCommitmentRouter.post(

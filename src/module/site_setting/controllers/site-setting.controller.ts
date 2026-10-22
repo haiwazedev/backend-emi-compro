@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import { canSeeDrafts } from '../../auth/auth.middleware.js';
 import { getAuthenticatedUser } from '../../auth/authenticated-user.js';
 import { presentSiteSetting } from '../presenters/site-setting.presenter.js';
 import type {
@@ -13,13 +14,9 @@ import {
 export class SiteSettingController {
   constructor(private readonly service = new SiteSettingService()) {}
 
-  get = async (req: Request, res: Response): Promise<void> => {
+  get = async (_req: Request, res: Response): Promise<void> => {
     const query = res.locals.siteSettingQuery as SiteSettingQuery;
-    // Signed-in CMS users also see DRAFT social media; the public sees PUBLISHED only.
-    const result = await this.service.get(
-      query.language_id,
-      Boolean(req.session.userId),
-    );
+    const result = await this.service.get(query.language_id, canSeeDrafts(res));
 
     res.status(200).json({ site_settings: presentSiteSetting(result) });
   };

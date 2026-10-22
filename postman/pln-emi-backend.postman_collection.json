@@ -362,8 +362,54 @@
                   "disabled": true
                 },
                 {
+                  "key": "sort_by",
+                  "value": "created_at",
+                  "disabled": true
+                },
+                {
+                  "key": "sort_order",
+                  "value": "desc",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Public. Returns published data only."
+          },
+          "response": []
+        },
+        {
+          "name": "List Article (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/articles?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "articles"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": false
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "disabled": false
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "article_category_id",
+                  "value": "",
+                  "disabled": true
+                },
+                {
                   "key": "status",
-                  "value": "PUBLISHED",
+                  "value": "DRAFT",
                   "disabled": true
                 },
                 {
@@ -378,7 +424,7 @@
                 }
               ]
             },
-            "description": "Public."
+            "description": "Requires login session. Includes drafts."
           },
           "response": []
         },
@@ -392,7 +438,21 @@
               "host": ["{{baseUrl}}"],
               "path": ["articles", "{{articleId}}"]
             },
-            "description": "Public."
+            "description": "Public. Returns published data only."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Article (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/articles/{{articleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "articles", "{{articleId}}"]
+            },
+            "description": "Requires login session. Includes drafts."
           },
           "response": []
         },
@@ -479,16 +539,30 @@
             "url": {
               "raw": "{{baseUrl}}/divisions",
               "host": ["{{baseUrl}}"],
-              "path": ["divisions"],
+              "path": ["divisions"]
+            },
+            "description": "Public. Returns published data only."
+          },
+          "response": []
+        },
+        {
+          "name": "List Division (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/divisions",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "divisions"],
               "query": [
                 {
                   "key": "status",
-                  "value": "PUBLISHED",
+                  "value": "DRAFT",
                   "disabled": true
                 }
               ]
             },
-            "description": "Public."
+            "description": "Requires login session. Includes drafts."
           },
           "response": []
         },
@@ -502,7 +576,21 @@
               "host": ["{{baseUrl}}"],
               "path": ["divisions", "{{divisionId}}"]
             },
-            "description": "Public."
+            "description": "Public. Returns published data only."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Division (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/divisions/{{divisionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "divisions", "{{divisionId}}"]
+            },
+            "description": "Requires login session. Includes drafts."
           },
           "response": []
         },
@@ -619,7 +707,21 @@
               "host": ["{{baseUrl}}"],
               "path": ["services"]
             },
-            "description": "Public."
+            "description": "Public. Returns published data only."
+          },
+          "response": []
+        },
+        {
+          "name": "List Service (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/services",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "services"]
+            },
+            "description": "Requires login session. Includes drafts."
           },
           "response": []
         },
@@ -633,7 +735,21 @@
               "host": ["{{baseUrl}}"],
               "path": ["services", "{{serviceId}}"]
             },
-            "description": "Public."
+            "description": "Public. Returns published data only."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Service (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/services/{{serviceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "services", "{{serviceId}}"]
+            },
+            "description": "Requires login session. Includes drafts."
           },
           "response": []
         },
@@ -1228,15 +1344,51 @@
                   "key": "document_commitment_category_id",
                   "value": "",
                   "disabled": true
+                }
+              ]
+            },
+            "description": "Public. Returns published data only."
+          },
+          "response": []
+        },
+        {
+          "name": "List Document Commitment (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/document_commitments?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "document_commitments"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": false
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "disabled": false
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "document_commitment_category_id",
+                  "value": "",
+                  "disabled": true
                 },
                 {
                   "key": "status",
-                  "value": "PUBLISHED",
+                  "value": "DRAFT",
                   "disabled": true
                 }
               ]
             },
-            "description": "Public."
+            "description": "Requires login session. Includes drafts."
           },
           "response": []
         },
@@ -1250,7 +1402,21 @@
               "host": ["{{baseUrl}}"],
               "path": ["document_commitments", "{{documentId}}"]
             },
-            "description": "Public."
+            "description": "Public. Returns published data only."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Document Commitment (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/document_commitments/{{documentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "document_commitments", "{{documentId}}"]
+            },
+            "description": "Requires login session. Includes drafts."
           },
           "response": []
         },
@@ -1349,16 +1515,30 @@
             "url": {
               "raw": "{{baseUrl}}/faqs",
               "host": ["{{baseUrl}}"],
-              "path": ["faqs"],
+              "path": ["faqs"]
+            },
+            "description": "Public. Returns published data only."
+          },
+          "response": []
+        },
+        {
+          "name": "List FAQ (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/faqs",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "faqs"],
               "query": [
                 {
                   "key": "status",
-                  "value": "PUBLISHED",
+                  "value": "DRAFT",
                   "disabled": true
                 }
               ]
             },
-            "description": "Public."
+            "description": "Requires login session. Includes drafts."
           },
           "response": []
         },
@@ -1372,7 +1552,21 @@
               "host": ["{{baseUrl}}"],
               "path": ["faqs", "{{faqId}}"]
             },
-            "description": "Public."
+            "description": "Public. Returns published data only."
+          },
+          "response": []
+        },
+        {
+          "name": "Get FAQ (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/faqs/{{faqId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "faqs", "{{faqId}}"]
+            },
+            "description": "Requires login session. Includes drafts."
           },
           "response": []
         },
@@ -1752,6 +1946,93 @@
               "path": ["inboxes", "{{inboxId}}"]
             },
             "description": "Requires login session. Permanent delete."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Site Settings",
+      "item": [
+        {
+          "name": "Get Site Settings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/site_settings?language_id=id",
+              "host": ["{{baseUrl}}"],
+              "path": ["site_settings"],
+              "query": [
+                {
+                  "key": "language_id",
+                  "value": "id"
+                }
+              ]
+            },
+            "description": "Public. Returns published social media only."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Site Settings (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/site_settings?language_id=id",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "site_settings"],
+              "query": [
+                {
+                  "key": "language_id",
+                  "value": "id"
+                }
+              ]
+            },
+            "description": "Requires login session. Includes drafts."
+          },
+          "response": []
+        },
+        {
+          "name": "Save Site Settings",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/site_settings",
+              "host": ["{{baseUrl}}"],
+              "path": ["site_settings"]
+            },
+            "description": "Requires login session. `data` is the JSON payload; files are optional.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "data",
+                  "value": "{\n  \"language_id\": \"id\",\n  \"company_name\": \"PT Energy Management Indonesia (Persero)\",\n  \"company_address\": \"Menara Sentraya Lt. 17, Jakarta Selatan 12160\",\n  \"social_medias\": [\n    {\n      \"platform_name\": \"Instagram\",\n      \"platform_url_or_account_name\": \"@ptemi_id\",\n      \"status\": \"PUBLISHED\"\n    }\n  ]\n}",
+                  "type": "text"
+                },
+                {
+                  "key": "danantara_logo",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                },
+                {
+                  "key": "pln_logo",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                },
+                {
+                  "key": "social_icons",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                }
+              ]
+            }
           },
           "response": []
         }

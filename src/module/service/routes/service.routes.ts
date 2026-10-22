@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   createAuthMiddleware,
+  includeDrafts,
   requireDelete,
   requireWrite,
 } from '../../auth/auth.middleware.js';
@@ -21,6 +22,18 @@ export const serviceRouter = Router();
 
 serviceRouter.get('/services', controller.list);
 serviceRouter.get('/services/:serviceId', controller.get);
+serviceRouter.get(
+  '/admin/services',
+  requireAuth,
+  includeDrafts,
+  controller.list,
+);
+serviceRouter.get(
+  '/admin/services/:serviceId',
+  requireAuth,
+  includeDrafts,
+  controller.get,
+);
 serviceRouter.post(
   '/services/reorder',
   requireAuth,

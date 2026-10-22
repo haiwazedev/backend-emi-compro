@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import { canSeeDrafts } from '../../auth/auth.middleware.js';
 import { getAuthenticatedUser } from '../../auth/authenticated-user.js';
 import { parseIdParam } from '../../../shared/schemas/common.schema.js';
 import { ArticleService } from '../services/article.service.js';
@@ -17,7 +18,7 @@ export class ArticleController {
 
   list = async (_req: Request, res: Response): Promise<void> => {
     const query = res.locals.articleListQuery as ArticleListQuery;
-    const result = await this.service.list(query);
+    const result = await this.service.list(query, canSeeDrafts(res));
 
     res.status(200).json({
       articles: result.articles.map((article) =>
@@ -34,6 +35,7 @@ export class ArticleController {
   get = async (req: Request, res: Response): Promise<void> => {
     const article = await this.service.getById(
       parseIdParam(req.params.articleId),
+      canSeeDrafts(res),
     );
 
     res.status(200).json({ article: presentArticle(article) });

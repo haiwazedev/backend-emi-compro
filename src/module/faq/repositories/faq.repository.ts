@@ -8,6 +8,15 @@ export const faqInclude = {
   },
 } satisfies Prisma.FaqInclude;
 
+const publicContent = {
+  status: 'PUBLISHED',
+  language: { isActive: true },
+} satisfies Prisma.FaqContentWhereInput;
+
+const publicFaqInclude = {
+  contents: { ...faqInclude.contents, where: publicContent },
+} satisfies Prisma.FaqInclude;
+
 const faqOrder = [{ sortOrder: 'asc' }, { id: 'asc' }] as const;
 
 type FaqContentData = Omit<
@@ -16,11 +25,13 @@ type FaqContentData = Omit<
 >;
 
 export class FaqRepository {
-  findMany(query: FaqListQuery) {
+  findMany(query: FaqListQuery, includeDrafts: boolean) {
     // One content row must match every content filter together.
     const contentWhere: Prisma.FaqContentWhereInput = {
       ...(query.language_id ? { languageId: query.language_id } : {}),
       ...(query.status ? { status: query.status } : {}),
+      // Last, so the public view overrides any requested status.
+      ...(includeDrafts ? {} : publicContent),
     };
 
     return prisma.faq.findMany({
@@ -29,12 +40,19 @@ export class FaqRepository {
           ? { contents: { some: contentWhere } }
           : {},
       orderBy: [...faqOrder],
-      include: faqInclude,
+      include: includeDrafts ? faqInclude : publicFaqInclude,
     });
   }
 
-  findById(id: number) {
-    return prisma.faq.findUnique({ where: { id }, include: faqInclude });
+  findById(id: number, includeDrafts = true) {
+    if (includeDrafts) {
+      return prisma.faq.findUnique({ where: { id }, include: faqInclude });
+    }
+
+    return prisma.faq.findFirst({
+      where: { id, contents: { some: publicContent } },
+      include: publicFaqInclude,
+    });
   }
 
   create(content: FaqContentData, userName: string) {

@@ -229,6 +229,30 @@ existing social links keep their current status and new links start as
 A missing permission returns `403 Forbidden` with
 `You do not have permission to perform this action.`
 
+## Public and Admin Reads
+
+Public reads return published data only, whether or not a session cookie is
+sent. The CMS reads drafts through `/admin` routes, which require login (any
+signed-in user) and return `401 Unauthorized` without a session.
+
+| Public route (published only)               | Admin route (drafts included)                      |
+| ------------------------------------------- | -------------------------------------------------- |
+| `GET /articles`, `GET /articles/:articleId` | `GET /admin/articles`, `GET /admin/articles/:id`   |
+| `GET /divisions`, `GET /divisions/:id`      | `GET /admin/divisions`, `GET /admin/divisions/:id` |
+| `GET /services`, `GET /services/:id`        | `GET /admin/services`, `GET /admin/services/:id`   |
+| `GET /faqs`, `GET /faqs/:faqId`             | `GET /admin/faqs`, `GET /admin/faqs/:faqId`        |
+| `GET /document_commitments`, `.../:id`      | `GET /admin/document_commitments`, `.../:id`       |
+| `GET /site_settings`                        | `GET /admin/site_settings`                         |
+
+Admin routes take the same query parameters and return the same shapes as their
+public routes. On public routes:
+
+- `status` is ignored; results are always `PUBLISHED`.
+- Articles and FAQs return only `PUBLISHED` contents in active languages, and
+  items without any such content are left out.
+- Services under a `DRAFT` division are left out.
+- A draft item fetched by ID returns `404 Not Found`, the same as a missing one.
+
 ## Site Contents
 
 Per-language content for the Beranda (`home`) and Tentang Kami (`about-us`)
@@ -389,7 +413,9 @@ is case-insensitive and normalized to lowercase, so `ID` and `id` are the same.
 
 ## Articles
 
-Article reads are public. Creating, updating, and deleting articles require an
+Article reads are public and return published content only; the CMS reads
+drafts through `/admin/articles` (see [Public and Admin Reads](#public-and-admin-reads)).
+Creating, updating, and deleting articles require an
 authenticated session. State-changing requests must include the configured
 frontend `Origin` or `Referer` as described under [Browser Sessions](#browser-sessions).
 
@@ -412,16 +438,16 @@ Results are sorted by `created_at` descending by default, with `id` as a stable
 tie-breaker. `sort_by=issue_date` sorts by `issue_date`, then `updated_at`, then
 `id`, all in `sort_order`; articles without an issue date or update come last.
 
-| Query parameter       | Type   | Rules                                                                     |
-| --------------------- | ------ | ------------------------------------------------------------------------- |
-| `page`                | number | Optional, 1-based; default `1`.                                           |
-| `limit`               | number | Optional; default `20`, minimum `1`, maximum `100`.                       |
-| `search`              | string | Optional, case-insensitive substring search in a content `title`.         |
-| `article_category_id` | number | Optional positive category ID filter.                                     |
-| `language_id`         | string | Optional; only articles with content in this language, shown in it.       |
-| `status`              | string | Optional; `DRAFT` or `PUBLISHED`; matches a content row with this status. |
-| `sort_by`             | string | Optional; `created_at` or `issue_date`, default `created_at`.             |
-| `sort_order`          | string | Optional; `asc` or `desc`, default `desc`.                                |
+| Query parameter       | Type   | Rules                                                                                       |
+| --------------------- | ------ | ------------------------------------------------------------------------------------------- |
+| `page`                | number | Optional, 1-based; default `1`.                                                             |
+| `limit`               | number | Optional; default `20`, minimum `1`, maximum `100`.                                         |
+| `search`              | string | Optional, case-insensitive substring search in a content `title`.                           |
+| `article_category_id` | number | Optional positive category ID filter.                                                       |
+| `language_id`         | string | Optional; only articles with content in this language, shown in it.                         |
+| `status`              | string | Optional; `DRAFT` or `PUBLISHED`; matches a content row with this status. Admin route only. |
+| `sort_by`             | string | Optional; `created_at` or `issue_date`, default `created_at`.                               |
+| `sort_order`          | string | Optional; `asc` or `desc`, default `desc`.                                                  |
 
 Provided filters are combined using AND. `search`, `language_id`, and `status`
 must all match the same content row. Invalid query values return `400 Bad
@@ -503,9 +529,11 @@ count toward that language; active languages without content return `0`.
   `contents` holds only `PUBLISHED` content in active languages. A slug that is
   unknown, a draft, or in an inactive language returns `404 Not Found` with
   `Article was not found.`
-- `GET /articles/:articleId` returns `{ "article": ... }` with `200 OK`. The
-  article has the shared header fields and every language's content in
+- `GET /admin/articles/:articleId` returns `{ "article": ... }` with `200 OK`.
+  The article has the shared header fields and every language's content in
   `contents`, ordered by language `sort_order`, then `language_id`.
+  `GET /articles/:articleId` returns the same shape with published contents
+  only.
 - `POST /articles` creates the article header and its first language content,
   then returns `{ "article": ... }` with `201 Created`.
 - `PUT /articles/:articleId` updates the shared fields that are sent and
@@ -619,7 +647,9 @@ if (!response.ok) throw new Error(data.message);
 
 ## Divisions and Services
 
-Division and service reads are public. Creating, updating, deleting, and
+Division and service reads are public and return published divisions only;
+the CMS reads drafts through `/admin/divisions` and `/admin/services` (see
+[Public and Admin Reads](#public-and-admin-reads)). Creating, updating, deleting, and
 reordering require an authenticated session and the configured frontend
 `Origin` or `Referer`, as described under [Browser Sessions](#browser-sessions).
 Requests use JSON. Names, abbreviations, and descriptions are stored per
@@ -632,8 +662,9 @@ Create requests and updates to translated fields require an active
 ### Divisions
 
 - `GET /divisions` returns `{ "divisions": [...] }` with `200 OK`, ordered by
-  `sort_order` and then ID. The optional `status` query parameter filters the
-  results to `DRAFT` or `PUBLISHED`; omitting it returns all divisions.
+  `sort_order` and then ID. `GET /admin/divisions` also accepts an optional
+  `status` query parameter that filters the results to `DRAFT` or
+  `PUBLISHED`; omitting it returns all divisions.
 - `GET /divisions/:divisionId` returns `{ "division": ... }` with `200 OK`.
 - `POST /divisions` creates a division and returns `{ "division": ... }` with
   `201 Created`. The division is appended to the current list.
@@ -722,7 +753,7 @@ array succeeds only when there are no divisions. A successful reorder assigns
 { "division_ids": [4, 1, 3] }
 ```
 
-For example, `GET /divisions?status=PUBLISHED` returns only published
+For example, `GET /admin/divisions?status=DRAFT` returns only draft
 divisions. Invalid status values and unknown query parameters return
 `400 Bad Request`.
 
@@ -1010,6 +1041,11 @@ publicly available under `/public/media/`.
 ### Upload media
 
 `POST /media` accepts `multipart/form-data` with a `type` field (`PICTURE` or
+`DOCUMENT`) and a file field named `file`. The file is stored as
+`{name}-{timestamp}.{extension}`, where `{name}` is the uploaded filename
+lowercased with non-alphanumeric characters replaced by `-`, so the same
+filename can be uploaded more than once. `filename` is that stored name and
+`path` is its public path.
 `DOCUMENT`) and a file field named `file`. The original filename is preserved
 as the S3 object name and must not already exist. Its URL-encoded public path is
 stored in `path`.
@@ -1030,8 +1066,8 @@ A successful upload returns `201 Created`:
 {
   "media": {
     "id": 18,
-    "filename": "company-news.jpg",
-    "path": "/public/media/company-news.jpg",
+    "filename": "company-news-1791892200000.jpg",
+    "path": "/public/media/company-news-1791892200000.jpg",
     "extension": "jpg",
     "type": "PICTURE",
     "size": 184,
@@ -1160,8 +1196,10 @@ unchanged on update.
 
 ### Documents
 
-- `GET /document_commitments` returns
+- `GET /document_commitments` returns published documents as
   `{ "documentCommitments": [...], "pagination": ... }` with `200 OK`.
+  `GET /admin/document_commitments` and `GET /admin/document_commitments/:documentId`
+  include drafts (see [Public and Admin Reads](#public-and-admin-reads)).
 - `GET /document_commitments/:documentId` returns
   `{ "documentCommitment": ... }` with `200 OK`.
 - `POST /document_commitments` creates a document commitment and returns
@@ -1181,6 +1219,11 @@ fields:
 | `status`                          | string | Optional; `DRAFT` or `PUBLISHED`; defaults to `DRAFT`. |
 | `file`                            | file   | Required; valid PDF, maximum 50 MiB.                   |
 
+The server stores each file at `public/document_commitment/{filename}`, where
+`filename` is `{name}-{timestamp}.pdf` and `{name}` is the uploaded filename
+lowercased with non-alphanumeric characters replaced by `-`, so the same
+filename can be uploaded more than once. `file_path` is the public path, and
+`size` is rounded up to KiB (1024 bytes).
 The server stores each file in the SeaweedFS bucket under
 `document_commitment/{filename}`, using the original uploaded filename.
 `file_path` contains the URL-encoded public path, and `size` is rounded up to
@@ -1192,6 +1235,8 @@ defaults to the current time.
 
 Updates are partial. Send JSON to update metadata only, or use
 `multipart/form-data` to replace the PDF and optionally update metadata. When
+no file is sent, the existing PDF is kept. A replacement PDF gets a new stored
+filename, and the old file is removed after the database update commits. Every update
 no file is sent, the existing PDF is kept. Replacing a PDF with the same
 filename replaces that document's file in place. A filename used by another
 document returns `409 Conflict`. A new filename moves the document to the new
@@ -1224,7 +1269,7 @@ if (!response.ok) throw new Error(data.message);
 | `limit`                           | number | Optional; default `20`, minimum `1`, maximum `100`.     |
 | `search`                          | string | Optional, case-insensitive substring search in `title`. |
 | `document_commitment_category_id` | number | Optional positive category ID filter.                   |
-| `status`                          | string | Optional; `DRAFT` or `PUBLISHED`.                       |
+| `status`                          | string | Optional; `DRAFT` or `PUBLISHED`. Admin route only.     |
 
 Filters are combined using AND. Results are ordered by `uploaded_at` descending
 with ID as a stable tie-breaker. Invalid query values return `400 Bad Request`.
@@ -1237,8 +1282,8 @@ A document response has this shape:
     "id": 21,
     "document_commitment_category_id": 2,
     "title": "Board decision 2026-10",
-    "file_path": "/public/document_commitment/board-decision-2026-10.pdf",
-    "filename": "board-decision-2026-10.pdf",
+    "file_path": "/public/document_commitment/board-decision-2026-10-1791720600000.pdf",
+    "filename": "board-decision-2026-10-1791720600000.pdf",
     "size": 420,
     "status": "PUBLISHED",
     "uploaded_at": "2026-10-11T10:30:00.000Z",
@@ -1259,7 +1304,9 @@ return `413 Payload Too Large`.
 
 ## FAQs
 
-FAQ reads are public. Creating, updating, deleting, and reordering require an
+FAQ reads are public and return published content only; the CMS reads drafts
+through `/admin/faqs` (see [Public and Admin Reads](#public-and-admin-reads)).
+Creating, updating, deleting, and reordering require an
 authenticated session and the configured frontend `Origin` or `Referer`, as
 described under [Browser Sessions](#browser-sessions). Requests use JSON.
 
@@ -1270,10 +1317,10 @@ content must exist before any other language.
 - `GET /faqs` returns `{ "faqs": [...] }` with `200 OK`, ordered by
   `sort_order` and then ID. Optional `language_id` and `status` query
   parameters keep FAQs that have one content matching both; omitting both
-  returns all FAQs. The public site should request
-  `GET /faqs?language_id=en&status=PUBLISHED`.
-- `GET /faqs/:faqId` returns `{ "faq": ... }` with every language's content
-  and `200 OK`.
+  returns all FAQs. On the public route `status` is always `PUBLISHED`, so the
+  public site requests `GET /faqs?language_id=en`.
+- `GET /admin/faqs/:faqId` returns `{ "faq": ... }` with every language's
+  content and `200 OK`. `GET /faqs/:faqId` returns published contents only.
 - `POST /faqs` creates an FAQ with its first content and returns
   `{ "faq": ... }` with `201 Created`. The FAQ is appended to the list. The
   first content must use `language_id: "id"`; other languages return
@@ -1624,8 +1671,9 @@ language is also `null`. The CMS disables inputs whose key is `null`.
 - `GET /site_settings?language_id=id` is public and returns
   `{ "site_settings": ... }` with `200 OK`. `language_id` is optional and
   defaults to Bahasa Indonesia (`id`); an unknown or inactive language returns
-  `400 Bad Request`. Signed-in users receive every social media item; everyone
-  else receives only `PUBLISHED` items.
+  `400 Bad Request`. It returns only `PUBLISHED` social media items.
+  `GET /admin/site_settings` requires login and returns every item, drafts
+  included.
 - `PUT /site_settings` requires an authenticated session and the configured
   frontend `Origin` or `Referer`. It saves the setting values for
   `language_id`, replaces the whole social media list, and returns
@@ -1975,6 +2023,49 @@ and their categories, FAQs, media, site contents, and site settings).
 `memperbarui layanan`, `menghapus dokumen`, or `memperbarui urutan`.
 `action_result` is the item's name or title in the default language. Inbox and
 auth actions are not logged.
+
+## Search
+
+`GET /admin/search?q=kompas` requires login and returns up to 5 matches per
+group with `200 OK`. Drafts are included. Matching is a case-insensitive
+substring match across all languages; each item appears once, with the
+language of the matching content.
+
+| Query parameter | Type   | Rules                                   |
+| --------------- | ------ | --------------------------------------- |
+| `q`             | string | Required, trimmed, 2 to 100 characters. |
+
+| Group                  | Matched fields                                      |
+| ---------------------- | --------------------------------------------------- |
+| `articles`             | `title`, `summary`                                  |
+| `document_commitments` | `title`                                             |
+| `divisions`            | `name`, `abbr`, `description`                       |
+| `services`             | `name`, `description`                               |
+| `board_members`        | `name`, `company_name`, `role`, `description`       |
+| `faqs`                 | `question`, `answer`                                |
+| `users`                | `name`, `email`                                     |
+| `inboxes`              | `name`, `email`, `company`, `message`, subject name |
+
+```json
+{
+  "articles": [
+    { "id": 3, "language_id": "id", "title": "Kompas.com x PLN EMI" }
+  ],
+  "document_commitments": [{ "id": 2, "title": "Laporan Tahunan 2025" }],
+  "divisions": [{ "id": 1, "language_id": "id", "title": "Energi Terbarukan" }],
+  "services": [],
+  "board_members": [{ "id": 7, "title": "Budi Santoso" }],
+  "faqs": [{ "id": 4, "language_id": "en", "title": "What is PLN EMI?" }],
+  "users": [{ "id": 2, "title": "Neni A." }],
+  "inboxes": [{ "id": 9, "title": "Budi" }]
+}
+```
+
+`title` is the article/document title, division/service/board member/user/inbox sender name, or FAQ
+question. Document commitments, board members, users, and inboxes have no `language_id`.
+`users` is always empty unless the caller has the `manage_users` permission;
+user emails are matched but never returned. A missing or invalid `q`
+returns `400`.
 
 ## Public Static Assets
 

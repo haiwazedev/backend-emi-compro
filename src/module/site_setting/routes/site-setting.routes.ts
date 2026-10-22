@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   createAuthMiddleware,
+  includeDrafts,
   requireWrite,
 } from '../../auth/auth.middleware.js';
 import { AuthService } from '../../auth/auth.service.js';
@@ -24,6 +25,13 @@ export const siteSettingRouter = Router();
 
 siteSettingRouter.get(
   '/site_settings',
+  validateQuery(siteSettingQuerySchema, 'siteSettingQuery'),
+  controller.get,
+);
+siteSettingRouter.get(
+  '/admin/site_settings',
+  requireAuth,
+  includeDrafts,
   validateQuery(siteSettingQuerySchema, 'siteSettingQuery'),
   controller.get,
 );

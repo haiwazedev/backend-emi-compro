@@ -15,8 +15,9 @@ export class AuthService {
 
   async login({ email, password }: LoginInput): Promise<AuthResult> {
     const user = await this.repository.findByEmail(email);
+    // Invited users have no password until they activate.
     const passwordMatches =
-      user !== null && (await argon2.verify(user.password, password));
+      user?.password != null && (await argon2.verify(user.password, password));
 
     if (!user || !passwordMatches) {
       throw new ApiError(401, 'Invalid email or password.');

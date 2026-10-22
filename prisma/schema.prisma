@@ -42,14 +42,38 @@ enum MediaType {
   @@map("media_type")
 }
 
+enum UserTokenPurpose {
+  INVITE
+  RESET
+
+  @@map("user_token_purpose")
+}
+
 model User {
-  id       Int       @id @default(autoincrement())
-  name     String
-  email    String    @unique
-  password String
-  userRole UserRole?
+  id                Int         @id @default(autoincrement())
+  name              String
+  email             String      @unique
+  // Null until the user accepts the invite.
+  password          String?
+  passwordChangedAt DateTime?   @map("password_changed_at") @db.Timestamptz(6)
+  userRole          UserRole?
+  tokens            UserToken[]
 
   @@map("users")
+}
+
+model UserToken {
+  id        Int              @id @default(autoincrement())
+  userId    Int              @map("user_id")
+  // SHA-256 of the emailed token; the raw token is never stored.
+  tokenHash String           @unique @map("token_hash") @db.VarChar(64)
+  purpose   UserTokenPurpose
+  expiresAt DateTime         @map("expires_at") @db.Timestamptz(6)
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([userId])
+  @@map("user_tokens")
 }
 
 model Role {

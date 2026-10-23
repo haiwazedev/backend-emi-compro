@@ -1,19 +1,7 @@
 import 'dotenv/config';
-import nodemailer from 'nodemailer';
 
-const smtpPort = Number(getRequiredEnvironmentVariable('SMTP_PORT'));
+const resendApiKey = getRequiredEnvironmentVariable('RESEND_API_KEY');
 const mailFrom = getRequiredEnvironmentVariable('MAIL_FROM');
-
-const transporter = nodemailer.createTransport({
-  host: getRequiredEnvironmentVariable('SMTP_HOST'),
-  port: smtpPort,
-  // Port 465 is implicit TLS; other ports upgrade with STARTTLS.
-  secure: smtpPort === 465,
-  auth: {
-    user: getRequiredEnvironmentVariable('SMTP_USER'),
-    pass: getRequiredEnvironmentVariable('SMTP_PASSWORD'),
-  },
-});
 
 export type MailMessage = {
   to: string;
@@ -22,8 +10,23 @@ export type MailMessage = {
   html: string;
 };
 
+// https://resend.com/docs/api-reference/emails/send-email
 export async function sendMail(message: MailMessage): Promise<void> {
-  await transporter.sendMail({ from: mailFrom, ...message });
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${resendApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ from: mailFrom, ...message }),
+    signal: AbortSignal.timeout(10_000),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Resend responded with ${response.status}: ${await response.text()}`,
+    );
+  }
 }
 
 function getRequiredEnvironmentVariable(name: string): string {

@@ -27,6 +27,7 @@ import { connectRedis, redisClient } from './shared/db/redis.js';
 import { validateRequestOrigin } from './shared/middlewares/csrf.middleware.js';
 import { errorHandler } from './shared/middlewares/error.middleware.js';
 import { publicFileMiddleware } from './shared/middlewares/public-file.middleware.js';
+import { securityHeaders } from './shared/middlewares/security-headers.middleware.js';
 import { sessionMiddleware } from './shared/middlewares/session.middleware.js';
 
 const app = express();
@@ -34,6 +35,7 @@ const PORT = process.env.PORT || 8000;
 
 app.set('trust proxy', 1);
 
+app.use(securityHeaders);
 app.use('/public', cors(), publicFileMiddleware);
 // Before session middleware so browsing the docs does not create sessions.
 app.use(documentationRouter);

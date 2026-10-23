@@ -1128,7 +1128,7 @@ publicly available under `/public/media/`.
 
 `POST /media` accepts `multipart/form-data` with a `type` field (`PICTURE` or
 `DOCUMENT`) and a file field named `file`. The file is stored as
-`{name}-{timestamp}.{extension}`, where `{name}` is the uploaded filename
+`{name}-{random}.{extension}`, where `{name}` is the uploaded filename
 lowercased with non-alphanumeric characters replaced by `-`, so the same
 filename can be uploaded more than once. `filename` is that stored name and
 `path` is its public path.
@@ -1152,8 +1152,8 @@ A successful upload returns `201 Created`:
 {
   "media": {
     "id": 18,
-    "filename": "company-news-1791892200000.jpg",
-    "path": "/public/media/company-news-1791892200000.jpg",
+    "filename": "company-news-3f9a1c7e5b2d4086.jpg",
+    "path": "/public/media/company-news-3f9a1c7e5b2d4086.jpg",
     "extension": "jpg",
     "type": "PICTURE",
     "size": 184,
@@ -1286,6 +1286,8 @@ unchanged on update.
   `{ "documentCommitments": [...], "pagination": ... }` with `200 OK`.
   `GET /admin/document_commitments` and `GET /admin/document_commitments/:documentId`
   include drafts (see [Public and Admin Reads](#public-and-admin-reads)).
+- `GET /admin/document_commitments/:documentId/file` streams the document's
+  PDF, drafts included, and requires login.
 - `GET /document_commitments/:documentId` returns
   `{ "documentCommitment": ... }` with `200 OK`.
 - `POST /document_commitments` creates a document commitment and returns
@@ -1305,28 +1307,25 @@ fields:
 | `status`                          | string | Optional; `DRAFT` or `PUBLISHED`; defaults to `DRAFT`. |
 | `file`                            | file   | Required; valid PDF, maximum 50 MiB.                   |
 
-The server stores each file at `public/document_commitment/{filename}`, where
-`filename` is `{name}-{timestamp}.pdf` and `{name}` is the uploaded filename
-lowercased with non-alphanumeric characters replaced by `-`, so the same
-filename can be uploaded more than once. `file_path` is the public path, and
-`size` is rounded up to KiB (1024 bytes).
 The server stores each file in the SeaweedFS bucket under
-`document_commitment/{filename}`, using the original uploaded filename.
-`file_path` contains the URL-encoded public path, and `size` is rounded up to
-KiB (1024 bytes). Filenames must be safe
-basenames and unique across document commitments. Reusing a filename returns
-`409 Conflict`; the server never overwrites an unrelated file.
+`document_commitment/{filename}`, where `filename` is `{name}-{random}.pdf`,
+`{name}` is the uploaded filename lowercased with non-alphanumeric characters
+replaced by `-`, and `{random}` is 16 random hexadecimal characters, so the
+same filename can be uploaded more than once. `file_path` is the URL-encoded
+public path, and `size` is rounded up to KiB (1024 bytes).
 The authenticated user's name is stored in `uploaded_by`; `uploaded_at`
 defaults to the current time.
+
+`file_path` only serves `PUBLISHED` documents; a draft's file returns
+`404 Not Found`. The CMS opens any document's PDF, drafts included, through
+`GET /admin/document_commitments/:documentId/file`, which requires login,
+streams the PDF with `Cache-Control: private, no-store`, and returns
+`404 Not Found` for a missing document.
 
 Updates are partial. Send JSON to update metadata only, or use
 `multipart/form-data` to replace the PDF and optionally update metadata. When
 no file is sent, the existing PDF is kept. A replacement PDF gets a new stored
 filename, and the old file is removed after the database update commits. Every update
-no file is sent, the existing PDF is kept. Replacing a PDF with the same
-filename replaces that document's file in place. A filename used by another
-document returns `409 Conflict`. A new filename moves the document to the new
-path and removes the old file after the database update commits. Every update
 sets `updated_at` and `updated_by` to the current time and authenticated user's
 name.
 
@@ -1368,8 +1367,8 @@ A document response has this shape:
     "id": 21,
     "document_commitment_category_id": 2,
     "title": "Board decision 2026-10",
-    "file_path": "/public/document_commitment/board-decision-2026-10-1791720600000.pdf",
-    "filename": "board-decision-2026-10-1791720600000.pdf",
+    "file_path": "/public/document_commitment/board-decision-2026-10-3f9a1c7e5b2d4086.pdf",
+    "filename": "board-decision-2026-10-3f9a1c7e5b2d4086.pdf",
     "size": 420,
     "status": "PUBLISHED",
     "uploaded_at": "2026-10-11T10:30:00.000Z",
@@ -1562,9 +1561,9 @@ file. The authenticated user's name is stored in `created_by`; updates set
 
 Logos are uploaded directly and are not part of the media library. The server
 stores each logo in the SeaweedFS bucket under
-`clients/{name}-{timestamp}.{extension}`, where
+`clients/{name}-{random}.{extension}`, where
 `{name}` is the uploaded filename lowercased with non-alphanumeric characters
-replaced by `-`, and `{timestamp}` is the upload time in milliseconds. The
+replaced by `-`, and `{random}` is 16 random hexadecimal characters. The
 response's `logo_filepath` is the corresponding `/public/clients/...` path.
 The response also includes:
 
@@ -1604,8 +1603,8 @@ The response shape is:
   "client": {
     "id": 1,
     "name": "Accenture",
-    "logo_filename": "accenture-1791913320264.png",
-    "logo_filepath": "/public/clients/accenture-1791913320264.png",
+    "logo_filename": "accenture-3f9a1c7e5b2d4086.png",
+    "logo_filepath": "/public/clients/accenture-3f9a1c7e5b2d4086.png",
     "logo_extension": "png",
     "logo_size": 18,
     "logo_metadata": { "width": 400, "height": 160 },
@@ -1810,8 +1809,8 @@ save succeeds.
 
 Uploaded SVG files are sanitized: scripts, event handlers, `foreignObject`, and
 `javascript:` links are removed, and a file with no valid `<svg>` left returns
-`400 Bad Request`. Logos are stored at `/public/site-logo-{name}-{timestamp}.{extension}`
-and icons at `/public/site-social-medias/site-social-media-{name}-{timestamp}.svg`.
+`400 Bad Request`. Logos are stored at `/public/site-logo-{name}-{random}.{extension}`
+and icons at `/public/site-social-medias/site-social-media-{name}-{random}.svg`.
 Both paths resolve to objects in the configured SeaweedFS bucket.
 Only the logo filepath is kept. `icon_metadata` is the pixel `width` and
 `height` for raster images and `{}` for SVG.
@@ -1882,7 +1881,7 @@ The response shape is:
     "company_name": "PT Energy Management Indonesia (Persero)",
     "company_short_name": "PLN EMI",
     "danantara_logo_filepath": "",
-    "pln_logo_filepath": "/public/site-logo-pln-emi-1792136400000.svg",
+    "pln_logo_filepath": "/public/site-logo-pln-emi-3f9a1c7e5b2d4086.svg",
     "company_address": "Menara Sentraya Lt. 17, Jakarta Selatan 12160",
     "company_location_lat": -6.2249,
     "company_location_long": 106.8172,
@@ -1899,8 +1898,8 @@ The response shape is:
         "id": 2,
         "platform_name": "YouTube",
         "platform_url_or_account_name": "@EnergyManagementIndonesia",
-        "icon_filename": "site-social-media-youtube-1792136400001.svg",
-        "icon_filepath": "/public/site-social-medias/site-social-media-youtube-1792136400001.svg",
+        "icon_filename": "site-social-media-youtube-3f9a1c7e5b2d4086.svg",
+        "icon_filepath": "/public/site-social-medias/site-social-media-youtube-3f9a1c7e5b2d4086.svg",
         "icon_extension": "svg",
         "icon_size": 1,
         "icon_metadata": {},

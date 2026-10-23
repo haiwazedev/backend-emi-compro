@@ -51,6 +51,11 @@ documentCommitmentRouter.get(
   includeDrafts,
   controller.get,
 );
+documentCommitmentRouter.get(
+  '/admin/document_commitments/:documentId/file',
+  requireAuth,
+  controller.file,
+);
 documentCommitmentRouter.post(
   '/document_commitments',
   requireAuth,

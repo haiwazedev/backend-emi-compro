@@ -28,6 +28,15 @@ export const publicFileMiddleware: RequestHandler = async (req, res, next) => {
     return;
   }
 
+  await sendStoredFile(req, res, next, publicPath);
+};
+
+export async function sendStoredFile(
+  req: Parameters<RequestHandler>[0],
+  res: Parameters<RequestHandler>[1],
+  next: Parameters<RequestHandler>[2],
+  publicPath: string,
+): Promise<void> {
   try {
     if (req.method === 'HEAD') {
       const result = await s3FileStorage.head(publicPath);
@@ -62,7 +71,7 @@ export const publicFileMiddleware: RequestHandler = async (req, res, next) => {
 
     next(error);
   }
-};
+}
 
 function setFileHeaders(
   res: Parameters<RequestHandler>[1],

@@ -470,6 +470,13 @@ const routes: Routes = {
       auth: true,
     },
   },
+  '/admin/document_commitments/{documentId}/file': {
+    get: {
+      tag: 'Document commitments',
+      summary: 'Download a document commitment PDF, drafts included',
+      auth: true,
+    },
+  },
 
   '/divisions': {
     get: {

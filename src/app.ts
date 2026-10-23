@@ -8,6 +8,7 @@ import { authRouter } from './module/auth/auth.routes.js';
 import { boardMemberRouter } from './module/board_member/routes/board-member.routes.js';
 import { clientRouter } from './module/client/routes/client.routes.js';
 import { divisionRouter } from './module/division/routes/division.routes.js';
+import { requirePublishedDocumentFile } from './module/document_commitment/middlewares/published-document-file.middleware.js';
 import { documentCommitmentCategoryRouter } from './module/document_commitment/routes/document-commitment-category.routes.js';
 import { documentCommitmentRouter } from './module/document_commitment/routes/document-commitment.routes.js';
 import { documentationRouter } from './module/documentation/documentation.routes.js';
@@ -36,6 +37,7 @@ const PORT = process.env.PORT || 8000;
 app.set('trust proxy', 1);
 
 app.use(securityHeaders);
+app.use('/public/document_commitment', requirePublishedDocumentFile);
 app.use('/public', cors(), publicFileMiddleware);
 // Before session middleware so browsing the docs does not create sessions.
 app.use(documentationRouter);

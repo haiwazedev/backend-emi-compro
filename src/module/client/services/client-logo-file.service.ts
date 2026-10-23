@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { ApiError } from '../../../shared/errors/api-error.js';
 import { getPictureDimensions } from '../../../shared/files/picture-file.js';
@@ -30,7 +31,7 @@ export class ClientLogoFileService {
     }
 
     const metadata = getPictureDimensions(buffer, extension);
-    const filename = `${toSlug(originalName)}-${Date.now()}.${extension}`;
+    const filename = `${toSlug(originalName)}-${randomBytes(8).toString('hex')}.${extension}`;
 
     const filepath = publicClientPath + filename;
     await s3FileStorage.store(

@@ -324,7 +324,7 @@ function isManagedObjectKey(key: string): boolean {
     case 'board_member':
       return /^\d+\.(png|jpe?g)$/i.test(segments[1]);
     case 'clients':
-      return /^[a-z0-9-]+-\d+\.(png|jpe?g|webp)$/i.test(segments[1]);
+      return /^[a-z0-9-]+\.(png|jpe?g|webp)$/i.test(segments[1]);
     case 'site-social-medias':
       return /^site-social-media-[^/]+\.svg$/i.test(segments[1]);
     default:

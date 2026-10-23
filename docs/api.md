@@ -26,9 +26,9 @@ also require `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, and `S3_SECRET_KEY`
 for the SeaweedFS S3 gateway. `S3_REGION` defaults to `us-east-1`; the bucket
 must already exist. Storage requests return `503 Service Unavailable` when S3
 is unavailable or not configured. Invite and password reset emails require
-`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and `MAIL_FROM`; the
-server does not start without them. Port `465` uses implicit TLS; other ports
-use STARTTLS.
+`RESEND_API_KEY` and `MAIL_FROM` (an address on a domain verified in
+Resend); the
+server does not start without them.
 
 ## Swagger
 

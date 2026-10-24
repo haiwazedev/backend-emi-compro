@@ -2217,6 +2217,25 @@
       ]
     },
     {
+      "name": "App Configs",
+      "item": [
+        {
+          "name": "List App Configs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app_configs",
+              "host": ["{{baseUrl}}"],
+              "path": ["app_configs"]
+            },
+            "description": "Requires login session."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "System",
       "item": [
         {

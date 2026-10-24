@@ -310,7 +310,11 @@ Without `publish`, saves of articles, FAQs, divisions, and document
 commitments are stored with `status: "DRAFT"`, whatever the body sends.
 Editing a published item therefore unpublishes it. On `PUT /site_settings`,
 existing social links keep their current status and new links start as
-`DRAFT`.
+`DRAFT`. Removing existing social links there needs `delete`.
+
+To keep someone able to manage users, `manage_users` users cannot delete
+themselves or their own role, change their own role or deactivate themselves,
+or remove `manage_users` from their own role. These return `400 Bad Request`.
 
 A missing permission returns `403 Forbidden` with
 `You do not have permission to perform this action.`
@@ -1830,7 +1834,8 @@ Each `social_medias` item:
 | `icon_index`                   | integer | Optional; index into the uploaded `social_icons` files. Omit to keep the current icon. |
 
 The list is synced to the request: existing items missing from
-`social_medias` are deleted with their icon files, and `sort_order` follows the
+`social_medias` are deleted with their icon files (this needs the `delete`
+permission, or it returns `403 Forbidden`), and `sort_order` follows the
 array position starting at 1. Replaced logos and icons are removed after the
 save succeeds.
 
@@ -2019,7 +2024,8 @@ stable keys; show your own labels in the UI.
 - `PUT /role_permissions/:roleId/:permissionId` sets `is_allowed` and returns
   `{ "rolePermission": ... }` with `200 OK`. The body sets the value rather
   than flipping it, so retries are safe. An unknown pair returns
-  `404 Not Found`.
+  `404 Not Found`. Removing `manage_users` from a role you hold returns
+  `400 Bad Request`.
 
 ```json
 { "is_allowed": true }
@@ -2059,7 +2065,9 @@ stable keys; show your own labels in the UI.
   with `User has already activated their account.` once the user has a
   password, and `502 Bad Gateway` if the email cannot be sent.
 - `PUT /users/:userId` partially updates a user and returns
-  `{ "user": ... }` with `200 OK`.
+  `{ "user": ... }` with `200 OK`. Changing your own `role_id` or setting your
+  own `is_active` to `false` returns `400 Bad Request`; sending your current
+  values is allowed.
 - `DELETE /users/:userId` returns `204 No Content`. Deleting your own account
   returns `400 Bad Request`. The user's activity log entries are kept.
 

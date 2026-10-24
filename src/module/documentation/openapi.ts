@@ -795,6 +795,13 @@ const routes: Routes = {
       body: createUserBodySchema,
     },
   },
+  '/users/count': {
+    get: {
+      tag: 'Users',
+      summary: 'Count users, pending invites included',
+      auth: true,
+    },
+  },
   '/users/{userId}/invite': {
     post: {
       tag: 'Users',
@@ -812,6 +819,14 @@ const routes: Routes = {
       body: updateUserBodySchema,
     },
     delete: { tag: 'Users', summary: 'Delete a user', auth: true, status: 204 },
+  },
+
+  '/app_configs': {
+    get: {
+      tag: 'App configs',
+      summary: 'List app configs as a key-value object',
+      auth: true,
+    },
   },
 
   '/health': { get: { tag: 'Health', summary: 'Health check' } },

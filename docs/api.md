@@ -1919,7 +1919,6 @@ The response shape is:
     "operational_day": "Senin - Jumat",
     "operational_start_time": "08:00",
     "operational_end_time": "17:00",
-    "landing_site_url": "https://www.example.com",
     "social_medias": [
       {
         "id": 2,
@@ -1946,9 +1945,7 @@ The response shape is:
 }
 ```
 
-`landing_site_url` is read-only here: it is set directly in the
-`site_settings` table (key `landing_site_url`) and is `null` when that row is
-missing for the language. The CMS reads it from `language_id=id`.
+The landing site URL is an [app config](#app-configs), not a site setting.
 
 Invalid fields, files, or `icon_index` references return
 `400 Bad Request`; an unknown social media `id` returns
@@ -2046,9 +2043,13 @@ stable keys; show your own labels in the UI.
 
 - `GET /users` returns `{ "users": [...], "pagination": ... }` with `200 OK`,
   sorted by name.
+- `GET /users/count` returns the number of users, pending invites included,
+  as `{ "total": 7 }` with `200 OK`.
 - `GET /users/:userId` returns `{ "user": ... }` with `200 OK`.
 - `POST /users` invites a user and returns `{ "user": ... }` with
-  `201 Created`. The user starts inactive with no password (`is_pending: true`)
+  `201 Created`. When the user count (pending invites included) has reached
+  the `max_users` [app config](#app-configs), it returns `403 Forbidden` with
+  `The user limit of 10 has been reached. Delete a user before adding another.` The user starts inactive with no password (`is_pending: true`)
   and is emailed an activation link valid for 72 hours (see
   [Activate Account](#activate-account)). If the email cannot be sent, the
   user is still created and the request returns `502 Bad Gateway` with
@@ -2104,6 +2105,28 @@ accepts the invite. `last_signed_in` is set on each successful login and is
     "is_active": false,
     "is_pending": true,
     "last_signed_in": null
+  }
+}
+```
+
+## App Configs
+
+Deployment-level settings stored as text in the `app_configs` table (`key`,
+`value`). They have no write endpoint; change them directly in the database.
+
+| Key                | Meaning                                                                                                    |
+| ------------------ | ---------------------------------------------------------------------------------------------------------- |
+| `max_users`        | Maximum number of users, pending invites included. A missing or non-positive-integer value means no limit. |
+| `landing_site_url` | Public landing site URL, used by the CMS dashboard's "view site" button.                                   |
+
+`GET /app_configs` requires login (any signed-in user) and returns every
+config as a key-value object with `200 OK`:
+
+```json
+{
+  "app_configs": {
+    "landing_site_url": "https://www.example.com",
+    "max_users": "10"
   }
 }
 ```

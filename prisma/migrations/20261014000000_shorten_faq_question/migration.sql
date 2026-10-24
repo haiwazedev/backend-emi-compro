@@ -1,3 +1,0 @@
--- AlterTable
-ALTER TABLE "faqs"
-ALTER COLUMN "question" SET DATA TYPE VARCHAR(200);

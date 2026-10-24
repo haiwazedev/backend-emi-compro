@@ -1119,7 +1119,7 @@ missing or disallowed request origins return `403 Forbidden`.
 
 ## Media
 
-Media list and detail reads are public. Upload and delete requests require an
+Media list and detail reads are public. Upload, update, and delete requests require an
 authenticated session and the configured frontend `Origin` or `Referer`.
 Uploaded files are stored in the SeaweedFS bucket under `media/` and are
 publicly available under `/public/media/`.
@@ -1127,14 +1127,17 @@ publicly available under `/public/media/`.
 ### Upload media
 
 `POST /media` accepts `multipart/form-data` with a `type` field (`PICTURE` or
-`DOCUMENT`) and a file field named `file`. The file is stored as
-`{name}-{random}.{extension}`, where `{name}` is the uploaded filename
-lowercased with non-alphanumeric characters replaced by `-`, so the same
-filename can be uploaded more than once. `filename` is that stored name and
-`path` is its public path.
-`DOCUMENT`) and a file field named `file`. The original filename is preserved
-as the S3 object name and must not already exist. Its URL-encoded public path is
-stored in `path`.
+`DOCUMENT`), a file field named `file`, and these optional fields:
+
+| Field      | Type   | Rules                                                                                              |
+| ---------- | ------ | -------------------------------------------------------------------------------------------------- |
+| `filename` | string | Display name, trimmed, 1–255 characters; defaults to the uploaded file's name. Need not be unique. |
+| `alt`      | string | Alternative text, trimmed, up to 255 characters; empty becomes `null`.                             |
+
+The file is stored as `{name}-{random}.{extension}`, where `{name}` is the
+uploaded filename lowercased with non-alphanumeric characters replaced by `-`.
+`path` is its public path and identifies the stored file; it never changes, so
+renaming media keeps existing links working.
 
 | Type       | Accepted extensions  | Maximum size |
 | ---------- | -------------------- | ------------ |
@@ -1152,7 +1155,8 @@ A successful upload returns `201 Created`:
 {
   "media": {
     "id": 18,
-    "filename": "company-news-3f9a1c7e5b2d4086.jpg",
+    "filename": "company-news.jpg",
+    "alt": "Company news event",
     "path": "/public/media/company-news-3f9a1c7e5b2d4086.jpg",
     "extension": "jpg",
     "type": "PICTURE",
@@ -1170,6 +1174,8 @@ Example browser request:
 const formData = new FormData();
 formData.append('type', 'PICTURE');
 formData.append('file', imageFile);
+formData.append('filename', 'company-news.jpg');
+formData.append('alt', 'Company news event');
 
 const response = await fetch(`${API_BASE_URL}/media`, {
   method: 'POST',
@@ -1198,6 +1204,20 @@ boundary.
 | `sort_order`    | string | `asc` or `desc`; defaults to `desc`.            |
 
 Results use `id` as a stable tie-breaker in the selected sort direction.
+
+### Update media
+
+`PUT /media/:mediaId` accepts JSON with a required `filename` (same rules as
+upload) and `alt` (string or `null`; empty becomes `null`). It changes only the
+display name and alternative text; the stored file and `path` stay the same. It
+returns `{ "media": ... }` with `200 OK`, or `404 Not Found` for a missing ID.
+
+```json
+{
+  "filename": "Company news.jpg",
+  "alt": "Company news event"
+}
+```
 
 ### Delete media
 

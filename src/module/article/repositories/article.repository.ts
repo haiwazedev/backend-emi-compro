@@ -140,6 +140,10 @@ export class ArticleRepository {
     return prisma.article.delete({ where: { id } });
   }
 
+  deleteMany(ids: number[]) {
+    return prisma.article.deleteMany({ where: { id: { in: ids } } });
+  }
+
   private buildWhere(
     query: ArticleListQuery,
     includeDrafts: boolean,

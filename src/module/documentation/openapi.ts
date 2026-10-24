@@ -85,6 +85,7 @@ import {
   userListQuerySchema,
 } from '../user/schemas/user.schema.js';
 import { sessionCookieName } from '../../shared/config/session.js';
+import { bulkDeleteBodySchema } from '../../shared/schemas/common.schema.js';
 
 type Operation = {
   tag: string;
@@ -286,6 +287,14 @@ const routes: Routes = {
       status: 204,
     },
   },
+  '/articles/bulk_delete': {
+    post: {
+      tag: 'Articles',
+      summary: 'Delete several articles',
+      auth: true,
+      body: bulkDeleteBodySchema,
+    },
+  },
 
   '/media': {
     get: { tag: 'Media', summary: 'List media', query: mediaListQuerySchema },
@@ -452,6 +461,14 @@ const routes: Routes = {
       summary: 'Delete a document commitment',
       auth: true,
       status: 204,
+    },
+  },
+  '/document_commitments/bulk_delete': {
+    post: {
+      tag: 'Document commitments',
+      summary: 'Delete several document commitments',
+      auth: true,
+      body: bulkDeleteBodySchema,
     },
   },
 

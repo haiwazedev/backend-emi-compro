@@ -303,7 +303,7 @@ status is inactive gets `401 Unauthorized` on every protected request and
 | ------------------------------------------------------------------------------------------------ | -------------------- |
 | Any `GET`, inbox mark-as-read and read-all, activity logs                                        | Any signed-in user   |
 | Create, update, and reorder content, categories, media uploads, site settings, and site contents | `write` or `publish` |
-| `DELETE` endpoints and `POST /media/bulk_delete`                                                 | `delete`             |
+| `DELETE` endpoints and `POST .../bulk_delete`                                                    | `delete`             |
 | `/users`, `/roles`, `/permissions`, and `/role_permissions` (reads included)                     | `manage_users`       |
 
 Without `publish`, saves of articles, FAQs, divisions, and document
@@ -628,6 +628,9 @@ count toward that language; active languages without content return `0`.
   Send `null` for `primary_photo` to clear its media relation.
 - `DELETE /articles/:articleId` deletes an article and all of its contents and
   returns `204 No Content`.
+- `POST /articles/bulk_delete` deletes several articles and their contents. It
+  takes a JSON `ids` array of positive integers and returns
+  `{ "deleted_count": 3 }` with `200 OK`. Missing IDs are ignored.
 
 Article POST and PUT bodies use JSON. Each request writes one language.
 Bahasa Indonesia (`id`) comes first: `POST` must use `language_id` `id`, and a
@@ -1316,6 +1319,10 @@ unchanged on update.
   returns `{ "documentCommitment": ... }` with `200 OK`.
 - `DELETE /document_commitments/:documentId` returns `204 No Content` and
   removes its stored PDF after the database deletion commits.
+- `POST /document_commitments/bulk_delete` deletes several documents in one
+  database transaction, then removes their stored PDFs. It takes a JSON `ids`
+  array of positive integers and returns `{ "deleted_count": 3 }` with
+  `200 OK`. Missing IDs are ignored.
 
 Create requests use `multipart/form-data` with a `file` field and these text
 fields:

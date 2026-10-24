@@ -336,7 +336,8 @@ model BoardMemberContent {
 
 model Media {
   id           Int            @id @default(autoincrement())
-  filename     String         @unique @db.VarChar(255)
+  filename     String         @db.VarChar(255)
+  alt          String?        @db.VarChar(255)
   path         String         @db.VarChar(255)
   extension    String         @db.VarChar(20)
   type         MediaType

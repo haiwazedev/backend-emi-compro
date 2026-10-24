@@ -2,6 +2,7 @@ import cors from 'cors';
 import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import { activityLogRouter } from './module/activity_log/routes/activity-log.routes.js';
+import { appConfigRouter } from './module/app_config/routes/app-config.routes.js';
 import { articleCategoryRouter } from './module/article/routes/article-category.routes.js';
 import { articleRouter } from './module/article/routes/article.routes.js';
 import { authRouter } from './module/auth/auth.routes.js';
@@ -77,6 +78,7 @@ app.use(activityLogRouter);
 app.use(roleRouter);
 app.use(searchRouter);
 app.use(userRouter);
+app.use(appConfigRouter);
 
 app.get('/health', (req: Request, res: Response) => {
   res.send({ message: 'OK' });

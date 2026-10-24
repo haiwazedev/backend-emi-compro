@@ -54,11 +54,7 @@ export class ServiceService {
         },
         mediaIds,
       );
-      await this.activityLogService.log(
-        user,
-        'menambahkan layanan',
-        input.name,
-      );
+      await this.activityLogService.log(user, 'CREATE', 'SERVICE', input.name);
       return service;
     } catch (error) {
       throw mapServiceError(error);
@@ -118,7 +114,8 @@ export class ServiceService {
 
       await this.activityLogService.log(
         user,
-        'memperbarui layanan',
+        'UPDATE',
+        'SERVICE',
         serviceName(service),
       );
       return service;
@@ -144,7 +141,7 @@ export class ServiceService {
       );
     }
 
-    await this.activityLogService.log(user, 'memperbarui urutan', 'Layanan');
+    await this.activityLogService.log(user, 'REORDER', 'SERVICE');
     return result.services;
   }
 
@@ -159,7 +156,8 @@ export class ServiceService {
 
     await this.activityLogService.log(
       user,
-      'menghapus layanan',
+      'DELETE',
+      'SERVICE',
       serviceName(service),
     );
   }

@@ -28,7 +28,8 @@ export class RolePermissionService {
       );
       await this.activityLogService.log(
         user,
-        'memperbarui hak akses peran',
+        'UPDATE',
+        'ROLE_PERMISSION',
         `${rolePermission.role.name}: ${rolePermission.permission.name}`,
       );
       return rolePermission;

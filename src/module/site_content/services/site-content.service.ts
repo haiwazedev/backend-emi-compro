@@ -71,7 +71,8 @@ export class SiteContentService {
     const pages = [...new Set(input.items.map((item) => item.page))];
     await this.activityLogService.log(
       user,
-      'memperbarui konten halaman',
+      'UPDATE',
+      'SITE_CONTENT',
       pages.join(', '),
     );
     return { languageId: language.id, items };

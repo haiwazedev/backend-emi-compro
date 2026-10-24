@@ -73,7 +73,8 @@ export class MediaService {
 
       await this.activityLogService.log(
         user,
-        'menambahkan media',
+        'CREATE',
+        'MEDIA',
         media.filename,
       );
       return media;
@@ -91,7 +92,8 @@ export class MediaService {
       const media = await this.repository.update(id, input);
       await this.activityLogService.log(
         user,
-        'memperbarui media',
+        'UPDATE',
+        'MEDIA',
         media.filename,
       );
       return media;
@@ -118,7 +120,7 @@ export class MediaService {
     }
 
     await this.fileService.removeAfterCommit(media.path);
-    await this.activityLogService.log(user, 'menghapus media', media.filename);
+    await this.activityLogService.log(user, 'DELETE', 'MEDIA', media.filename);
   }
 
   async bulkDelete(ids: number[], user: AuthenticatedUser): Promise<number> {
@@ -135,10 +137,11 @@ export class MediaService {
     );
 
     if (result.count > 0) {
-      await this.activityLogService.log(
+      await this.activityLogService.logBulk(
         user,
-        'menghapus media',
-        `${result.count} file`,
+        'DELETE',
+        'MEDIA',
+        result.count,
       );
     }
 

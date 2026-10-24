@@ -36,7 +36,8 @@ export class ArticleCategoryService {
       const category = await this.repository.create(input);
       await this.activityLogService.log(
         user,
-        'menambahkan kategori artikel',
+        'CREATE',
+        'ARTICLE_CATEGORY',
         category.name,
       );
       return category;
@@ -72,7 +73,8 @@ export class ArticleCategoryService {
       const category = await this.repository.update(id, input);
       await this.activityLogService.log(
         user,
-        'memperbarui kategori artikel',
+        'UPDATE',
+        'ARTICLE_CATEGORY',
         category.name,
       );
       return category;
@@ -96,7 +98,8 @@ export class ArticleCategoryService {
       await this.repository.delete(id);
       await this.activityLogService.log(
         user,
-        'menghapus kategori artikel',
+        'DELETE',
+        'ARTICLE_CATEGORY',
         category.name,
       );
     } catch (error) {

@@ -42,7 +42,7 @@ export class DivisionService {
       );
     }
 
-    await this.activityLogService.log(user, 'memperbarui urutan', 'Divisi');
+    await this.activityLogService.log(user, 'REORDER', 'DIVISION');
     return divisions;
   }
 
@@ -63,7 +63,7 @@ export class DivisionService {
           description: input.description ?? null,
         },
       );
-      await this.activityLogService.log(user, 'menambahkan divisi', input.name);
+      await this.activityLogService.log(user, 'CREATE', 'DIVISION', input.name);
       return division;
     } catch (error) {
       throw mapDivisionError(error);
@@ -117,7 +117,8 @@ export class DivisionService {
 
       await this.activityLogService.log(
         user,
-        'memperbarui divisi',
+        'UPDATE',
+        'DIVISION',
         divisionName(division),
       );
       return division;
@@ -137,7 +138,8 @@ export class DivisionService {
 
     await this.activityLogService.log(
       user,
-      'menghapus divisi',
+      'DELETE',
+      'DIVISION',
       divisionName(division),
     );
   }

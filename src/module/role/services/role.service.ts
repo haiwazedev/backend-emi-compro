@@ -42,7 +42,7 @@ export class RoleService {
         permissions.map((permission) => permission.id),
         user.name,
       );
-      await this.activityLogService.log(user, 'menambahkan peran', role.name);
+      await this.activityLogService.log(user, 'CREATE', 'ROLE', role.name);
       return role;
     } catch (error) {
       if (isUniqueConstraintError(error)) {
@@ -70,7 +70,7 @@ export class RoleService {
 
     try {
       const role = await this.repository.update(id, input, user.name);
-      await this.activityLogService.log(user, 'memperbarui peran', role.name);
+      await this.activityLogService.log(user, 'UPDATE', 'ROLE', role.name);
       return role;
     } catch (error) {
       if (isUniqueConstraintError(error)) {
@@ -95,7 +95,7 @@ export class RoleService {
 
     try {
       await this.repository.delete(id);
-      await this.activityLogService.log(user, 'menghapus peran', role.name);
+      await this.activityLogService.log(user, 'DELETE', 'ROLE', role.name);
     } catch (error) {
       if (isRecordNotFoundError(error)) {
         throw new ApiError(404, 'Role was not found.');

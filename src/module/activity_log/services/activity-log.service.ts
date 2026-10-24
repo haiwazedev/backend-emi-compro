@@ -1,3 +1,8 @@
+import type {
+  ActivityAction,
+  ActivityResource,
+  Prisma,
+} from '../../../generated/prisma/client.js';
 import type { AuthenticatedUser } from '../../auth/authenticated-user.js';
 import { ActivityLogRepository } from '../repositories/activity-log.repository.js';
 import type { ActivityLogListQuery } from '../schemas/activity-log.schema.js';
@@ -24,18 +29,43 @@ export class ActivityLogService {
     };
   }
 
+  // `result` is the affected item's name, shown as is; the CMS translates
+  // `action` and `resource`.
+  log(
+    user: AuthenticatedUser,
+    action: ActivityAction,
+    resource: ActivityResource,
+    result?: string,
+  ): Promise<void> {
+    return this.write(user, {
+      action,
+      resource,
+      actionResult: result?.slice(0, MAX_TEXT_LENGTH),
+    });
+  }
+
+  logBulk(
+    user: AuthenticatedUser,
+    action: ActivityAction,
+    resource: ActivityResource,
+    itemCount: number,
+  ): Promise<void> {
+    return this.write(user, { action, resource, itemCount });
+  }
+
   // Best effort: the user's change is already saved, so a failed log must not
   // turn the request into an error.
-  async log(
+  private async write(
     user: AuthenticatedUser,
-    actionType: string,
-    actionResult: string,
+    data: Pick<
+      Prisma.ActivityLogUncheckedCreateInput,
+      'action' | 'resource' | 'actionResult' | 'itemCount'
+    >,
   ): Promise<void> {
     try {
       await this.repository.create({
+        ...data,
         userName: user.name.slice(0, 100),
-        actionType: actionType.slice(0, MAX_TEXT_LENGTH),
-        actionResult: actionResult.slice(0, MAX_TEXT_LENGTH),
         createdBy: user.name.slice(0, 100),
       });
     } catch (error) {

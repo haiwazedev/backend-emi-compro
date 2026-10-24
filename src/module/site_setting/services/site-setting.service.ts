@@ -175,11 +175,7 @@ export class SiteSettingService {
       ...currentById.values(),
     ]);
 
-    await this.activityLogService.log(
-      user,
-      'memperbarui pengaturan situs',
-      'Pengaturan situs',
-    );
+    await this.activityLogService.log(user, 'UPDATE', 'SITE_SETTING');
     return this.get(language.id, true);
   }
 

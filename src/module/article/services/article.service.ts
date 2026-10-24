@@ -113,7 +113,7 @@ export class ArticleService {
       throw mapArticleError(error);
     }
 
-    await this.activityLogService.log(user, 'menambahkan artikel', input.title);
+    await this.activityLogService.log(user, 'CREATE', 'ARTICLE', input.title);
     return article;
   }
 
@@ -145,7 +145,7 @@ export class ArticleService {
       throw mapArticleError(error);
     }
 
-    await this.activityLogService.log(user, 'memperbarui artikel', input.title);
+    await this.activityLogService.log(user, 'UPDATE', 'ARTICLE', input.title);
     return updated;
   }
 
@@ -161,8 +161,9 @@ export class ArticleService {
     // Contents are ordered by language, so the first is the default title.
     await this.activityLogService.log(
       user,
-      'menghapus artikel',
-      article.contents[0]?.title ?? `Artikel #${id}`,
+      'DELETE',
+      'ARTICLE',
+      article.contents[0]?.title ?? `#${id}`,
     );
   }
 
@@ -170,11 +171,7 @@ export class ArticleService {
     const { count } = await this.repository.deleteMany(ids);
 
     if (count > 0) {
-      await this.activityLogService.log(
-        user,
-        'menghapus artikel',
-        `${count} artikel`,
-      );
+      await this.activityLogService.logBulk(user, 'DELETE', 'ARTICLE', count);
     }
 
     return count;

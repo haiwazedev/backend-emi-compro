@@ -65,11 +65,7 @@ export class UserService {
         { roleId: role_id, isActive: false },
         user.name,
       );
-      await this.activityLogService.log(
-        user,
-        'menambahkan pengguna',
-        created.name,
-      );
+      await this.activityLogService.log(user, 'CREATE', 'USER', created.name);
       await sendInvite(created);
       return created;
     } catch (error) {
@@ -91,7 +87,8 @@ export class UserService {
     await sendInvite(target);
     await this.activityLogService.log(
       user,
-      'mengirim ulang undangan pengguna',
+      'RESEND_INVITE',
+      'USER',
       target.name,
     );
   }
@@ -121,11 +118,7 @@ export class UserService {
         },
         user.name,
       );
-      await this.activityLogService.log(
-        user,
-        'memperbarui pengguna',
-        updated.name,
-      );
+      await this.activityLogService.log(user, 'UPDATE', 'USER', updated.name);
       return updated;
     } catch (error) {
       if (isPrismaError(error, 'P2002')) {
@@ -149,11 +142,7 @@ export class UserService {
 
     try {
       await this.repository.delete(id);
-      await this.activityLogService.log(
-        user,
-        'menghapus pengguna',
-        target.name,
-      );
+      await this.activityLogService.log(user, 'DELETE', 'USER', target.name);
     } catch (error) {
       if (isPrismaError(error, 'P2025')) {
         throw new ApiError(404, 'User was not found.');

@@ -20,6 +20,10 @@ export class UserController {
     res.status(200).json({ users: users.map(presentUser), pagination });
   };
 
+  count = async (_req: Request, res: Response): Promise<void> => {
+    res.status(200).json({ total: await this.service.countAll() });
+  };
+
   get = async (req: Request, res: Response): Promise<void> => {
     const user = await this.service.getById(parseIdParam(req.params.userId));
 

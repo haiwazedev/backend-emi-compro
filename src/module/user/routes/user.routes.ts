@@ -25,6 +25,13 @@ userRouter.get(
   validateQuery(userListQuerySchema, 'userListQuery'),
   controller.list,
 );
+// Registered before `/users/:userId` so "count" isn't read as an id.
+userRouter.get(
+  '/users/count',
+  requireAuth,
+  requireManageUsers,
+  controller.count,
+);
 userRouter.get(
   '/users/:userId',
   requireAuth,

@@ -1,5 +1,6 @@
 import { ApiError } from '../../../shared/errors/api-error.js';
 import { ActivityLogService } from '../../activity_log/services/activity-log.service.js';
+import { AppConfigService } from '../../app_config/services/app-config.service.js';
 import type { AuthenticatedUser } from '../../auth/authenticated-user.js';
 import { sendMail } from '../../../shared/mail/mailer.js';
 import { buildInviteMail } from '../../auth/auth.mails.js';
@@ -17,6 +18,7 @@ export class UserService {
     private readonly repository = new UserRepository(),
     private readonly roleRepository = new RoleRepository(),
     private readonly activityLogService = new ActivityLogService(),
+    private readonly appConfigService = new AppConfigService(),
   ) {}
 
   async list(query: UserListQuery) {
@@ -36,6 +38,10 @@ export class UserService {
     };
   }
 
+  countAll() {
+    return this.repository.countAll();
+  }
+
   async getById(id: number) {
     const user = await this.repository.findById(id);
 
@@ -49,6 +55,7 @@ export class UserService {
   async create(input: CreateUserInput, user: AuthenticatedUser) {
     const { role_id, ...data } = input;
 
+    await this.assertBelowUserLimit();
     await this.assertEmailAvailable(data.email);
     await this.assertRoleExists(role_id);
 
@@ -153,6 +160,21 @@ export class UserService {
       }
 
       throw error;
+    }
+  }
+
+  // Pending invites count toward the limit.
+  private async assertBelowUserLimit() {
+    const [maxUsers, total] = await Promise.all([
+      this.appConfigService.getMaxUsers(),
+      this.repository.countAll(),
+    ]);
+
+    if (maxUsers !== null && total >= maxUsers) {
+      throw new ApiError(
+        403,
+        `The user limit of ${maxUsers} has been reached. Delete a user before adding another.`,
+      );
     }
   }
 

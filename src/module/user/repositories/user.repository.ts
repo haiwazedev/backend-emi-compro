@@ -23,6 +23,10 @@ export class UserRepository {
     return prisma.user.count({ where: buildListWhere(query) });
   }
 
+  countAll() {
+    return prisma.user.count();
+  }
+
   findById(id: number) {
     return prisma.user.findUnique({ where: { id }, include: userInclude });
   }

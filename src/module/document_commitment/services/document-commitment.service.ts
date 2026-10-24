@@ -194,6 +194,26 @@ export class DocumentCommitmentService {
     await this.activityLogService.log(user, 'menghapus dokumen', title);
   }
 
+  async bulkDelete(ids: number[], user: AuthenticatedUser): Promise<number> {
+    const documents = await this.repository.deleteManyWithFiles(ids);
+
+    await Promise.all(
+      documents.map(({ filename }) =>
+        this.fileService.removeAfterCommit(filename),
+      ),
+    );
+
+    if (documents.length > 0) {
+      await this.activityLogService.log(
+        user,
+        'menghapus dokumen',
+        `${documents.length} dokumen`,
+      );
+    }
+
+    return documents.length;
+  }
+
   private async requireCategory(id: number): Promise<void> {
     if (!(await this.categoryRepository.findById(id))) {
       throw new ApiError(400, 'Document commitment category does not exist.');

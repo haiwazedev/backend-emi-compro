@@ -55,7 +55,6 @@ export function presentSiteSetting({
     operational_day: valueOf('operational_day'),
     operational_start_time: valueOf('operational_start_time'),
     operational_end_time: valueOf('operational_end_time'),
-    landing_site_url: valueOf('landing_site_url'),
     social_medias: socialMedias.map(presentSocialMedia),
     created_at: created?.createdAt.toISOString() ?? null,
     created_by: created?.createdBy ?? null,

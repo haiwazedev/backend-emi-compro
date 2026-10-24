@@ -175,7 +175,12 @@ export class DocumentCommitmentService {
       if (replacement) {
         await replacement.rollbackAfterFailure().catch((rollbackError) => {
           logger.error(
-            { err: rollbackError },
+            {
+              err: rollbackError,
+              component: 'document_commitment',
+              operation: 'restore_replaced_file',
+              resourceType: 'document_commitment_file',
+            },
             'Unable to restore a replaced document file.',
           );
         });

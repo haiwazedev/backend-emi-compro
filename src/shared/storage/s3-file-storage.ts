@@ -82,7 +82,11 @@ export class S3FileStorage {
       await this.restoreObject(publicPath, previous, contentType).catch(
         (rollbackError: unknown) => {
           logger.error(
-            { err: rollbackError },
+            {
+              err: rollbackError,
+              component: 'storage',
+              operation: 'restore_previous_object',
+            },
             'Unable to restore an S3 file after a failed upload.',
           );
         },

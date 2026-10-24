@@ -5,7 +5,10 @@ import { logger } from '../logging/logger.js';
 export const redisClient = createClient({ url: redisUrl });
 
 redisClient.on('error', (error) => {
-  logger.error({ err: error }, 'Redis session client error.');
+  logger.error(
+    { err: error, component: 'redis', operation: 'session_client_error' },
+    'Redis session client error.',
+  );
 });
 
 export async function connectRedis(): Promise<void> {

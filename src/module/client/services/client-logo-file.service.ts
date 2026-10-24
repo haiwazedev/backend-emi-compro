@@ -58,7 +58,15 @@ export class ClientLogoFileService {
     try {
       await s3FileStorage.remove(filepath);
     } catch (error) {
-      logger.error({ err: error }, 'Unable to remove a client logo.');
+      logger.error(
+        {
+          err: error,
+          component: 'client',
+          operation: 'remove_logo_after_commit',
+          resourceType: 'client_logo',
+        },
+        'Unable to remove a client logo.',
+      );
     }
   }
 }

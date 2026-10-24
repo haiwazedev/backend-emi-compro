@@ -81,7 +81,15 @@ export class MediaFileService {
     try {
       await this.remove(publicPath);
     } catch (error) {
-      logger.error({ err: error }, 'Unable to remove a media file.');
+      logger.error(
+        {
+          err: error,
+          component: 'media',
+          operation: 'remove_after_commit',
+          resourceType: 'media_file',
+        },
+        'Unable to remove a media file.',
+      );
     }
   }
 }

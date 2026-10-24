@@ -23,9 +23,8 @@ export async function sendMail(message: MailMessage): Promise<void> {
   });
 
   if (!response.ok) {
-    throw new Error(
-      `Resend responded with ${response.status}: ${await response.text()}`,
-    );
+    // Provider response bodies may contain recipient data, so keep them out of errors.
+    throw new Error(`Resend responded with HTTP ${response.status}.`);
   }
 }
 

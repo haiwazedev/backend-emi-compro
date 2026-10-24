@@ -1,6 +1,6 @@
 import type { RequestHandler } from 'express';
 import type { z } from 'zod';
-import { ApiError } from '../errors/api-error.js';
+import { ApiError, formatValidationPath } from '../errors/api-error.js';
 
 export function validateBody<TSchema extends z.ZodType>(
   schema: TSchema,
@@ -20,7 +20,11 @@ export function validateBody<TSchema extends z.ZodType>(
           ? `Item at index ${arrayIndex}: ${issue.message}`
           : (issue?.message ?? 'Request body is invalid.');
 
-      next(new ApiError(400, message));
+      next(
+        new ApiError(400, message, {
+          validationPath: formatValidationPath(issue?.path ?? []),
+        }),
+      );
       return;
     }
 

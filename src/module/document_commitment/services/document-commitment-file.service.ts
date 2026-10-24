@@ -81,7 +81,15 @@ export class DocumentCommitmentFileService {
     try {
       await s3FileStorage.remove(buildPublicPath(validateFilename(filename)));
     } catch (error) {
-      logger.error({ err: error }, 'Unable to remove a document file.');
+      logger.error(
+        {
+          err: error,
+          component: 'document_commitment',
+          operation: 'remove_after_commit',
+          resourceType: 'document_commitment_file',
+        },
+        'Unable to remove a document file.',
+      );
     }
   }
 }

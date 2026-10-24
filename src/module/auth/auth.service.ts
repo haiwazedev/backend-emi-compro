@@ -64,7 +64,16 @@ export class AuthService {
     try {
       await sendMail(buildResetMail(user, buildActivationUrl(token)));
     } catch (error) {
-      logger.error({ err: error }, 'Failed to send password reset email.');
+      logger.error(
+        {
+          err: error,
+          component: 'auth',
+          operation: 'send_password_reset_email',
+          resourceType: 'password_reset',
+          resourceId: user.id,
+        },
+        'Failed to send password reset email.',
+      );
     }
   }
 

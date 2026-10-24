@@ -95,7 +95,7 @@ async function startServer(): Promise<void> {
     await connectRedis();
   } catch (error) {
     logger.error(
-      { err: error },
+      { err: error, component: 'redis', operation: 'connect' },
       'Unable to connect to Redis; server startup aborted.',
     );
     redisClient.destroy();
@@ -128,7 +128,10 @@ async function startServer(): Promise<void> {
       clearTimeout(forceCloseTimeout);
 
       if (error) {
-        logger.error({ err: error }, 'HTTP server close failed.');
+        logger.error(
+          { err: error, component: 'http_server', operation: 'close' },
+          'HTTP server close failed.',
+        );
       }
 
       redisClient.destroy();

@@ -93,7 +93,15 @@ export class SiteSettingFileService {
     try {
       await s3FileStorage.remove(filepath);
     } catch (error) {
-      logger.error({ err: error }, 'Unable to remove a site settings file.');
+      logger.error(
+        {
+          err: error,
+          component: 'site_setting',
+          operation: 'remove_file_after_commit',
+          resourceType: 'site_setting_file',
+        },
+        'Unable to remove a site settings file.',
+      );
     }
   }
 }

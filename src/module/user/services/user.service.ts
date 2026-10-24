@@ -204,7 +204,16 @@ async function sendInvite(target: { id: number; name: string; email: string }) {
   try {
     await sendMail(buildInviteMail(target, buildActivationUrl(token)));
   } catch (error) {
-    logger.error({ err: error }, 'Failed to send invite email.');
+    logger.error(
+      {
+        err: error,
+        component: 'user',
+        operation: 'send_invite_email',
+        resourceType: 'user_invite',
+        resourceId: target.id,
+      },
+      'Failed to send invite email.',
+    );
     throw new ApiError(
       502,
       'The invite email could not be sent. Try resending the invite.',

@@ -37,6 +37,11 @@ the OpenObserve base URL, plus `OPENOBSERVE_ORG`, `OPENOBSERVE_USERNAME`, and
 to `pln_emi_server`; `LOG_LEVEL` defaults to `info`. Leave all OpenObserve
 settings unset to use stdout only. Incomplete or unavailable OpenObserve
 configuration does not prevent the server from starting or handling requests.
+Existing business activity actions are also sent as structured OpenObserve
+events with actor, action, resource, and available item name or count. Failed
+requests include the route, status, and safe error reason; validation failures
+may include a field path. Request bodies, query values, headers, cookies, and
+credentials are not included in request logs.
 
 ## Swagger
 

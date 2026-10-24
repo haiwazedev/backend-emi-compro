@@ -66,7 +66,15 @@ export class BoardMemberFileService {
     try {
       await s3FileStorage.remove(`/public/board_member/${filename}`);
     } catch (error) {
-      logger.error({ err: error }, 'Unable to remove a board member photo.');
+      logger.error(
+        {
+          err: error,
+          component: 'board_member',
+          operation: 'remove_photo_after_commit',
+          resourceType: 'board_member_photo',
+        },
+        'Unable to remove a board member photo.',
+      );
     }
   }
 }

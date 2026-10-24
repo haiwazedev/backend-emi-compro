@@ -533,3 +533,11 @@ model ActivityLog {
   @@index([createdAt])
   @@map("activity_logs")
 }
+
+// Deployment-level settings, edited directly in the database.
+model AppConfig {
+  key   String @id
+  value String
+
+  @@map("app_configs")
+}

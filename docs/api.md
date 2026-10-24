@@ -776,13 +776,17 @@ Create bodies accept these fields:
 | `name`        | string         | Required; trimmed; 1–200 characters.                                  |
 | `abbr`        | string         | Required; trimmed; 1–50 characters.                                   |
 | `description` | string or null | Optional; no length limit; blank string becomes `null`.               |
-| `icon_svg`    | string or null | Optional.                                                             |
+| `icon_svg`    | string or null | Optional; SVG markup; up to 20,000 characters; sanitized on save.     |
 | `status`      | string         | Optional; `DRAFT` or `PUBLISHED`; defaults to `DRAFT` on create.      |
 
 Update bodies are partial. Updating `icon_svg` or `status` does not require a
 language. Updating `name`, `abbr`, or `description` requires `language_id`.
 Existing translations can be partially updated; adding a translation requires
 both `name` and `abbr`. Send `null` for `icon_svg` or `description` to clear it.
+`icon_svg` is sanitized like social icons: scripts, event handlers,
+`foreignObject`, and `javascript:` links are removed, and the stored value is
+the sanitized markup. Markup that is not an `<svg>` element after sanitizing
+returns `400 Bad Request` with `SVG file is invalid.`
 The authenticated user's name is stored in `created_by`; updates set
 `updated_by` and `updated_at` on the division.
 

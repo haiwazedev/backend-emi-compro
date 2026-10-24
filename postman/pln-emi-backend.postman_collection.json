@@ -1243,8 +1243,46 @@
                   "key": "file",
                   "type": "file",
                   "src": []
+                },
+                {
+                  "key": "filename",
+                  "value": "company-news.jpg",
+                  "type": "text"
+                },
+                {
+                  "key": "alt",
+                  "value": "Company news event",
+                  "type": "text"
                 }
               ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Media",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/media/{{mediaId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["media", "{{mediaId}}"]
+            },
+            "description": "Requires login session.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"filename\": \"company-news.jpg\",\n  \"alt\": \"Company news event\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []

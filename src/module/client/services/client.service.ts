@@ -44,7 +44,7 @@ export class ClientService {
       );
     }
 
-    await this.activityLogService.log(user, 'memperbarui urutan', 'Klien');
+    await this.activityLogService.log(user, 'REORDER', 'CLIENT');
     return clients;
   }
 
@@ -66,7 +66,7 @@ export class ClientService {
         ...toLogoFields(logo),
         createdBy,
       });
-      await this.activityLogService.log(user, 'menambahkan klien', client.name);
+      await this.activityLogService.log(user, 'CREATE', 'CLIENT', client.name);
       return client;
     } catch (error) {
       await this.logoFileService.removeAfterCommit(logo.filepath);
@@ -107,7 +107,7 @@ export class ClientService {
       await this.logoFileService.removeAfterCommit(current.logoFilepath);
     }
 
-    await this.activityLogService.log(user, 'memperbarui klien', client.name);
+    await this.activityLogService.log(user, 'UPDATE', 'CLIENT', client.name);
     return client;
   }
 
@@ -121,7 +121,7 @@ export class ClientService {
     }
 
     await this.logoFileService.removeAfterCommit(current.logoFilepath);
-    await this.activityLogService.log(user, 'menghapus klien', current.name);
+    await this.activityLogService.log(user, 'DELETE', 'CLIENT', current.name);
   }
 
   private storeLogo(file: Express.Multer.File): Promise<ClientLogo> {

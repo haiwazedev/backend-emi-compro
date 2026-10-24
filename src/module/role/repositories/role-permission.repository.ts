@@ -7,6 +7,13 @@ export class RolePermissionRepository {
     });
   }
 
+  findOne(roleId: number, permissionId: number) {
+    return prisma.rolePermission.findUnique({
+      where: { roleId_permissionId: { roleId, permissionId } },
+      include: { permission: true },
+    });
+  }
+
   update(
     roleId: number,
     permissionId: number,

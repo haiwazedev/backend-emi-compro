@@ -51,7 +51,7 @@ export class FaqService {
       );
     }
 
-    await this.activityLogService.log(user, 'memperbarui urutan', 'FAQ');
+    await this.activityLogService.log(user, 'REORDER', 'FAQ');
     return { faqs, languages };
   }
 
@@ -61,7 +61,7 @@ export class FaqService {
     await this.languageService.requireActive(input.language_id);
 
     const faq = await this.repository.create(toContentData(input), createdBy);
-    await this.activityLogService.log(user, 'menambahkan FAQ', input.question);
+    await this.activityLogService.log(user, 'CREATE', 'FAQ', input.question);
     return faq;
   }
 
@@ -77,11 +77,7 @@ export class FaqService {
         toContentData(input),
         updatedBy,
       );
-      await this.activityLogService.log(
-        user,
-        'memperbarui FAQ',
-        input.question,
-      );
+      await this.activityLogService.log(user, 'UPDATE', 'FAQ', input.question);
       return updated;
     } catch (error) {
       if (isPrismaError(error, 'P2025')) {
@@ -100,8 +96,9 @@ export class FaqService {
       // Contents are ordered by language, so the first is the default question.
       await this.activityLogService.log(
         user,
-        'menghapus FAQ',
-        faq.contents[0]?.question ?? `FAQ #${id}`,
+        'DELETE',
+        'FAQ',
+        faq.contents[0]?.question ?? `#${id}`,
       );
     } catch (error) {
       if (isPrismaError(error, 'P2025')) {

@@ -12,6 +12,7 @@ import { uploadMediaFile } from '../middlewares/media-upload.middleware.js';
 import {
   bulkDeleteMediaBodySchema,
   mediaListQuerySchema,
+  updateMediaBodySchema,
   uploadMediaBodySchema,
 } from '../schemas/media.schema.js';
 
@@ -34,6 +35,13 @@ mediaRouter.post(
   uploadMediaFile,
   validateBody(uploadMediaBodySchema),
   controller.upload,
+);
+mediaRouter.put(
+  '/media/:mediaId',
+  requireAuth,
+  requireWrite,
+  validateBody(updateMediaBodySchema),
+  controller.update,
 );
 mediaRouter.delete(
   '/media/:mediaId',

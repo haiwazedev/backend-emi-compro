@@ -90,7 +90,8 @@ export class DocumentCommitmentService {
 
       await this.activityLogService.log(
         user,
-        'menambahkan dokumen',
+        'CREATE',
+        'DOCUMENT_COMMITMENT',
         document.title,
       );
       return document;
@@ -164,7 +165,8 @@ export class DocumentCommitmentService {
 
       await this.activityLogService.log(
         user,
-        'memperbarui dokumen',
+        'UPDATE',
+        'DOCUMENT_COMMITMENT',
         document.title,
       );
       return document;
@@ -191,7 +193,33 @@ export class DocumentCommitmentService {
     }
 
     await this.fileService.removeAfterCommit(document.filename);
-    await this.activityLogService.log(user, 'menghapus dokumen', title);
+    await this.activityLogService.log(
+      user,
+      'DELETE',
+      'DOCUMENT_COMMITMENT',
+      title,
+    );
+  }
+
+  async bulkDelete(ids: number[], user: AuthenticatedUser): Promise<number> {
+    const documents = await this.repository.deleteManyWithFiles(ids);
+
+    await Promise.all(
+      documents.map(({ filename }) =>
+        this.fileService.removeAfterCommit(filename),
+      ),
+    );
+
+    if (documents.length > 0) {
+      await this.activityLogService.logBulk(
+        user,
+        'DELETE',
+        'DOCUMENT_COMMITMENT',
+        documents.length,
+      );
+    }
+
+    return documents.length;
   }
 
   private async requireCategory(id: number): Promise<void> {

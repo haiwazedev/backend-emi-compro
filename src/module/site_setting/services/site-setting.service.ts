@@ -117,6 +117,16 @@ export class SiteSettingService {
     if (keptIds.some((id) => !currentById.has(id))) {
       throw new ApiError(404, 'Social media was not found.');
     }
+    // Omitted links are deleted, which needs the delete permission.
+    if (
+      keptIds.length < currentById.size &&
+      !user.permissions.includes('delete')
+    ) {
+      throw new ApiError(
+        403,
+        'You do not have permission to perform this action.',
+      );
+    }
 
     const stored = await this.storeFiles(files, iconFiles);
     const now = new Date();
@@ -175,11 +185,7 @@ export class SiteSettingService {
       ...currentById.values(),
     ]);
 
-    await this.activityLogService.log(
-      user,
-      'memperbarui pengaturan situs',
-      'Pengaturan situs',
-    );
+    await this.activityLogService.log(user, 'UPDATE', 'SITE_SETTING');
     return this.get(language.id, true);
   }
 

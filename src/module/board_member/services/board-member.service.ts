@@ -100,7 +100,8 @@ export class BoardMemberService {
       await replacement?.commitAfterTransaction();
       await this.activityLogService.log(
         user,
-        'menambahkan anggota direksi',
+        'CREATE',
+        'BOARD_MEMBER',
         result.member.name,
       );
       return result.member;
@@ -201,7 +202,8 @@ export class BoardMemberService {
       await replacement?.commitAfterTransaction();
       await this.activityLogService.log(
         user,
-        'memperbarui anggota direksi',
+        'UPDATE',
+        'BOARD_MEMBER',
         member.name,
       );
       return member;
@@ -222,7 +224,8 @@ export class BoardMemberService {
     await this.fileService.removeAfterCommit(deleted.photo);
     await this.activityLogService.log(
       user,
-      'menghapus anggota direksi',
+      'DELETE',
+      'BOARD_MEMBER',
       member.name,
     );
   }

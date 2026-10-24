@@ -6,6 +6,7 @@ export function presentMedia(media: MediaRecord) {
   return {
     id: media.id,
     filename: media.filename,
+    alt: media.alt,
     path: media.path,
     extension: media.extension,
     type: media.type,

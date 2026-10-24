@@ -49,6 +49,37 @@ enum UserTokenPurpose {
   @@map("user_token_purpose")
 }
 
+enum ActivityAction {
+  CREATE
+  UPDATE
+  DELETE
+  REORDER
+  RESEND_INVITE
+
+  @@map("activity_action")
+}
+
+enum ActivityResource {
+  ARTICLE
+  ARTICLE_CATEGORY
+  BOARD_MEMBER
+  BOARD_MEMBER_TYPE
+  CLIENT
+  DIVISION
+  DOCUMENT_COMMITMENT
+  DOCUMENT_COMMITMENT_CATEGORY
+  FAQ
+  MEDIA
+  ROLE
+  ROLE_PERMISSION
+  SERVICE
+  SITE_CONTENT
+  SITE_SETTING
+  USER
+
+  @@map("activity_resource")
+}
+
 model User {
   id                Int         @id @default(autoincrement())
   name              String
@@ -336,7 +367,8 @@ model BoardMemberContent {
 
 model Media {
   id           Int            @id @default(autoincrement())
-  filename     String         @unique @db.VarChar(255)
+  filename     String         @db.VarChar(255)
+  alt          String?        @db.VarChar(255)
   path         String         @db.VarChar(255)
   extension    String         @db.VarChar(20)
   type         MediaType
@@ -519,16 +551,28 @@ model SiteSocialMedia {
 }
 
 model ActivityLog {
-  id           Int       @id @default(autoincrement())
+  id           Int              @id @default(autoincrement())
   // Plain name, not a users FK, so logs survive user deletes.
-  userName     String    @map("user_name") @db.VarChar(100)
-  actionType   String    @map("action_type") @db.VarChar(255)
-  actionResult String    @map("action_result") @db.VarChar(255)
-  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  createdBy    String    @map("created_by") @db.VarChar(100)
-  updatedAt    DateTime? @map("updated_at") @db.Timestamptz(6)
-  updatedBy    String?   @map("updated_by") @db.VarChar(100)
+  userName     String           @map("user_name") @db.VarChar(100)
+  action       ActivityAction
+  resource     ActivityResource
+  // Name of the affected item, kept as plain text; null when there is none.
+  actionResult String?          @map("action_result") @db.VarChar(255)
+  // Number of items affected by a bulk action.
+  itemCount    Int?             @map("item_count")
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy    String           @map("created_by") @db.VarChar(100)
+  updatedAt    DateTime?        @map("updated_at") @db.Timestamptz(6)
+  updatedBy    String?          @map("updated_by") @db.VarChar(100)
 
   @@index([createdAt])
   @@map("activity_logs")
+}
+
+// Deployment-level settings, edited directly in the database.
+model AppConfig {
+  key   String @id
+  value String
+
+  @@map("app_configs")
 }

@@ -1,5 +1,6 @@
 import { ApiError } from '../../../shared/errors/api-error.js';
 import { ActivityLogService } from '../../activity_log/services/activity-log.service.js';
+import { AppConfigService } from '../../app_config/services/app-config.service.js';
 import type { AuthenticatedUser } from '../../auth/authenticated-user.js';
 import { sendMail } from '../../../shared/mail/mailer.js';
 import { buildInviteMail } from '../../auth/auth.mails.js';
@@ -17,6 +18,7 @@ export class UserService {
     private readonly repository = new UserRepository(),
     private readonly roleRepository = new RoleRepository(),
     private readonly activityLogService = new ActivityLogService(),
+    private readonly appConfigService = new AppConfigService(),
   ) {}
 
   async list(query: UserListQuery) {
@@ -36,6 +38,10 @@ export class UserService {
     };
   }
 
+  countAll() {
+    return this.repository.countAll();
+  }
+
   async getById(id: number) {
     const user = await this.repository.findById(id);
 
@@ -49,6 +55,7 @@ export class UserService {
   async create(input: CreateUserInput, user: AuthenticatedUser) {
     const { role_id, ...data } = input;
 
+    await this.assertBelowUserLimit();
     await this.assertEmailAvailable(data.email);
     await this.assertRoleExists(role_id);
 
@@ -58,11 +65,7 @@ export class UserService {
         { roleId: role_id, isActive: false },
         user.name,
       );
-      await this.activityLogService.log(
-        user,
-        'menambahkan pengguna',
-        created.name,
-      );
+      await this.activityLogService.log(user, 'CREATE', 'USER', created.name);
       await sendInvite(created);
       return created;
     } catch (error) {
@@ -84,19 +87,33 @@ export class UserService {
     await sendInvite(target);
     await this.activityLogService.log(
       user,
-      'mengirim ulang undangan pengguna',
+      'RESEND_INVITE',
+      'USER',
       target.name,
     );
   }
 
   async update(id: number, input: UpdateUserInput, user: AuthenticatedUser) {
-    await this.getById(id);
+    const target = await this.getById(id);
 
     if (Object.keys(input).length === 0) {
       throw new ApiError(400, 'At least one user field is required.');
     }
 
     const { role_id, is_active, ...data } = input;
+
+    // The CMS form sends every field, so only an actual change is rejected.
+    if (
+      id === user.id &&
+      ((role_id !== undefined &&
+        role_id !== (target.userRole?.roleId ?? null)) ||
+        is_active === false)
+    ) {
+      throw new ApiError(
+        400,
+        'You cannot change your own role or deactivate yourself.',
+      );
+    }
 
     if (data.email) {
       await this.assertEmailAvailable(data.email, id);
@@ -114,11 +131,7 @@ export class UserService {
         },
         user.name,
       );
-      await this.activityLogService.log(
-        user,
-        'memperbarui pengguna',
-        updated.name,
-      );
+      await this.activityLogService.log(user, 'UPDATE', 'USER', updated.name);
       return updated;
     } catch (error) {
       if (isPrismaError(error, 'P2002')) {
@@ -142,17 +155,28 @@ export class UserService {
 
     try {
       await this.repository.delete(id);
-      await this.activityLogService.log(
-        user,
-        'menghapus pengguna',
-        target.name,
-      );
+      await this.activityLogService.log(user, 'DELETE', 'USER', target.name);
     } catch (error) {
       if (isPrismaError(error, 'P2025')) {
         throw new ApiError(404, 'User was not found.');
       }
 
       throw error;
+    }
+  }
+
+  // Pending invites count toward the limit.
+  private async assertBelowUserLimit() {
+    const [maxUsers, total] = await Promise.all([
+      this.appConfigService.getMaxUsers(),
+      this.repository.countAll(),
+    ]);
+
+    if (maxUsers !== null && total >= maxUsers) {
+      throw new ApiError(
+        403,
+        `The user limit of ${maxUsers} has been reached. Delete a user before adding another.`,
+      );
     }
   }
 

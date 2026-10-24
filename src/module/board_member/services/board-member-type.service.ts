@@ -38,7 +38,8 @@ export class BoardMemberTypeService {
       const boardMemberType = await this.repository.create(input);
       await this.activityLogService.log(
         user,
-        'menambahkan tipe anggota direksi',
+        'CREATE',
+        'BOARD_MEMBER_TYPE',
         boardMemberType.type,
       );
       return boardMemberType;
@@ -75,7 +76,8 @@ export class BoardMemberTypeService {
       const boardMemberType = await this.repository.update(id, input.type);
       await this.activityLogService.log(
         user,
-        'memperbarui tipe anggota direksi',
+        'UPDATE',
+        'BOARD_MEMBER_TYPE',
         boardMemberType.type,
       );
       return boardMemberType;
@@ -101,7 +103,8 @@ export class BoardMemberTypeService {
     );
     await this.activityLogService.log(
       user,
-      'menghapus tipe anggota direksi',
+      'DELETE',
+      'BOARD_MEMBER_TYPE',
       boardMemberType.type,
     );
   }

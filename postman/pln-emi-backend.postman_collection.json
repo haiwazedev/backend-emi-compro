@@ -609,6 +609,34 @@
             "description": "Requires login session."
           },
           "response": []
+        },
+        {
+          "name": "Bulk Delete Article",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/articles/bulk_delete",
+              "host": ["{{baseUrl}}"],
+              "path": ["articles", "bulk_delete"]
+            },
+            "description": "Requires login session.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [\n    1,\n    2\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
         }
       ]
     },
@@ -1243,8 +1271,46 @@
                   "key": "file",
                   "type": "file",
                   "src": []
+                },
+                {
+                  "key": "filename",
+                  "value": "company-news.jpg",
+                  "type": "text"
+                },
+                {
+                  "key": "alt",
+                  "value": "Company news event",
+                  "type": "text"
                 }
               ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Media",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/media/{{mediaId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["media", "{{mediaId}}"]
+            },
+            "description": "Requires login session.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"filename\": \"company-news.jpg\",\n  \"alt\": \"Company news event\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -1583,6 +1649,34 @@
               "path": ["document_commitments", "{{documentId}}"]
             },
             "description": "Requires login session."
+          },
+          "response": []
+        },
+        {
+          "name": "Bulk Delete Document Commitment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/document_commitments/bulk_delete",
+              "host": ["{{baseUrl}}"],
+              "path": ["document_commitments", "bulk_delete"]
+            },
+            "description": "Requires login session.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [\n    1,\n    2\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           },
           "response": []
         }
@@ -2117,6 +2211,25 @@
                 }
               ]
             }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "App Configs",
+      "item": [
+        {
+          "name": "List App Configs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app_configs",
+              "host": ["{{baseUrl}}"],
+              "path": ["app_configs"]
+            },
+            "description": "Requires login session."
           },
           "response": []
         }

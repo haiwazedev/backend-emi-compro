@@ -36,7 +36,8 @@ export class DocumentCommitmentCategoryService {
     const category = await this.repository.create({ name: input.name });
     await this.activityLogService.log(
       user,
-      'menambahkan kategori dokumen',
+      'CREATE',
+      'DOCUMENT_COMMITMENT_CATEGORY',
       category.name,
     );
     return category;
@@ -57,7 +58,8 @@ export class DocumentCommitmentCategoryService {
       const category = await this.repository.update(id, input);
       await this.activityLogService.log(
         user,
-        'memperbarui kategori dokumen',
+        'UPDATE',
+        'DOCUMENT_COMMITMENT_CATEGORY',
         category.name,
       );
       return category;
@@ -85,7 +87,8 @@ export class DocumentCommitmentCategoryService {
     );
     await this.activityLogService.log(
       user,
-      'menghapus kategori dokumen',
+      'DELETE',
+      'DOCUMENT_COMMITMENT_CATEGORY',
       category.name,
     );
   }

@@ -303,14 +303,18 @@ status is inactive gets `401 Unauthorized` on every protected request and
 | ------------------------------------------------------------------------------------------------ | -------------------- |
 | Any `GET`, inbox mark-as-read and read-all, activity logs                                        | Any signed-in user   |
 | Create, update, and reorder content, categories, media uploads, site settings, and site contents | `write` or `publish` |
-| `DELETE` endpoints and `POST /media/bulk_delete`                                                 | `delete`             |
+| `DELETE` endpoints and `POST .../bulk_delete`                                                    | `delete`             |
 | `/users`, `/roles`, `/permissions`, and `/role_permissions` (reads included)                     | `manage_users`       |
 
 Without `publish`, saves of articles, FAQs, divisions, and document
 commitments are stored with `status: "DRAFT"`, whatever the body sends.
 Editing a published item therefore unpublishes it. On `PUT /site_settings`,
 existing social links keep their current status and new links start as
-`DRAFT`.
+`DRAFT`. Removing existing social links there needs `delete`.
+
+To keep someone able to manage users, `manage_users` users cannot delete
+themselves or their own role, change their own role or deactivate themselves,
+or remove `manage_users` from their own role. These return `400 Bad Request`.
 
 A missing permission returns `403 Forbidden` with
 `You do not have permission to perform this action.`
@@ -628,6 +632,9 @@ count toward that language; active languages without content return `0`.
   Send `null` for `primary_photo` to clear its media relation.
 - `DELETE /articles/:articleId` deletes an article and all of its contents and
   returns `204 No Content`.
+- `POST /articles/bulk_delete` deletes several articles and their contents. It
+  takes a JSON `ids` array of positive integers and returns
+  `{ "deleted_count": 3 }` with `200 OK`. Missing IDs are ignored.
 
 Article POST and PUT bodies use JSON. Each request writes one language.
 Bahasa Indonesia (`id`) comes first: `POST` must use `language_id` `id`, and a
@@ -769,13 +776,17 @@ Create bodies accept these fields:
 | `name`        | string         | Required; trimmed; 1–200 characters.                                  |
 | `abbr`        | string         | Required; trimmed; 1–50 characters.                                   |
 | `description` | string or null | Optional; no length limit; blank string becomes `null`.               |
-| `icon_svg`    | string or null | Optional.                                                             |
+| `icon_svg`    | string or null | Optional; SVG markup; up to 20,000 characters; sanitized on save.     |
 | `status`      | string         | Optional; `DRAFT` or `PUBLISHED`; defaults to `DRAFT` on create.      |
 
 Update bodies are partial. Updating `icon_svg` or `status` does not require a
 language. Updating `name`, `abbr`, or `description` requires `language_id`.
 Existing translations can be partially updated; adding a translation requires
 both `name` and `abbr`. Send `null` for `icon_svg` or `description` to clear it.
+`icon_svg` is sanitized like social icons: scripts, event handlers,
+`foreignObject`, and `javascript:` links are removed, and the stored value is
+the sanitized markup. Markup that is not an `<svg>` element after sanitizing
+returns `400 Bad Request` with `SVG file is invalid.`
 The authenticated user's name is stored in `created_by`; updates set
 `updated_by` and `updated_at` on the division.
 
@@ -1119,7 +1130,7 @@ missing or disallowed request origins return `403 Forbidden`.
 
 ## Media
 
-Media list and detail reads are public. Upload and delete requests require an
+Media list and detail reads are public. Upload, update, and delete requests require an
 authenticated session and the configured frontend `Origin` or `Referer`.
 Uploaded files are stored in the SeaweedFS bucket under `media/` and are
 publicly available under `/public/media/`.
@@ -1127,14 +1138,17 @@ publicly available under `/public/media/`.
 ### Upload media
 
 `POST /media` accepts `multipart/form-data` with a `type` field (`PICTURE` or
-`DOCUMENT`) and a file field named `file`. The file is stored as
-`{name}-{random}.{extension}`, where `{name}` is the uploaded filename
-lowercased with non-alphanumeric characters replaced by `-`, so the same
-filename can be uploaded more than once. `filename` is that stored name and
-`path` is its public path.
-`DOCUMENT`) and a file field named `file`. The original filename is preserved
-as the S3 object name and must not already exist. Its URL-encoded public path is
-stored in `path`.
+`DOCUMENT`), a file field named `file`, and these optional fields:
+
+| Field      | Type   | Rules                                                                                              |
+| ---------- | ------ | -------------------------------------------------------------------------------------------------- |
+| `filename` | string | Display name, trimmed, 1–255 characters; defaults to the uploaded file's name. Need not be unique. |
+| `alt`      | string | Alternative text, trimmed, up to 255 characters; empty becomes `null`.                             |
+
+The file is stored as `{name}-{random}.{extension}`, where `{name}` is the
+uploaded filename lowercased with non-alphanumeric characters replaced by `-`.
+`path` is its public path and identifies the stored file; it never changes, so
+renaming media keeps existing links working.
 
 | Type       | Accepted extensions  | Maximum size |
 | ---------- | -------------------- | ------------ |
@@ -1152,7 +1166,8 @@ A successful upload returns `201 Created`:
 {
   "media": {
     "id": 18,
-    "filename": "company-news-3f9a1c7e5b2d4086.jpg",
+    "filename": "company-news.jpg",
+    "alt": "Company news event",
     "path": "/public/media/company-news-3f9a1c7e5b2d4086.jpg",
     "extension": "jpg",
     "type": "PICTURE",
@@ -1170,6 +1185,8 @@ Example browser request:
 const formData = new FormData();
 formData.append('type', 'PICTURE');
 formData.append('file', imageFile);
+formData.append('filename', 'company-news.jpg');
+formData.append('alt', 'Company news event');
 
 const response = await fetch(`${API_BASE_URL}/media`, {
   method: 'POST',
@@ -1198,6 +1215,20 @@ boundary.
 | `sort_order`    | string | `asc` or `desc`; defaults to `desc`.            |
 
 Results use `id` as a stable tie-breaker in the selected sort direction.
+
+### Update media
+
+`PUT /media/:mediaId` accepts JSON with a required `filename` (same rules as
+upload) and `alt` (string or `null`; empty becomes `null`). It changes only the
+display name and alternative text; the stored file and `path` stay the same. It
+returns `{ "media": ... }` with `200 OK`, or `404 Not Found` for a missing ID.
+
+```json
+{
+  "filename": "Company news.jpg",
+  "alt": "Company news event"
+}
+```
 
 ### Delete media
 
@@ -1296,6 +1327,10 @@ unchanged on update.
   returns `{ "documentCommitment": ... }` with `200 OK`.
 - `DELETE /document_commitments/:documentId` returns `204 No Content` and
   removes its stored PDF after the database deletion commits.
+- `POST /document_commitments/bulk_delete` deletes several documents in one
+  database transaction, then removes their stored PDFs. It takes a JSON `ids`
+  array of positive integers and returns `{ "deleted_count": 3 }` with
+  `200 OK`. Missing IDs are ignored.
 
 Create requests use `multipart/form-data` with a `file` field and these text
 fields:
@@ -1803,7 +1838,8 @@ Each `social_medias` item:
 | `icon_index`                   | integer | Optional; index into the uploaded `social_icons` files. Omit to keep the current icon. |
 
 The list is synced to the request: existing items missing from
-`social_medias` are deleted with their icon files, and `sort_order` follows the
+`social_medias` are deleted with their icon files (this needs the `delete`
+permission, or it returns `403 Forbidden`), and `sort_order` follows the
 array position starting at 1. Replaced logos and icons are removed after the
 save succeeds.
 
@@ -1892,7 +1928,6 @@ The response shape is:
     "operational_day": "Senin - Jumat",
     "operational_start_time": "08:00",
     "operational_end_time": "17:00",
-    "landing_site_url": "https://www.example.com",
     "social_medias": [
       {
         "id": 2,
@@ -1919,9 +1954,7 @@ The response shape is:
 }
 ```
 
-`landing_site_url` is read-only here: it is set directly in the
-`site_settings` table (key `landing_site_url`) and is `null` when that row is
-missing for the language. The CMS reads it from `language_id=id`.
+The landing site URL is an [app config](#app-configs), not a site setting.
 
 Invalid fields, files, or `icon_index` references return
 `400 Bad Request`; an unknown social media `id` returns
@@ -1995,7 +2028,8 @@ stable keys; show your own labels in the UI.
 - `PUT /role_permissions/:roleId/:permissionId` sets `is_allowed` and returns
   `{ "rolePermission": ... }` with `200 OK`. The body sets the value rather
   than flipping it, so retries are safe. An unknown pair returns
-  `404 Not Found`.
+  `404 Not Found`. Removing `manage_users` from a role you hold returns
+  `400 Bad Request`.
 
 ```json
 { "is_allowed": true }
@@ -2019,9 +2053,13 @@ stable keys; show your own labels in the UI.
 
 - `GET /users` returns `{ "users": [...], "pagination": ... }` with `200 OK`,
   sorted by name.
+- `GET /users/count` returns the number of users, pending invites included,
+  as `{ "total": 7 }` with `200 OK`.
 - `GET /users/:userId` returns `{ "user": ... }` with `200 OK`.
 - `POST /users` invites a user and returns `{ "user": ... }` with
-  `201 Created`. The user starts inactive with no password (`is_pending: true`)
+  `201 Created`. When the user count (pending invites included) has reached
+  the `max_users` [app config](#app-configs), it returns `403 Forbidden` with
+  `The user limit of 10 has been reached. Delete a user before adding another.` The user starts inactive with no password (`is_pending: true`)
   and is emailed an activation link valid for 72 hours (see
   [Activate Account](#activate-account)). If the email cannot be sent, the
   user is still created and the request returns `502 Bad Gateway` with
@@ -2031,7 +2069,9 @@ stable keys; show your own labels in the UI.
   with `User has already activated their account.` once the user has a
   password, and `502 Bad Gateway` if the email cannot be sent.
 - `PUT /users/:userId` partially updates a user and returns
-  `{ "user": ... }` with `200 OK`.
+  `{ "user": ... }` with `200 OK`. Changing your own `role_id` or setting your
+  own `is_active` to `false` returns `400 Bad Request`; sending your current
+  values is allowed.
 - `DELETE /users/:userId` returns `204 No Content`. Deleting your own account
   returns `400 Bad Request`. The user's activity log entries are kept.
 
@@ -2081,6 +2121,28 @@ accepts the invite. `last_signed_in` is set on each successful login and is
 }
 ```
 
+## App Configs
+
+Deployment-level settings stored as text in the `app_configs` table (`key`,
+`value`). They have no write endpoint; change them directly in the database.
+
+| Key                | Meaning                                                                                                    |
+| ------------------ | ---------------------------------------------------------------------------------------------------------- |
+| `max_users`        | Maximum number of users, pending invites included. A missing or non-positive-integer value means no limit. |
+| `landing_site_url` | Public landing site URL, used by the CMS dashboard's "view site" button.                                   |
+
+`GET /app_configs` requires login (any signed-in user) and returns every
+config as a key-value object with `200 OK`:
+
+```json
+{
+  "app_configs": {
+    "landing_site_url": "https://www.example.com",
+    "max_users": "10"
+  }
+}
+```
+
 ## Activity Logs
 
 `GET /activity-logs` requires login and returns
@@ -2098,24 +2160,42 @@ accepts the invite. `last_signed_in` is set on each successful login and is
     {
       "id": 1,
       "name": "Neni A.",
-      "action_type": "menambahkan artikel",
+      "action": "CREATE",
+      "resource": "ARTICLE",
       "action_result": "Kompas.com x PLN EMI",
+      "item_count": null,
       "created_at": "2026-10-18T08:50:01.237Z"
+    },
+    {
+      "id": 2,
+      "name": "Neni A.",
+      "action": "DELETE",
+      "resource": "MEDIA",
+      "action_result": null,
+      "item_count": 3,
+      "created_at": "2026-10-18T08:52:10.004Z"
     }
   ],
-  "pagination": { "page": 1, "limit": 20, "totalItems": 1, "totalPages": 1 }
+  "pagination": { "page": 1, "limit": 20, "totalItems": 2, "totalPages": 1 }
 }
 ```
 
 `name` is the user's name at the time of the action; it is stored on the
-entry, so entries remain after the user is deleted. Entries are written by the server after each
-successful content create, update, delete, or reorder (articles, article
-categories, roles, role permissions, users, board members and types, clients, divisions, services, documents
-and their categories, FAQs, media, site contents, and site settings).
-`action_type` is a verb plus the resource, such as `menambahkan artikel`,
-`memperbarui layanan`, `menghapus dokumen`, or `memperbarui urutan`.
-`action_result` is the item's name or title in the default language. Inbox and
-auth actions are not logged.
+entry, so entries remain after the user is deleted. Entries are written by the
+server after each successful content change. Inbox and auth actions are not
+logged.
+
+`action` and `resource` are codes for the client to translate:
+
+| Field      | Values                                                                                                                                                                                                                                        |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `action`   | `CREATE`, `UPDATE`, `DELETE`, `REORDER`, `RESEND_INVITE`                                                                                                                                                                                      |
+| `resource` | `ARTICLE`, `ARTICLE_CATEGORY`, `BOARD_MEMBER`, `BOARD_MEMBER_TYPE`, `CLIENT`, `DIVISION`, `DOCUMENT_COMMITMENT`, `DOCUMENT_COMMITMENT_CATEGORY`, `FAQ`, `MEDIA`, `ROLE`, `ROLE_PERMISSION`, `SERVICE`, `SITE_CONTENT`, `SITE_SETTING`, `USER` |
+
+`action_result` is the affected item's name or title in the default language,
+shown as is; it is `null` for reorders and site settings. `item_count` is the
+number of items removed by a bulk delete, which has no `action_result`;
+otherwise it is `null`.
 
 ## Search
 

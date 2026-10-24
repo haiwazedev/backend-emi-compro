@@ -1,5 +1,6 @@
 import { Prisma } from '../../../generated/prisma/client.js';
 import { ApiError } from '../../../shared/errors/api-error.js';
+import { sanitizeSvgMarkup } from '../../../shared/files/svg-file.js';
 import { ActivityLogService } from '../../activity_log/services/activity-log.service.js';
 import type { AuthenticatedUser } from '../../auth/authenticated-user.js';
 import { LanguageService } from '../../language/services/language.service.js';
@@ -42,7 +43,7 @@ export class DivisionService {
       );
     }
 
-    await this.activityLogService.log(user, 'memperbarui urutan', 'Divisi');
+    await this.activityLogService.log(user, 'REORDER', 'DIVISION');
     return divisions;
   }
 
@@ -52,7 +53,7 @@ export class DivisionService {
     try {
       const division = await this.repository.create(
         {
-          iconSvg: input.icon_svg ?? null,
+          iconSvg: toIconSvg(input.icon_svg),
           ...(input.status !== undefined ? { status: input.status } : {}),
           createdBy: getAuditName(user.name),
         },
@@ -63,7 +64,7 @@ export class DivisionService {
           description: input.description ?? null,
         },
       );
-      await this.activityLogService.log(user, 'menambahkan divisi', input.name);
+      await this.activityLogService.log(user, 'CREATE', 'DIVISION', input.name);
       return division;
     } catch (error) {
       throw mapDivisionError(error);
@@ -90,7 +91,7 @@ export class DivisionService {
       updatedBy: getAuditName(user.name),
     };
 
-    if (input.icon_svg !== undefined) data.iconSvg = input.icon_svg;
+    if (input.icon_svg !== undefined) data.iconSvg = toIconSvg(input.icon_svg);
     if (input.status !== undefined) data.status = input.status;
 
     const content =
@@ -117,7 +118,8 @@ export class DivisionService {
 
       await this.activityLogService.log(
         user,
-        'memperbarui divisi',
+        'UPDATE',
+        'DIVISION',
         divisionName(division),
       );
       return division;
@@ -137,7 +139,8 @@ export class DivisionService {
 
     await this.activityLogService.log(
       user,
-      'menghapus divisi',
+      'DELETE',
+      'DIVISION',
       divisionName(division),
     );
   }
@@ -146,6 +149,11 @@ export class DivisionService {
 // Contents are ordered by language, so the first is the default name.
 function divisionName(division: { id: number; contents: { name: string }[] }) {
   return division.contents[0]?.name ?? `Divisi #${division.id}`;
+}
+
+// The icon is public markup the landing renders inline, so it is sanitized on save.
+function toIconSvg(iconSvg: string | null | undefined): string | null {
+  return iconSvg ? sanitizeSvgMarkup(iconSvg) : null;
 }
 
 function getAuditName(name: string): string {

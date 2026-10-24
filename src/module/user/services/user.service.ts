@@ -94,13 +94,26 @@ export class UserService {
   }
 
   async update(id: number, input: UpdateUserInput, user: AuthenticatedUser) {
-    await this.getById(id);
+    const target = await this.getById(id);
 
     if (Object.keys(input).length === 0) {
       throw new ApiError(400, 'At least one user field is required.');
     }
 
     const { role_id, is_active, ...data } = input;
+
+    // The CMS form sends every field, so only an actual change is rejected.
+    if (
+      id === user.id &&
+      ((role_id !== undefined &&
+        role_id !== (target.userRole?.roleId ?? null)) ||
+        is_active === false)
+    ) {
+      throw new ApiError(
+        400,
+        'You cannot change your own role or deactivate yourself.',
+      );
+    }
 
     if (data.email) {
       await this.assertEmailAvailable(data.email, id);

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { validateBody } from '../../../shared/middlewares/validate-body.middleware.js';
 import { validateQuery } from '../../../shared/middlewares/validate-query.middleware.js';
+import { bulkDeleteBodySchema } from '../../../shared/schemas/common.schema.js';
 import {
   createAuthMiddleware,
   includeDrafts,
@@ -65,4 +66,11 @@ articleRouter.delete(
   requireAuth,
   requireDelete,
   controller.delete,
+);
+articleRouter.post(
+  '/articles/bulk_delete',
+  requireAuth,
+  requireDelete,
+  validateBody(bulkDeleteBodySchema),
+  controller.bulkDelete,
 );

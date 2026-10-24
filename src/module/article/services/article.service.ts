@@ -166,6 +166,20 @@ export class ArticleService {
     );
   }
 
+  async bulkDelete(ids: number[], user: AuthenticatedUser): Promise<number> {
+    const { count } = await this.repository.deleteMany(ids);
+
+    if (count > 0) {
+      await this.activityLogService.log(
+        user,
+        'menghapus artikel',
+        `${count} artikel`,
+      );
+    }
+
+    return count;
+  }
+
   private async requireCategory(id: number): Promise<void> {
     if (!(await this.categoryRepository.findById(id))) {
       throw new ApiError(400, 'Article category does not exist.');

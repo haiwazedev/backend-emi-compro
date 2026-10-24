@@ -15,7 +15,7 @@ const divisionFieldsSchema = z
     language_id: languageIdSchema,
     name: z.string().trim().min(1).max(200),
     abbr: z.string().trim().min(1).max(50),
-    icon_svg: z.string().nullable().optional(),
+    icon_svg: z.string().max(20_000).nullable().optional(),
     description: descriptionSchema,
     status: divisionStatusSchema.optional(),
   })

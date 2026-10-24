@@ -1,5 +1,6 @@
 import * as argon2 from 'argon2';
 import { ApiError } from '../../shared/errors/api-error.js';
+import { logger } from '../../shared/logging/logger.js';
 import { AuthRepository } from './auth.repository.js';
 import type { AuthUser } from './auth.repository.js';
 import { sendMail } from '../../shared/mail/mailer.js';
@@ -63,7 +64,7 @@ export class AuthService {
     try {
       await sendMail(buildResetMail(user, buildActivationUrl(token)));
     } catch (error) {
-      console.error('Failed to send password reset email.', error);
+      logger.error({ err: error }, 'Failed to send password reset email.');
     }
   }
 

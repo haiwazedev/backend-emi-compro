@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { ApiError } from '../../../shared/errors/api-error.js';
 import { getPictureDimensions } from '../../../shared/files/picture-file.js';
+import { logger } from '../../../shared/logging/logger.js';
 import {
   contentTypeForPublicPath,
   s3FileStorage,
@@ -80,7 +81,7 @@ export class MediaFileService {
     try {
       await this.remove(publicPath);
     } catch (error) {
-      console.error('Unable to remove a media file.', error);
+      logger.error({ err: error }, 'Unable to remove a media file.');
     }
   }
 }

@@ -8,6 +8,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { Readable } from 'node:stream';
 import { ApiError } from '../errors/api-error.js';
+import { logger } from '../logging/logger.js';
 
 const DEFAULT_REGION = 'us-east-1';
 const STORAGE_UNAVAILABLE_MESSAGE = 'File storage is unavailable.';
@@ -80,9 +81,9 @@ export class S3FileStorage {
     } catch (error) {
       await this.restoreObject(publicPath, previous, contentType).catch(
         (rollbackError: unknown) => {
-          console.error(
+          logger.error(
+            { err: rollbackError },
             'Unable to restore an S3 file after a failed upload.',
-            rollbackError,
           );
         },
       );

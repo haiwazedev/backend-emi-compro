@@ -1,10 +1,11 @@
 import { createClient } from 'redis';
 import { redisUrl } from '../config/session.js';
+import { logger } from '../logging/logger.js';
 
 export const redisClient = createClient({ url: redisUrl });
 
 redisClient.on('error', (error) => {
-  console.error('Redis session client error.', error);
+  logger.error({ err: error }, 'Redis session client error.');
 });
 
 export async function connectRedis(): Promise<void> {

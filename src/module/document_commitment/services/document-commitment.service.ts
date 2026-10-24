@@ -1,6 +1,7 @@
 import { Prisma } from '../../../generated/prisma/client.js';
 import { prisma } from '../../../shared/db/prisma.js';
 import { ApiError } from '../../../shared/errors/api-error.js';
+import { logger } from '../../../shared/logging/logger.js';
 import { ActivityLogService } from '../../activity_log/services/activity-log.service.js';
 import type { AuthenticatedUser } from '../../auth/authenticated-user.js';
 import { DocumentCommitmentCategoryRepository } from '../repositories/document-commitment-category.repository.js';
@@ -173,9 +174,9 @@ export class DocumentCommitmentService {
     } catch (error) {
       if (replacement) {
         await replacement.rollbackAfterFailure().catch((rollbackError) => {
-          console.error(
+          logger.error(
+            { err: rollbackError },
             'Unable to restore a replaced document file.',
-            rollbackError,
           );
         });
       }

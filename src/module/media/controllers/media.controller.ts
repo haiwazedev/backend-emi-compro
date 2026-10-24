@@ -6,6 +6,7 @@ import { MediaService } from '../services/media.service.js';
 import type {
   BulkDeleteMediaInput,
   MediaListQuery,
+  UpdateMediaInput,
   UploadMediaInput,
 } from '../schemas/media.schema.js';
 
@@ -27,9 +28,18 @@ export class MediaController {
   upload = async (req: Request, res: Response): Promise<void> => {
     const user = getAuthenticatedUser(req);
     const input = req.body as UploadMediaInput;
-    const media = await this.service.upload(req.file, input.type, user);
+    const media = await this.service.upload(req.file, input, user);
 
     res.status(201).json({ media: presentMedia(media) });
+  };
+
+  update = async (req: Request, res: Response): Promise<void> => {
+    const media = await this.service.update(
+      parseIdParam(req.params.mediaId),
+      req.body as UpdateMediaInput,
+      getAuthenticatedUser(req),
+    );
+    res.status(200).json({ media: presentMedia(media) });
   };
 
   delete = async (req: Request, res: Response): Promise<void> => {

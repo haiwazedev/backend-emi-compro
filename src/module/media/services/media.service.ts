@@ -3,7 +3,11 @@ import { ApiError } from '../../../shared/errors/api-error.js';
 import { ActivityLogService } from '../../activity_log/services/activity-log.service.js';
 import type { AuthenticatedUser } from '../../auth/authenticated-user.js';
 import { MediaRepository } from '../repositories/media.repository.js';
-import type { MediaListQuery, MediaType } from '../schemas/media.schema.js';
+import type {
+  MediaListQuery,
+  UpdateMediaInput,
+  UploadMediaInput,
+} from '../schemas/media.schema.js';
 import { MediaFileService } from './media-file.service.js';
 
 export class MediaService {
@@ -29,7 +33,7 @@ export class MediaService {
 
   async upload(
     file: Express.Multer.File | undefined,
-    type: MediaType,
+    input: UploadMediaInput,
     user: AuthenticatedUser,
   ) {
     if (!file) {
@@ -43,17 +47,18 @@ export class MediaService {
       );
     }
 
-    const details = this.fileService.describeUpload(file, type);
+    const details = this.fileService.describeUpload(file, input.type);
     let fileStored = false;
 
     try {
       const media = await prisma.$transaction(async (transaction) => {
         const created = await this.repository.create(
           {
-            filename: details.filename,
+            filename: input.filename ?? file.originalname,
+            alt: input.alt,
             path: details.path,
             extension: details.extension,
-            type,
+            type: input.type,
             size: details.size,
             metadata: details.metadata,
             createdBy: user.name,
@@ -74,14 +79,25 @@ export class MediaService {
       return media;
     } catch (error) {
       if (fileStored) {
-        await this.fileService.removeAfterCommit(details.filename);
+        await this.fileService.removeAfterCommit(details.path);
       }
 
-      if (isPrismaError(error, 'P2002')) {
-        throw new ApiError(
-          409,
-          'A media item with this filename already exists.',
-        );
+      throw error;
+    }
+  }
+
+  async update(id: number, input: UpdateMediaInput, user: AuthenticatedUser) {
+    try {
+      const media = await this.repository.update(id, input);
+      await this.activityLogService.log(
+        user,
+        'memperbarui media',
+        media.filename,
+      );
+      return media;
+    } catch (error) {
+      if (isPrismaError(error, 'P2025')) {
+        throw new ApiError(404, 'Media was not found.');
       }
 
       throw error;
@@ -101,7 +117,7 @@ export class MediaService {
       throw error;
     }
 
-    await this.fileService.removeAfterCommit(media.filename);
+    await this.fileService.removeAfterCommit(media.path);
     await this.activityLogService.log(user, 'menghapus media', media.filename);
   }
 
@@ -115,9 +131,7 @@ export class MediaService {
     });
 
     await Promise.all(
-      result.media.map(({ filename }) =>
-        this.fileService.removeAfterCommit(filename),
-      ),
+      result.media.map(({ path }) => this.fileService.removeAfterCommit(path)),
     );
 
     if (result.count > 0) {

@@ -72,13 +72,13 @@ export class MediaFileService {
     );
   }
 
-  async remove(filename: string): Promise<void> {
-    await s3FileStorage.remove(buildPublicPath(validateFilename(filename)));
+  async remove(publicPath: string): Promise<void> {
+    await s3FileStorage.remove(publicPath);
   }
 
-  async removeAfterCommit(filename: string): Promise<void> {
+  async removeAfterCommit(publicPath: string): Promise<void> {
     try {
-      await this.remove(filename);
+      await this.remove(publicPath);
     } catch (error) {
       console.error('Unable to remove a media file.', error);
     }

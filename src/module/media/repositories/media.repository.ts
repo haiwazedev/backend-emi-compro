@@ -23,6 +23,10 @@ export class MediaRepository {
     return (transaction ?? prisma).media.create({ data });
   }
 
+  update(id: number, data: Prisma.MediaUpdateInput) {
+    return prisma.media.update({ where: { id }, data });
+  }
+
   delete(id: number, transaction?: Prisma.TransactionClient) {
     return (transaction ?? prisma).media.delete({ where: { id } });
   }

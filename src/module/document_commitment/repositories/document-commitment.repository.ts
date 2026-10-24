@@ -82,6 +82,19 @@ export class DocumentCommitmentRepository {
     });
   }
 
+  deleteManyWithFiles(ids: number[]) {
+    return prisma.$transaction(async (transaction) => {
+      const where = { id: { in: ids } };
+      const documents = await transaction.documentCommitment.findMany({
+        where,
+        select: { filename: true },
+      });
+
+      await transaction.documentCommitment.deleteMany({ where });
+      return documents;
+    });
+  }
+
   private buildWhere(
     query: DocumentCommitmentListQuery,
     includeDrafts: boolean,

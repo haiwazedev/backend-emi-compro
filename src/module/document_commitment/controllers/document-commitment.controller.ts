@@ -2,7 +2,10 @@ import type { NextFunction, Request, Response } from 'express';
 import { canSeeDrafts } from '../../auth/auth.middleware.js';
 import { getAuthenticatedUser } from '../../auth/authenticated-user.js';
 import { sendStoredFile } from '../../../shared/middlewares/public-file.middleware.js';
-import { parseIdParam } from '../../../shared/schemas/common.schema.js';
+import {
+  parseIdParam,
+  type BulkDeleteInput,
+} from '../../../shared/schemas/common.schema.js';
 import { presentDocumentCommitment } from '../presenters/document-commitment.presenter.js';
 import { DocumentCommitmentService } from '../services/document-commitment.service.js';
 import type {
@@ -80,5 +83,15 @@ export class DocumentCommitmentController {
       getAuthenticatedUser(req),
     );
     res.status(204).end();
+  };
+
+  bulkDelete = async (req: Request, res: Response): Promise<void> => {
+    const input = req.body as BulkDeleteInput;
+    const deletedCount = await this.service.bulkDelete(
+      input.ids,
+      getAuthenticatedUser(req),
+    );
+
+    res.status(200).json({ deleted_count: deletedCount });
   };
 }

@@ -9,6 +9,7 @@ import {
 import { AuthService } from '../../auth/auth.service.js';
 import { validateBody } from '../../../shared/middlewares/validate-body.middleware.js';
 import { validateQuery } from '../../../shared/middlewares/validate-query.middleware.js';
+import { bulkDeleteBodySchema } from '../../../shared/schemas/common.schema.js';
 import { DocumentCommitmentController } from '../controllers/document-commitment.controller.js';
 import { uploadDocumentCommitmentFile } from '../middlewares/document-commitment-upload.middleware.js';
 import {
@@ -79,4 +80,11 @@ documentCommitmentRouter.delete(
   requireAuth,
   requireDelete,
   controller.delete,
+);
+documentCommitmentRouter.post(
+  '/document_commitments/bulk_delete',
+  requireAuth,
+  requireDelete,
+  validateBody(bulkDeleteBodySchema),
+  controller.bulkDelete,
 );

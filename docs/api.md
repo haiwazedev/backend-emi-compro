@@ -2148,24 +2148,42 @@ config as a key-value object with `200 OK`:
     {
       "id": 1,
       "name": "Neni A.",
-      "action_type": "menambahkan artikel",
+      "action": "CREATE",
+      "resource": "ARTICLE",
       "action_result": "Kompas.com x PLN EMI",
+      "item_count": null,
       "created_at": "2026-10-18T08:50:01.237Z"
+    },
+    {
+      "id": 2,
+      "name": "Neni A.",
+      "action": "DELETE",
+      "resource": "MEDIA",
+      "action_result": null,
+      "item_count": 3,
+      "created_at": "2026-10-18T08:52:10.004Z"
     }
   ],
-  "pagination": { "page": 1, "limit": 20, "totalItems": 1, "totalPages": 1 }
+  "pagination": { "page": 1, "limit": 20, "totalItems": 2, "totalPages": 1 }
 }
 ```
 
 `name` is the user's name at the time of the action; it is stored on the
-entry, so entries remain after the user is deleted. Entries are written by the server after each
-successful content create, update, delete, or reorder (articles, article
-categories, roles, role permissions, users, board members and types, clients, divisions, services, documents
-and their categories, FAQs, media, site contents, and site settings).
-`action_type` is a verb plus the resource, such as `menambahkan artikel`,
-`memperbarui layanan`, `menghapus dokumen`, or `memperbarui urutan`.
-`action_result` is the item's name or title in the default language. Inbox and
-auth actions are not logged.
+entry, so entries remain after the user is deleted. Entries are written by the
+server after each successful content change. Inbox and auth actions are not
+logged.
+
+`action` and `resource` are codes for the client to translate:
+
+| Field      | Values                                                                                                                                                                                                                                        |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `action`   | `CREATE`, `UPDATE`, `DELETE`, `REORDER`, `RESEND_INVITE`                                                                                                                                                                                      |
+| `resource` | `ARTICLE`, `ARTICLE_CATEGORY`, `BOARD_MEMBER`, `BOARD_MEMBER_TYPE`, `CLIENT`, `DIVISION`, `DOCUMENT_COMMITMENT`, `DOCUMENT_COMMITMENT_CATEGORY`, `FAQ`, `MEDIA`, `ROLE`, `ROLE_PERMISSION`, `SERVICE`, `SITE_CONTENT`, `SITE_SETTING`, `USER` |
+
+`action_result` is the affected item's name or title in the default language,
+shown as is; it is `null` for reorders and site settings. `item_count` is the
+number of items removed by a bulk delete, which has no `action_result`;
+otherwise it is `null`.
 
 ## Search
 

@@ -4,6 +4,7 @@ import type {
   Prisma,
 } from '../../../generated/prisma/client.js';
 import type { AuthenticatedUser } from '../../auth/authenticated-user.js';
+import { logger } from '../../../shared/logging/logger.js';
 import { ActivityLogRepository } from '../repositories/activity-log.repository.js';
 import type { ActivityLogListQuery } from '../schemas/activity-log.schema.js';
 
@@ -69,7 +70,7 @@ export class ActivityLogService {
         createdBy: user.name.slice(0, 100),
       });
     } catch (error) {
-      console.error('Failed to write activity log.', error);
+      logger.error({ err: error }, 'Failed to write activity log.');
     }
   }
 }

@@ -3,6 +3,7 @@ import { ActivityLogService } from '../../activity_log/services/activity-log.ser
 import { AppConfigService } from '../../app_config/services/app-config.service.js';
 import type { AuthenticatedUser } from '../../auth/authenticated-user.js';
 import { sendMail } from '../../../shared/mail/mailer.js';
+import { logger } from '../../../shared/logging/logger.js';
 import { buildInviteMail } from '../../auth/auth.mails.js';
 import { buildActivationUrl, issueUserToken } from '../../auth/user-token.js';
 import { RoleRepository } from '../../role/repositories/role.repository.js';
@@ -203,7 +204,7 @@ async function sendInvite(target: { id: number; name: string; email: string }) {
   try {
     await sendMail(buildInviteMail(target, buildActivationUrl(token)));
   } catch (error) {
-    console.error('Failed to send invite email.', error);
+    logger.error({ err: error }, 'Failed to send invite email.');
     throw new ApiError(
       502,
       'The invite email could not be sent. Try resending the invite.',

@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { ApiError } from '../../../shared/errors/api-error.js';
+import { logger } from '../../../shared/logging/logger.js';
 import {
   contentTypeForPublicPath,
   s3FileStorage,
@@ -80,7 +81,7 @@ export class DocumentCommitmentFileService {
     try {
       await s3FileStorage.remove(buildPublicPath(validateFilename(filename)));
     } catch (error) {
-      console.error('Unable to remove a document file.', error);
+      logger.error({ err: error }, 'Unable to remove a document file.');
     }
   }
 }

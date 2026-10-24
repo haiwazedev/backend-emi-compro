@@ -29,8 +29,10 @@ import { connectRedis, redisClient } from './shared/db/redis.js';
 import { validateRequestOrigin } from './shared/middlewares/csrf.middleware.js';
 import { errorHandler } from './shared/middlewares/error.middleware.js';
 import { publicFileMiddleware } from './shared/middlewares/public-file.middleware.js';
+import { requestLoggingMiddleware } from './shared/middlewares/request-logging.middleware.js';
 import { securityHeaders } from './shared/middlewares/security-headers.middleware.js';
 import { sessionMiddleware } from './shared/middlewares/session.middleware.js';
+import { logger, shutdownLogger } from './shared/logging/logger.js';
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -38,6 +40,7 @@ const PORT = process.env.PORT || 8000;
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
 
+app.use(requestLoggingMiddleware);
 app.use(securityHeaders);
 app.use('/public/document_commitment', requirePublishedDocumentFile);
 app.use('/public', cors(), publicFileMiddleware);
@@ -91,15 +94,50 @@ async function startServer(): Promise<void> {
   try {
     await connectRedis();
   } catch (error) {
-    console.error('Unable to connect to Redis; server startup aborted.', error);
+    logger.error(
+      { err: error },
+      'Unable to connect to Redis; server startup aborted.',
+    );
     redisClient.destroy();
     process.exitCode = 1;
+    await shutdownLogger();
     return;
   }
 
-  app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+  const server = app.listen(PORT, () => {
+    logger.info({ port: PORT }, 'HTTP server started.');
   });
+
+  let isShuttingDown = false;
+
+  const shutdown = (signal: NodeJS.Signals) => {
+    if (isShuttingDown) {
+      return;
+    }
+
+    isShuttingDown = true;
+    logger.info({ signal }, 'Server shutdown requested.');
+
+    const forceCloseTimeout = setTimeout(() => {
+      logger.warn('Forcing HTTP server shutdown after timeout.');
+      server.closeAllConnections();
+    }, 10_000);
+    forceCloseTimeout.unref();
+
+    server.close((error) => {
+      clearTimeout(forceCloseTimeout);
+
+      if (error) {
+        logger.error({ err: error }, 'HTTP server close failed.');
+      }
+
+      redisClient.destroy();
+      void shutdownLogger();
+    });
+  };
+
+  process.once('SIGINT', () => shutdown('SIGINT'));
+  process.once('SIGTERM', () => shutdown('SIGTERM'));
 }
 
 void startServer();

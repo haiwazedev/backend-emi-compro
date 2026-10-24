@@ -3,6 +3,7 @@ import path from 'node:path';
 import { ApiError } from '../../../shared/errors/api-error.js';
 import { getPictureDimensions } from '../../../shared/files/picture-file.js';
 import { sanitizeSvg } from '../../../shared/files/svg-file.js';
+import { logger } from '../../../shared/logging/logger.js';
 import {
   contentTypeForPublicPath,
   s3FileStorage,
@@ -92,7 +93,7 @@ export class SiteSettingFileService {
     try {
       await s3FileStorage.remove(filepath);
     } catch (error) {
-      console.error('Unable to remove a site settings file.', error);
+      logger.error({ err: error }, 'Unable to remove a site settings file.');
     }
   }
 }

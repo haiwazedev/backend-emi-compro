@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { ApiError } from '../../../shared/errors/api-error.js';
 import { getPictureDimensions } from '../../../shared/files/picture-file.js';
+import { logger } from '../../../shared/logging/logger.js';
 import {
   contentTypeForPublicPath,
   s3FileStorage,
@@ -65,7 +66,7 @@ export class BoardMemberFileService {
     try {
       await s3FileStorage.remove(`/public/board_member/${filename}`);
     } catch (error) {
-      console.error('Unable to remove a board member photo.', error);
+      logger.error({ err: error }, 'Unable to remove a board member photo.');
     }
   }
 }

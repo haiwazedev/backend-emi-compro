@@ -30,6 +30,14 @@ is unavailable or not configured. Invite and password reset emails require
 Resend); the
 server does not start without them.
 
+Operational logs are written as structured JSON to stdout. OpenObserve delivery
+is optional and uses the JSON ingestion API. Configure `OPENOBSERVE_URL` with
+the OpenObserve base URL, plus `OPENOBSERVE_ORG`, `OPENOBSERVE_USERNAME`, and
+`OPENOBSERVE_PASSWORD` to enable remote delivery. `OPENOBSERVE_STREAM` defaults
+to `pln_emi_server`; `LOG_LEVEL` defaults to `info`. Leave all OpenObserve
+settings unset to use stdout only. Incomplete or unavailable OpenObserve
+configuration does not prevent the server from starting or handling requests.
+
 ## Swagger
 
 Interactive API documentation is served at `GET /documentation`, and the raw

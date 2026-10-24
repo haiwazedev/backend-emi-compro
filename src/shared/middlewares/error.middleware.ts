@@ -1,6 +1,7 @@
 import type { ErrorRequestHandler } from 'express';
 import multer from 'multer';
 import { ApiError } from '../errors/api-error.js';
+import { logger } from '../logging/logger.js';
 
 export const errorHandler: ErrorRequestHandler = (
   error: unknown,
@@ -28,6 +29,7 @@ export const errorHandler: ErrorRequestHandler = (
     return;
   }
 
+  logger.error({ err: error }, 'Unhandled request error.');
   res.status(500).json({ message: 'Internal server error.' });
 };
 

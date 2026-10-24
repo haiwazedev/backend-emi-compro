@@ -163,6 +163,90 @@
             "description": "Public."
           },
           "response": []
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/forgot-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "forgot-password"]
+            },
+            "description": "Public. Always 204; emails a reset link only to users who already have a password.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"ari@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify Activation Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/activate/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "activate", "verify"]
+            },
+            "description": "Public. Returns the token purpose (INVITE or RESET) without using the token.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"token-from-email\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Activate Account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/activate",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "activate"]
+            },
+            "description": "Public. Sets the password with an invite or reset token from the emailed link.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"token-from-email\",\n  \"password\": \"Str0ng!Pass\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
         }
       ]
     },

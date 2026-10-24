@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { ApiError } from '../../../shared/errors/api-error.js';
 import { getPictureDimensions } from '../../../shared/files/picture-file.js';
@@ -62,7 +63,7 @@ export class SiteSettingFileService {
     const isSvg = extension === 'svg';
     const buffer = isSvg ? sanitizeSvg(file.buffer) : file.buffer;
     const metadata = isSvg ? {} : getPictureDimensions(buffer, extension);
-    const filename = `${rule.filenamePrefix}${toSlug(file.originalname)}-${Date.now()}.${extension}`;
+    const filename = `${rule.filenamePrefix}${toSlug(file.originalname)}-${randomBytes(8).toString('hex')}.${extension}`;
 
     const filepath = rule.publicPath + filename;
     await s3FileStorage.store(

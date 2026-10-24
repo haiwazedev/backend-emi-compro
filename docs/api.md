@@ -25,7 +25,10 @@ does not start if it cannot connect to Redis. File uploads and public file reads
 also require `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, and `S3_SECRET_KEY`
 for the SeaweedFS S3 gateway. `S3_REGION` defaults to `us-east-1`; the bucket
 must already exist. Storage requests return `503 Service Unavailable` when S3
-is unavailable or not configured.
+is unavailable or not configured. Invite and password reset emails require
+`RESEND_API_KEY` and `MAIL_FROM` (an address on a domain verified in
+Resend); the
+server does not start without them.
 
 ## Swagger
 
@@ -205,6 +208,89 @@ curl -i -X POST http://localhost:8000/auth/logout \
   -H 'Origin: http://localhost:3000' \
   -b cookies.txt
 ```
+
+## Forgot Password
+
+`POST /auth/forgot-password`
+
+Email a password reset link to an account. Always returns `204 No Content`,
+whether or not the email is registered, so the response cannot be used to
+check which accounts exist. A link is sent only to users who have already set
+a password; invited users who have not activated get nothing and need the
+admin to resend their invite. Each new link replaces the previous one and
+expires after 60 minutes.
+
+The link points to `${FRONTEND_ORIGIN}/auth/activate?token=<token>`.
+
+| Field   | Type   | Rules                       |
+| ------- | ------ | --------------------------- |
+| `email` | string | Required, valid, lowercased |
+
+```json
+{ "email": "ari@example.com" }
+```
+
+### Errors
+
+| Status                    | Message                                                                    |
+| ------------------------- | -------------------------------------------------------------------------- |
+| `400 Bad Request`         | `Email must be valid.`                                                     |
+| `429 Too Many Requests`   | `Too many password reset requests. Please try again later.` (5 per 15 min) |
+| `503 Service Unavailable` | `Password reset is temporarily unavailable.` when Redis fails.             |
+
+## Verify Activation Token
+
+`POST /auth/activate/verify`
+
+Check a token from an invite or reset link without using it, so the page can
+show an expired link before the user types a password. Returns `200 OK` with
+the token's purpose; `POST /auth/activate` still checks the token again.
+
+| Field   | Type   | Rules                           |
+| ------- | ------ | ------------------------------- |
+| `token` | string | Required, from the emailed link |
+
+```json
+{ "purpose": "INVITE" }
+```
+
+`purpose` is `INVITE` (the account is activated on success) or `RESET`.
+
+### Errors
+
+| Status                    | Message                                                            |
+| ------------------------- | ------------------------------------------------------------------ |
+| `400 Bad Request`         | `This link is invalid or has expired.`                             |
+| `429 Too Many Requests`   | `Too many attempts. Please try again later.` (20 per 15 min)       |
+| `503 Service Unavailable` | `Account activation is temporarily unavailable.` when Redis fails. |
+
+## Activate Account
+
+`POST /auth/activate`
+
+Set a password with the token from an invite or password reset email. Returns
+`204 No Content`. An invite token also activates the account; a reset token
+only changes the password. The token works once, and using it invalidates the
+user's other tokens. Sessions created before the password change get
+`401 Unauthorized` on their next protected request. The user signs in
+afterwards with `POST /auth/login`.
+
+| Field      | Type   | Rules                                                                                      |
+| ---------- | ------ | ------------------------------------------------------------------------------------------ |
+| `token`    | string | Required, from the emailed link                                                            |
+| `password` | string | Required, 8–128 characters, with at least one uppercase letter, one number, and one symbol |
+
+```json
+{ "token": "Zx3...", "password": "Str0ng!Pass" }
+```
+
+### Errors
+
+| Status                    | Message                                                                                                                                                                                  |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `400 Bad Request`         | `This link is invalid or has expired.`, or a password rule: `Password must be at least 8 characters.`, `...contain an uppercase letter.`, `...contain a number.`, `...contain a symbol.` |
+| `429 Too Many Requests`   | `Too many attempts. Please try again later.` (10 per 15 min)                                                                                                                             |
+| `503 Service Unavailable` | `Account activation is temporarily unavailable.` when Redis fails.                                                                                                                       |
 
 ## Permissions
 
@@ -1042,7 +1128,7 @@ publicly available under `/public/media/`.
 
 `POST /media` accepts `multipart/form-data` with a `type` field (`PICTURE` or
 `DOCUMENT`) and a file field named `file`. The file is stored as
-`{name}-{timestamp}.{extension}`, where `{name}` is the uploaded filename
+`{name}-{random}.{extension}`, where `{name}` is the uploaded filename
 lowercased with non-alphanumeric characters replaced by `-`, so the same
 filename can be uploaded more than once. `filename` is that stored name and
 `path` is its public path.
@@ -1066,8 +1152,8 @@ A successful upload returns `201 Created`:
 {
   "media": {
     "id": 18,
-    "filename": "company-news-1791892200000.jpg",
-    "path": "/public/media/company-news-1791892200000.jpg",
+    "filename": "company-news-3f9a1c7e5b2d4086.jpg",
+    "path": "/public/media/company-news-3f9a1c7e5b2d4086.jpg",
     "extension": "jpg",
     "type": "PICTURE",
     "size": 184,
@@ -1200,6 +1286,8 @@ unchanged on update.
   `{ "documentCommitments": [...], "pagination": ... }` with `200 OK`.
   `GET /admin/document_commitments` and `GET /admin/document_commitments/:documentId`
   include drafts (see [Public and Admin Reads](#public-and-admin-reads)).
+- `GET /admin/document_commitments/:documentId/file` streams the document's
+  PDF, drafts included, and requires login.
 - `GET /document_commitments/:documentId` returns
   `{ "documentCommitment": ... }` with `200 OK`.
 - `POST /document_commitments` creates a document commitment and returns
@@ -1219,28 +1307,25 @@ fields:
 | `status`                          | string | Optional; `DRAFT` or `PUBLISHED`; defaults to `DRAFT`. |
 | `file`                            | file   | Required; valid PDF, maximum 50 MiB.                   |
 
-The server stores each file at `public/document_commitment/{filename}`, where
-`filename` is `{name}-{timestamp}.pdf` and `{name}` is the uploaded filename
-lowercased with non-alphanumeric characters replaced by `-`, so the same
-filename can be uploaded more than once. `file_path` is the public path, and
-`size` is rounded up to KiB (1024 bytes).
 The server stores each file in the SeaweedFS bucket under
-`document_commitment/{filename}`, using the original uploaded filename.
-`file_path` contains the URL-encoded public path, and `size` is rounded up to
-KiB (1024 bytes). Filenames must be safe
-basenames and unique across document commitments. Reusing a filename returns
-`409 Conflict`; the server never overwrites an unrelated file.
+`document_commitment/{filename}`, where `filename` is `{name}-{random}.pdf`,
+`{name}` is the uploaded filename lowercased with non-alphanumeric characters
+replaced by `-`, and `{random}` is 16 random hexadecimal characters, so the
+same filename can be uploaded more than once. `file_path` is the URL-encoded
+public path, and `size` is rounded up to KiB (1024 bytes).
 The authenticated user's name is stored in `uploaded_by`; `uploaded_at`
 defaults to the current time.
+
+`file_path` only serves `PUBLISHED` documents; a draft's file returns
+`404 Not Found`. The CMS opens any document's PDF, drafts included, through
+`GET /admin/document_commitments/:documentId/file`, which requires login,
+streams the PDF with `Cache-Control: private, no-store`, and returns
+`404 Not Found` for a missing document.
 
 Updates are partial. Send JSON to update metadata only, or use
 `multipart/form-data` to replace the PDF and optionally update metadata. When
 no file is sent, the existing PDF is kept. A replacement PDF gets a new stored
 filename, and the old file is removed after the database update commits. Every update
-no file is sent, the existing PDF is kept. Replacing a PDF with the same
-filename replaces that document's file in place. A filename used by another
-document returns `409 Conflict`. A new filename moves the document to the new
-path and removes the old file after the database update commits. Every update
 sets `updated_at` and `updated_by` to the current time and authenticated user's
 name.
 
@@ -1282,8 +1367,8 @@ A document response has this shape:
     "id": 21,
     "document_commitment_category_id": 2,
     "title": "Board decision 2026-10",
-    "file_path": "/public/document_commitment/board-decision-2026-10-1791720600000.pdf",
-    "filename": "board-decision-2026-10-1791720600000.pdf",
+    "file_path": "/public/document_commitment/board-decision-2026-10-3f9a1c7e5b2d4086.pdf",
+    "filename": "board-decision-2026-10-3f9a1c7e5b2d4086.pdf",
     "size": 420,
     "status": "PUBLISHED",
     "uploaded_at": "2026-10-11T10:30:00.000Z",
@@ -1476,9 +1561,9 @@ file. The authenticated user's name is stored in `created_by`; updates set
 
 Logos are uploaded directly and are not part of the media library. The server
 stores each logo in the SeaweedFS bucket under
-`clients/{name}-{timestamp}.{extension}`, where
+`clients/{name}-{random}.{extension}`, where
 `{name}` is the uploaded filename lowercased with non-alphanumeric characters
-replaced by `-`, and `{timestamp}` is the upload time in milliseconds. The
+replaced by `-`, and `{random}` is 16 random hexadecimal characters. The
 response's `logo_filepath` is the corresponding `/public/clients/...` path.
 The response also includes:
 
@@ -1518,8 +1603,8 @@ The response shape is:
   "client": {
     "id": 1,
     "name": "Accenture",
-    "logo_filename": "accenture-1791913320264.png",
-    "logo_filepath": "/public/clients/accenture-1791913320264.png",
+    "logo_filename": "accenture-3f9a1c7e5b2d4086.png",
+    "logo_filepath": "/public/clients/accenture-3f9a1c7e5b2d4086.png",
     "logo_extension": "png",
     "logo_size": 18,
     "logo_metadata": { "width": 400, "height": 160 },
@@ -1724,8 +1809,8 @@ save succeeds.
 
 Uploaded SVG files are sanitized: scripts, event handlers, `foreignObject`, and
 `javascript:` links are removed, and a file with no valid `<svg>` left returns
-`400 Bad Request`. Logos are stored at `/public/site-logo-{name}-{timestamp}.{extension}`
-and icons at `/public/site-social-medias/site-social-media-{name}-{timestamp}.svg`.
+`400 Bad Request`. Logos are stored at `/public/site-logo-{name}-{random}.{extension}`
+and icons at `/public/site-social-medias/site-social-media-{name}-{random}.svg`.
 Both paths resolve to objects in the configured SeaweedFS bucket.
 Only the logo filepath is kept. `icon_metadata` is the pixel `width` and
 `height` for raster images and `{}` for SVG.
@@ -1796,7 +1881,7 @@ The response shape is:
     "company_name": "PT Energy Management Indonesia (Persero)",
     "company_short_name": "PLN EMI",
     "danantara_logo_filepath": "",
-    "pln_logo_filepath": "/public/site-logo-pln-emi-1792136400000.svg",
+    "pln_logo_filepath": "/public/site-logo-pln-emi-3f9a1c7e5b2d4086.svg",
     "company_address": "Menara Sentraya Lt. 17, Jakarta Selatan 12160",
     "company_location_lat": -6.2249,
     "company_location_long": 106.8172,
@@ -1813,8 +1898,8 @@ The response shape is:
         "id": 2,
         "platform_name": "YouTube",
         "platform_url_or_account_name": "@EnergyManagementIndonesia",
-        "icon_filename": "site-social-media-youtube-1792136400001.svg",
-        "icon_filepath": "/public/site-social-medias/site-social-media-youtube-1792136400001.svg",
+        "icon_filename": "site-social-media-youtube-3f9a1c7e5b2d4086.svg",
+        "icon_filepath": "/public/site-social-medias/site-social-media-youtube-3f9a1c7e5b2d4086.svg",
         "icon_extension": "svg",
         "icon_size": 1,
         "icon_metadata": {},
@@ -1935,9 +2020,16 @@ stable keys; show your own labels in the UI.
 - `GET /users` returns `{ "users": [...], "pagination": ... }` with `200 OK`,
   sorted by name.
 - `GET /users/:userId` returns `{ "user": ... }` with `200 OK`.
-- `POST /users` creates a user and returns `{ "user": ... }` with
-  `201 Created`. The password is set to the server's `DEFAULT_USER_PASSWORD`;
-  the request returns `500` if that variable is missing.
+- `POST /users` invites a user and returns `{ "user": ... }` with
+  `201 Created`. The user starts inactive with no password (`is_pending: true`)
+  and is emailed an activation link valid for 72 hours (see
+  [Activate Account](#activate-account)). If the email cannot be sent, the
+  user is still created and the request returns `502 Bad Gateway` with
+  `The invite email could not be sent. Try resending the invite.`
+- `POST /users/:userId/invite` resends the invite with a new link and returns
+  `204 No Content`; the previous link stops working. Returns `409 Conflict`
+  with `User has already activated their account.` once the user has a
+  password, and `502 Bad Gateway` if the email cannot be sent.
 - `PUT /users/:userId` partially updates a user and returns
   `{ "user": ... }` with `200 OK`.
 - `DELETE /users/:userId` returns `204 No Content`. Deleting your own account
@@ -1959,21 +2051,21 @@ stable keys; show your own labels in the UI.
 
 Bodies accept `name` (1–100 characters), `email` (valid, lowercased, unique),
 `role_id` (an existing role id, or `null` for no role), and `is_active`
-(boolean). All fields are required on create; omitted fields remain unchanged
-on update. An unknown `role_id` returns `400 Bad Request`; a duplicate email
-returns `409 Conflict`.
+(boolean, update only). `name`, `email`, and `role_id` are required on create;
+omitted fields remain unchanged on update. An unknown `role_id` returns
+`400 Bad Request`; a duplicate email returns `409 Conflict`.
 
 ```json
 {
   "name": "Andi Lala",
   "email": "andi.lala@emipersero.co.id",
-  "role_id": 3,
-  "is_active": true
+  "role_id": 3
 }
 ```
 
-Responses never include the password. `last_signed_in` is set on each
-successful login and is `null` until the first one.
+Responses never include the password. `is_pending` is `true` until the user
+accepts the invite. `last_signed_in` is set on each successful login and is
+`null` until the first one.
 
 ```json
 {
@@ -1982,7 +2074,8 @@ successful login and is `null` until the first one.
     "name": "Andi Lala",
     "email": "andi.lala@emipersero.co.id",
     "role": { "id": 3, "name": "Kontributor" },
-    "is_active": true,
+    "is_active": false,
+    "is_pending": true,
     "last_signed_in": null
   }
 }

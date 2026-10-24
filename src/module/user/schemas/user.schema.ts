@@ -21,7 +21,8 @@ export const userListQuerySchema = z
   })
   .strict();
 
-export const createUserBodySchema = userFieldsSchema;
+// New users start inactive until they accept the emailed invite.
+export const createUserBodySchema = userFieldsSchema.omit({ is_active: true });
 export const updateUserBodySchema = userFieldsSchema.partial();
 
 export type UserListQuery = z.infer<typeof userListQuerySchema>;

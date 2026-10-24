@@ -37,6 +37,15 @@ export class DocumentCommitmentRepository {
     });
   }
 
+  async isPublishedFilename(filename: string): Promise<boolean> {
+    const document = await prisma.documentCommitment.findUnique({
+      where: { filename },
+      select: { status: true },
+    });
+
+    return document?.status === 'PUBLISHED';
+  }
+
   create(
     data: Prisma.DocumentCommitmentUncheckedCreateInput,
     transaction: Prisma.TransactionClient,

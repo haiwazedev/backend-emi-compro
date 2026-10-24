@@ -1,6 +1,7 @@
-import type { Request, Response } from 'express';
+import type { NextFunction, Request, Response } from 'express';
 import { canSeeDrafts } from '../../auth/auth.middleware.js';
 import { getAuthenticatedUser } from '../../auth/authenticated-user.js';
+import { sendStoredFile } from '../../../shared/middlewares/public-file.middleware.js';
 import { parseIdParam } from '../../../shared/schemas/common.schema.js';
 import { presentDocumentCommitment } from '../presenters/document-commitment.presenter.js';
 import { DocumentCommitmentService } from '../services/document-commitment.service.js';
@@ -33,6 +34,19 @@ export class DocumentCommitmentController {
     res.status(200).json({
       documentCommitment: presentDocumentCommitment(document),
     });
+  };
+
+  file = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    const document = await this.service.getById(
+      parseIdParam(req.params.documentId),
+    );
+
+    res.setHeader('Cache-Control', 'private, no-store');
+    await sendStoredFile(req, res, next, document.filePath);
   };
 
   create = async (req: Request, res: Response): Promise<void> => {

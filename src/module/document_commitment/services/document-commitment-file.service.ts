@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { ApiError } from '../../../shared/errors/api-error.js';
 import {
@@ -33,8 +34,8 @@ export class DocumentCommitmentFileService {
       throw new ApiError(400, 'Document must be a valid PDF file.');
     }
 
-    // A timestamp keeps stored filenames unique when users reuse a name.
-    const filename = `${toSlug(originalName)}-${Date.now()}.pdf`;
+    // A random suffix keeps stored filenames unique and unguessable.
+    const filename = `${toSlug(originalName)}-${randomBytes(8).toString('hex')}.pdf`;
 
     return {
       filename,

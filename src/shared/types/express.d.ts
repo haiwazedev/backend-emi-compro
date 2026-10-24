@@ -11,6 +11,8 @@ declare global {
 declare module 'express-session' {
   interface SessionData {
     userId?: number;
+    // Epoch ms of login; sessions older than the last password change are rejected.
+    authenticatedAt?: number;
   }
 }
 

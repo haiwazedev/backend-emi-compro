@@ -9,7 +9,12 @@ import {
   createArticleBodySchema,
   updateArticleBodySchema,
 } from '../article/schemas/article.schema.js';
-import { loginBodySchema } from '../auth/auth.schemas.js';
+import {
+  activateBodySchema,
+  forgotPasswordBodySchema,
+  loginBodySchema,
+  verifyTokenBodySchema,
+} from '../auth/auth.schemas.js';
 import {
   createBoardMemberTypeBodySchema,
   updateBoardMemberTypeBodySchema,
@@ -142,6 +147,29 @@ const routes: Routes = {
     get: { tag: 'Auth', summary: 'Get the current user', auth: true },
   },
   '/auth/logout': { post: { tag: 'Auth', summary: 'Log out', status: 204 } },
+  '/auth/forgot-password': {
+    post: {
+      tag: 'Auth',
+      summary: 'Email a password reset link',
+      status: 204,
+      body: forgotPasswordBodySchema,
+    },
+  },
+  '/auth/activate/verify': {
+    post: {
+      tag: 'Auth',
+      summary: 'Check an invite or reset token without using it',
+      body: verifyTokenBodySchema,
+    },
+  },
+  '/auth/activate': {
+    post: {
+      tag: 'Auth',
+      summary: 'Set a password with an invite or reset token',
+      status: 204,
+      body: activateBodySchema,
+    },
+  },
 
   '/activity-logs': {
     get: {
@@ -442,6 +470,13 @@ const routes: Routes = {
       auth: true,
     },
   },
+  '/admin/document_commitments/{documentId}/file': {
+    get: {
+      tag: 'Document commitments',
+      summary: 'Download a document commitment PDF, drafts included',
+      auth: true,
+    },
+  },
 
   '/divisions': {
     get: {
@@ -737,10 +772,18 @@ const routes: Routes = {
     },
     post: {
       tag: 'Users',
-      summary: 'Create a user with the default password',
+      summary: 'Invite a user by email',
       auth: true,
       status: 201,
       body: createUserBodySchema,
+    },
+  },
+  '/users/{userId}/invite': {
+    post: {
+      tag: 'Users',
+      summary: 'Resend the invite email',
+      auth: true,
+      status: 204,
     },
   },
   '/users/{userId}': {

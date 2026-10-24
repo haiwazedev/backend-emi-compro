@@ -32,7 +32,7 @@ export class UserRepository {
   }
 
   create(
-    data: { name: string; email: string; password: string },
+    data: { name: string; email: string },
     userRole: UserRoleFields,
     userName: string,
   ) {

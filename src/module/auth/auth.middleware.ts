@@ -12,7 +12,10 @@ export function createAuthMiddleware(authService: AuthService): RequestHandler {
       return;
     }
 
-    req.authenticatedUser = await authService.getAuthenticatedUser(userId);
+    req.authenticatedUser = await authService.getAuthenticatedUser(
+      userId,
+      req.session.authenticatedAt,
+    );
     next();
   };
 }

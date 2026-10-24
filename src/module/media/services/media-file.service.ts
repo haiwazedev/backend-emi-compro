@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { ApiError } from '../../../shared/errors/api-error.js';
 import { getPictureDimensions } from '../../../shared/files/picture-file.js';
@@ -21,8 +22,8 @@ export class MediaFileService {
   describeUpload(file: Express.Multer.File, type: MediaType): MediaFileDetails {
     const originalName = validateFilename(file.originalname);
     const extension = path.extname(originalName).slice(1).toLowerCase();
-    // A timestamp keeps stored filenames unique when users reuse a name.
-    const filename = `${toSlug(originalName)}-${Date.now()}.${extension}`;
+    // A random suffix keeps stored filenames unique and unguessable.
+    const filename = `${toSlug(originalName)}-${randomBytes(8).toString('hex')}.${extension}`;
     const maxSize = type === 'PICTURE' ? MAX_PICTURE_SIZE : MAX_DOCUMENT_SIZE;
     const maxSizeLabel = type === 'PICTURE' ? '2 MiB' : '5 MiB';
 

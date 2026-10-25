@@ -26,9 +26,10 @@ also require `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, and `S3_SECRET_KEY`
 for the SeaweedFS S3 gateway. `S3_REGION` defaults to `us-east-1`; the bucket
 must already exist. Storage requests return `503 Service Unavailable` when S3
 is unavailable or not configured. Invite and password reset emails require
-`RESEND_API_KEY` and `MAIL_FROM` (an address on a domain verified in
-Resend); the
-server does not start without them.
+`SMTP_HOST`, `SMTP_PORT` (465 uses TLS, other ports use STARTTLS), and
+`MAIL_FROM`; the server does not start without them. Set `SMTP_USER` and
+`SMTP_PASS` for servers that need login, such as Gmail with an App Password;
+leave them unset for relays that allow the server by IP.
 
 Operational logs are written as structured JSON to stdout. OpenObserve delivery
 is optional and uses the JSON ingestion API. Configure `OPENOBSERVE_URL` with

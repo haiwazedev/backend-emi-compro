@@ -66,7 +66,7 @@ export class MediaService {
           transaction,
         );
 
-        await this.fileService.store(details.filename, file.buffer);
+        await this.fileService.store(details.filename, details.buffer);
         fileStored = true;
         return created;
       });

@@ -1,8 +1,10 @@
 import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { ApiError } from '../../../shared/errors/api-error.js';
-import { getPictureDimensions } from '../../../shared/files/picture-file.js';
-import { sanitizeSvg } from '../../../shared/files/svg-file.js';
+import {
+  processImageUpload,
+  type ImageMetadata,
+} from '../../../shared/files/image-file.js';
 import { logger } from '../../../shared/logging/logger.js';
 import {
   contentTypeForPublicPath,
@@ -15,7 +17,6 @@ export const MAX_ICON_SIZE = 1 * 1024 * 1024;
 type FileRule = {
   publicPath: string;
   filenamePrefix: string;
-  extensions: string[];
   maxSize: number;
   label: string;
 };
@@ -23,7 +24,6 @@ type FileRule = {
 export const LOGO_FILE_RULE: FileRule = {
   publicPath: '/public/',
   filenamePrefix: 'site-logo-',
-  extensions: ['png', 'jpg', 'jpeg', 'webp', 'svg'],
   maxSize: MAX_LOGO_SIZE,
   label: 'Logo',
 };
@@ -31,7 +31,6 @@ export const LOGO_FILE_RULE: FileRule = {
 export const ICON_FILE_RULE: FileRule = {
   publicPath: '/public/site-social-medias/',
   filenamePrefix: 'site-social-media-',
-  extensions: ['svg'],
   maxSize: MAX_ICON_SIZE,
   label: 'Social media icon',
 };
@@ -41,7 +40,7 @@ export type StoredFile = {
   filepath: string;
   extension: string;
   size: number;
-  metadata: { width: number; height: number } | Record<string, never>;
+  metadata: ImageMetadata;
 };
 
 export class SiteSettingFileService {
@@ -54,22 +53,13 @@ export class SiteSettingFileService {
     }
 
     const extension = path.extname(file.originalname).slice(1).toLowerCase();
-    if (!rule.extensions.includes(extension)) {
-      throw new ApiError(
-        400,
-        `${rule.label} must be a ${rule.extensions.join(', ').toUpperCase()} file.`,
-      );
-    }
-
-    const isSvg = extension === 'svg';
-    const buffer = isSvg ? sanitizeSvg(file.buffer) : file.buffer;
-    const metadata = isSvg ? {} : getPictureDimensions(buffer, extension);
+    const image = processImageUpload(file.buffer, extension, rule.label);
     const filename = `${rule.filenamePrefix}${toSlug(file.originalname)}-${randomBytes(8).toString('hex')}.${extension}`;
 
     const filepath = rule.publicPath + filename;
     await s3FileStorage.store(
       filepath,
-      buffer,
+      image.buffer,
       contentTypeForPublicPath(filepath),
       'A file with this filename already exists.',
     );
@@ -78,8 +68,8 @@ export class SiteSettingFileService {
       filename,
       filepath,
       extension,
-      size: Math.ceil(buffer.length / 1024),
-      metadata,
+      size: Math.ceil(image.buffer.length / 1024),
+      metadata: image.metadata,
     };
   }
 

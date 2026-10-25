@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { ApiError } from '../../../shared/errors/api-error.js';
-import { getPictureDimensions } from '../../../shared/files/picture-file.js';
+import { processImageUpload } from '../../../shared/files/image-file.js';
 import { logger } from '../../../shared/logging/logger.js';
 import {
   contentTypeForPublicPath,
@@ -10,6 +10,7 @@ import {
 const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
 export type BoardMemberPhotoDetails = {
   extension: string;
+  buffer: Buffer;
 };
 
 export type BoardMemberPhotoReplacement = {
@@ -25,25 +26,20 @@ export class BoardMemberFileService {
     }
 
     const extension = path.extname(file.originalname).slice(1).toLowerCase();
-    if (!['png', 'jpg', 'jpeg'].includes(extension)) {
-      throw new ApiError(400, 'Photo must be a PNG, JPG, or JPEG file.');
-    }
+    const image = processImageUpload(file.buffer, extension, 'Photo');
 
-    getPictureDimensions(file.buffer, extension);
-
-    return { extension };
+    return { extension, buffer: image.buffer };
   }
 
   async replace(
     memberId: number,
     previousPhotoPath: string | null,
     details: BoardMemberPhotoDetails,
-    buffer: Buffer,
   ): Promise<BoardMemberPhotoReplacement> {
     const photoPath = buildPublicPath(memberId, details.extension);
     const replacement = await s3FileStorage.replace(
       photoPath,
-      buffer,
+      details.buffer,
       contentTypeForPublicPath(photoPath),
     );
 
@@ -86,7 +82,7 @@ function buildPublicPath(memberId: number, extension: string): string {
 function getPhotoFilename(photoPath: string | null): string | null {
   if (!photoPath) return null;
 
-  const match = /^\/public\/board_member\/(\d+)\.(png|jpg|jpeg)$/.exec(
+  const match = /^\/public\/board_member\/(\d+)\.(png|jpe?g|webp|svg)$/.exec(
     photoPath,
   );
 

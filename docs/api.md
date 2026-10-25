@@ -1065,8 +1065,9 @@ list length; invalid positions return `400 Bad Request`.
 
 Requests without a photo use JSON. To upload or replace a photo, send
 `multipart/form-data` with the same fields and an optional file field named
-`photo`. Photos may be PNG, JPG, or JPEG files up to 5 MiB. The server checks
-the image content and stores it in the SeaweedFS bucket under
+`photo`. Photos may be PNG, JPG, JPEG, WEBP, or SVG files up to 5 MiB. The
+server checks raster content against the extension, sanitizes SVG files, and
+stores the file in the SeaweedFS bucket under
 `board_member/{memberId}.{extension}`. The `photo` response field contains the
 public path `/public/board_member/{memberId}.{extension}`. Omitting `photo`
 during an update keeps the current photo.
@@ -1163,15 +1164,16 @@ uploaded filename lowercased with non-alphanumeric characters replaced by `-`.
 `path` is its public path and identifies the stored file; it never changes, so
 renaming media keeps existing links working.
 
-| Type       | Accepted extensions  | Maximum size |
-| ---------- | -------------------- | ------------ |
-| `PICTURE`  | `png`, `jpg`, `jpeg` | 2 MiB        |
-| `DOCUMENT` | `pdf`                | 5 MiB        |
+| Type       | Accepted extensions                 | Maximum size |
+| ---------- | ----------------------------------- | ------------ |
+| `PICTURE`  | `png`, `jpg`, `jpeg`, `webp`, `svg` | 2 MiB        |
+| `DOCUMENT` | `pdf`                               | 5 MiB        |
 
-The server checks file content against the extension. Picture metadata contains
-its pixel `width` and `height`; document metadata is `null`. `size` is the file
-size rounded up to an integer number of KB (1024 bytes). `created_by` is the authenticated
-user's name.
+The server checks raster content against the extension and sanitizes SVG files.
+Raster picture metadata contains its pixel `width` and `height`; SVG picture
+metadata is `{}`; document metadata is `null`. `size` is the stored file size
+rounded up to an integer number of KB (1024 bytes). `created_by` is the
+authenticated user's name.
 
 A successful upload returns `201 Created`:
 
@@ -1597,10 +1599,10 @@ logos shown in the "Klien Kami" section of the home page.
 
 Create and update requests use `multipart/form-data` with these fields:
 
-| Field  | Type   | Rules                                                                        |
-| ------ | ------ | ---------------------------------------------------------------------------- |
-| `name` | string | Required on create; trimmed; 1–200 characters.                               |
-| `logo` | file   | Required on create; PNG, JPG, JPEG, or WEBP; maximum 5 MiB; content-checked. |
+| Field  | Type   | Rules                                                                             |
+| ------ | ------ | --------------------------------------------------------------------------------- |
+| `name` | string | Required on create; trimmed; 1–200 characters.                                    |
+| `logo` | file   | Required on create; PNG, JPG, JPEG, WEBP, or SVG; maximum 5 MiB; content-checked. |
 
 On update, omitted fields remain unchanged; a request with neither `name` nor
 `logo` returns `400 Bad Request`. Uploading a new `logo` replaces the previous
@@ -1618,11 +1620,12 @@ The response also includes:
 - `logo_filename`: the stored filename.
 - `logo_filepath`: the public path; build the logo URL from it, as described
   under [Public Static Assets](#public-static-assets).
-- `logo_extension`: `png`, `jpg`, `jpeg`, or `webp`.
+- `logo_extension`: `png`, `jpg`, `jpeg`, `webp`, or `svg`.
 - `logo_size`: the file size rounded up to KiB (1024 bytes).
-- `logo_metadata`: the pixel `width` and `height`.
+- `logo_metadata`: the pixel `width` and `height` for raster images, or `{}` for SVG.
 
-Upload logos as transparent PNG or WEBP files.
+Raster logo content is checked against its extension. SVG logos are sanitized
+before storage.
 
 Example browser upload:
 
@@ -1814,12 +1817,12 @@ language is also `null`. The CMS disables inputs whose key is `null`.
 
 `PUT /site_settings` uses `multipart/form-data`:
 
-| Field            | Type        | Rules                                                                                 |
-| ---------------- | ----------- | ------------------------------------------------------------------------------------- |
-| `data`           | JSON string | Required; the settings payload below.                                                 |
-| `danantara_logo` | file        | Optional; PNG, JPG, JPEG, WEBP, or SVG; maximum 2 MiB. Omit to keep the current logo. |
-| `pln_logo`       | file        | Optional; same rules as `danantara_logo`.                                             |
-| `social_icons`   | file[]      | Optional; SVG only; maximum 1 MiB each; up to 20. Each must be referenced by an item. |
+| Field            | Type        | Rules                                                                                                     |
+| ---------------- | ----------- | --------------------------------------------------------------------------------------------------------- |
+| `data`           | JSON string | Required; the settings payload below.                                                                     |
+| `danantara_logo` | file        | Optional; PNG, JPG, JPEG, WEBP, or SVG; maximum 2 MiB. Omit to keep the current logo.                     |
+| `pln_logo`       | file        | Optional; same rules as `danantara_logo`.                                                                 |
+| `social_icons`   | file[]      | Optional; PNG, JPG, JPEG, WEBP, or SVG; maximum 1 MiB each; up to 20. Each must be referenced by an item. |
 
 The `data` payload:
 
@@ -1858,9 +1861,10 @@ save succeeds.
 
 Uploaded SVG files are sanitized: scripts, event handlers, `foreignObject`, and
 `javascript:` links are removed, and a file with no valid `<svg>` left returns
-`400 Bad Request`. Logos are stored at `/public/site-logo-{name}-{random}.{extension}`
-and icons at `/public/site-social-medias/site-social-media-{name}-{random}.svg`.
-Both paths resolve to objects in the configured SeaweedFS bucket.
+`400 Bad Request`. Raster content is checked against its extension. Logos are
+stored at `/public/site-logo-{name}-{random}.{extension}` and icons at
+`/public/site-social-medias/site-social-media-{name}-{random}.{extension}`. Both
+paths resolve to objects in the configured SeaweedFS bucket.
 Only the logo filepath is kept. `icon_metadata` is the pixel `width` and
 `height` for raster images and `{}` for SVG.
 
@@ -2268,14 +2272,14 @@ failures return `503 Service Unavailable`.
 
 ## Article, Category, Media, and Document Commitment Errors
 
-| Status                  | Description                                                                              |
-| ----------------------- | ---------------------------------------------------------------------------------------- |
-| `400 Bad Request`       | Invalid ID, body or query value, category, media or language reference, or uploaded PDF. |
-| `401 Unauthorized`      | A write request does not have a valid session.                                           |
-| `403 Forbidden`         | A write request has a missing or disallowed `Origin`/`Referer`.                          |
-| `404 Not Found`         | The requested article, category, media, or document commitment does not exist.           |
-| `409 Conflict`          | Article slug, category slug, media filename, or document filename is already in use.     |
-| `413 Payload Too Large` | An uploaded file exceeds the limit for its media type or document commitment.            |
+| Status                  | Description                                                                                       |
+| ----------------------- | ------------------------------------------------------------------------------------------------- |
+| `400 Bad Request`       | Invalid ID, body or query value, category, media or language reference, or uploaded image or PDF. |
+| `401 Unauthorized`      | A write request does not have a valid session.                                                    |
+| `403 Forbidden`         | A write request has a missing or disallowed `Origin`/`Referer`.                                   |
+| `404 Not Found`         | The requested article, category, media, or document commitment does not exist.                    |
+| `409 Conflict`          | Article slug, category slug, media filename, or document filename is already in use.              |
+| `413 Payload Too Large` | An uploaded file exceeds the limit for its media type or document commitment.                     |
 
 ## Health Check
 

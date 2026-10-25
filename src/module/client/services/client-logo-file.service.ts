@@ -1,7 +1,10 @@
 import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { ApiError } from '../../../shared/errors/api-error.js';
-import { getPictureDimensions } from '../../../shared/files/picture-file.js';
+import {
+  processImageUpload,
+  type ImageMetadata,
+} from '../../../shared/files/image-file.js';
 import { logger } from '../../../shared/logging/logger.js';
 import {
   contentTypeForPublicPath,
@@ -9,7 +12,6 @@ import {
 } from '../../../shared/storage/s3-file-storage.js';
 
 export const MAX_LOGO_SIZE = 5 * 1024 * 1024;
-const LOGO_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp'];
 const publicClientPath = '/public/clients/';
 
 export type ClientLogo = {
@@ -17,7 +19,7 @@ export type ClientLogo = {
   filepath: string;
   extension: string;
   size: number;
-  metadata: { width: number; height: number };
+  metadata: ImageMetadata;
 };
 
 export class ClientLogoFileService {
@@ -27,17 +29,13 @@ export class ClientLogoFileService {
     }
 
     const extension = path.extname(originalName).slice(1).toLowerCase();
-    if (!LOGO_EXTENSIONS.includes(extension)) {
-      throw new ApiError(400, 'Logo must be a PNG, JPG, JPEG, or WEBP file.');
-    }
-
-    const metadata = getPictureDimensions(buffer, extension);
+    const image = processImageUpload(buffer, extension, 'Logo');
     const filename = `${toSlug(originalName)}-${randomBytes(8).toString('hex')}.${extension}`;
 
     const filepath = publicClientPath + filename;
     await s3FileStorage.store(
       filepath,
-      buffer,
+      image.buffer,
       contentTypeForPublicPath(filepath),
       'A logo with this filename already exists.',
     );
@@ -46,8 +44,8 @@ export class ClientLogoFileService {
       filename,
       filepath,
       extension,
-      size: Math.ceil(buffer.length / 1024),
-      metadata,
+      size: Math.ceil(image.buffer.length / 1024),
+      metadata: image.metadata,
     };
   }
 

@@ -1,7 +1,10 @@
 import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { ApiError } from '../../../shared/errors/api-error.js';
-import { getPictureDimensions } from '../../../shared/files/picture-file.js';
+import {
+  processImageUpload,
+  type ImageMetadata,
+} from '../../../shared/files/image-file.js';
 import { logger } from '../../../shared/logging/logger.js';
 import {
   contentTypeForPublicPath,
@@ -15,8 +18,9 @@ export type MediaFileDetails = {
   filename: string;
   extension: string;
   path: string;
+  buffer: Buffer;
   size: number;
-  metadata?: { width: number; height: number };
+  metadata?: ImageMetadata;
 };
 
 export class MediaFileService {
@@ -44,22 +48,20 @@ export class MediaFileService {
         filename,
         extension,
         path: buildPublicPath(filename),
+        buffer: file.buffer,
         size: Math.ceil(file.size / 1024),
       };
     }
 
-    if (!['png', 'jpg', 'jpeg'].includes(extension)) {
-      throw new ApiError(400, 'Picture must be a PNG, JPG, or JPEG file.');
-    }
-
-    const dimensions = getPictureDimensions(file.buffer, extension);
+    const image = processImageUpload(file.buffer, extension, 'Picture');
 
     return {
       filename,
       extension,
       path: buildPublicPath(filename),
-      size: Math.ceil(file.size / 1024),
-      metadata: dimensions,
+      buffer: image.buffer,
+      size: Math.ceil(image.buffer.length / 1024),
+      metadata: image.metadata,
     };
   }
 

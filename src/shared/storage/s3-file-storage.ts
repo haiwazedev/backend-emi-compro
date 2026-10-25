@@ -323,15 +323,17 @@ function isManagedObjectKey(key: string): boolean {
 
   switch (segments[0]) {
     case 'media':
-      return /^[^/]+\.(png|jpe?g|pdf)$/i.test(segments[1]);
+      return /^[^/]+\.(png|jpe?g|webp|svg|pdf)$/i.test(segments[1]);
     case 'document_commitment':
       return /^[^/]+\.pdf$/i.test(segments[1]);
     case 'board_member':
-      return /^\d+\.(png|jpe?g)$/i.test(segments[1]);
+      return /^\d+\.(png|jpe?g|webp|svg)$/i.test(segments[1]);
     case 'clients':
-      return /^[a-z0-9-]+\.(png|jpe?g|webp)$/i.test(segments[1]);
+      return /^[a-z0-9-]+\.(png|jpe?g|webp|svg)$/i.test(segments[1]);
     case 'site-social-medias':
-      return /^site-social-media-[^/]+\.svg$/i.test(segments[1]);
+      return /^site-social-media-[^/]+\.(png|jpe?g|webp|svg)$/i.test(
+        segments[1],
+      );
     default:
       return false;
   }

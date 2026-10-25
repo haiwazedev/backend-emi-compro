@@ -79,7 +79,6 @@ export class BoardMemberService {
           created.member.id,
           null,
           details,
-          photo.buffer,
         );
         const member = await this.repository.updateFields(
           created.member.id,
@@ -189,7 +188,6 @@ export class BoardMemberService {
           id,
           current.photo,
           details,
-          photo.buffer,
         );
 
         return this.repository.updateFields(

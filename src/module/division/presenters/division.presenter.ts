@@ -1,4 +1,5 @@
 import type { Prisma } from '../../../generated/prisma/client.js';
+import { sanitizeSvgMarkupOrNull } from '../../../shared/files/svg-file.js';
 
 export type DivisionWithContents = Prisma.DivisionGetPayload<{
   include: { contents: true };
@@ -7,7 +8,7 @@ export type DivisionWithContents = Prisma.DivisionGetPayload<{
 export function presentDivision(division: DivisionWithContents) {
   return {
     id: division.id,
-    icon_svg: division.iconSvg,
+    icon_svg: sanitizeSvgMarkupOrNull(division.iconSvg),
     status: division.status,
     sort_order: division.sortOrder,
     created_at: division.createdAt.toISOString(),

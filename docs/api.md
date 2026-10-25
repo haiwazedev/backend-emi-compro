@@ -798,8 +798,10 @@ Existing translations can be partially updated; adding a translation requires
 both `name` and `abbr`. Send `null` for `icon_svg` or `description` to clear it.
 `icon_svg` is sanitized like social icons: scripts, event handlers,
 `foreignObject`, and `javascript:` links are removed, and the stored value is
-the sanitized markup. Markup that is not an `<svg>` element after sanitizing
-returns `400 Bad Request` with `SVG file is invalid.`
+the sanitized markup. Division reads sanitize stored values again, including
+legacy rows; malformed values are returned as `null`. Markup that is not an
+`<svg>` element after sanitizing on create or update returns `400 Bad Request`
+with `SVG file is invalid.`
 The authenticated user's name is stored in `created_by`; updates set
 `updated_by` and `updated_at` on the division.
 

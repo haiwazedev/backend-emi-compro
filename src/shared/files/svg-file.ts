@@ -17,6 +17,17 @@ export function sanitizeSvgMarkup(markup: string): string {
   return sanitized;
 }
 
+export function sanitizeSvgMarkupOrNull(markup: string | null): string | null {
+  if (markup === null) return null;
+
+  try {
+    return sanitizeSvgMarkup(markup);
+  } catch (error) {
+    if (error instanceof ApiError && error.statusCode === 400) return null;
+    throw error;
+  }
+}
+
 export function sanitizeSvg(buffer: Buffer): Buffer {
   return Buffer.from(sanitizeSvgMarkup(buffer.toString('utf8')), 'utf8');
 }

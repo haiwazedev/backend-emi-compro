@@ -10,6 +10,7 @@
     "prebuild": "prisma generate",
     "build": "tsc",
     "start": "node dist/app.js",
+    "test": "node --import tsx --test tests/division-svg.test.ts",
     "db:generate": "prisma generate",
     "db:migrate:dev": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",

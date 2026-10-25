@@ -1168,8 +1168,8 @@ renaming media keeps existing links working.
 
 | Type       | Accepted extensions                 | Maximum size |
 | ---------- | ----------------------------------- | ------------ |
-| `PICTURE`  | `png`, `jpg`, `jpeg`, `webp`, `svg` | 2 MiB        |
-| `DOCUMENT` | `pdf`                               | 5 MiB        |
+| `PICTURE`  | `png`, `jpg`, `jpeg`, `webp`, `svg` | 5 MiB        |
+| `DOCUMENT` | `pdf`                               | 20 MiB       |
 
 The server checks raster content against the extension and sanitizes SVG files.
 Raster picture metadata contains its pixel `width` and `height`; SVG picture
@@ -1357,7 +1357,7 @@ fields:
 | `document_commitment_category_id` | number | Required; positive ID of an existing category.         |
 | `title`                           | string | Required; trimmed; 1–200 characters.                   |
 | `status`                          | string | Optional; `DRAFT` or `PUBLISHED`; defaults to `DRAFT`. |
-| `file`                            | file   | Required; valid PDF, maximum 50 MiB.                   |
+| `file`                            | file   | Required; valid PDF, maximum 20 MiB.                   |
 
 The server stores each file in the SeaweedFS bucket under
 `document_commitment/{filename}`, where `filename` is `{name}-{random}.pdf`,
@@ -1436,7 +1436,7 @@ A document response has this shape:
 ```
 
 Invalid fields, category references, or PDF files return `400 Bad Request`;
-missing document or category IDs return `404 Not Found`. Uploads over 50 MiB
+missing document or category IDs return `404 Not Found`. Uploads over 20 MiB
 return `413 Payload Too Large`.
 
 ## FAQs
@@ -1822,9 +1822,9 @@ language is also `null`. The CMS disables inputs whose key is `null`.
 | Field            | Type        | Rules                                                                                                     |
 | ---------------- | ----------- | --------------------------------------------------------------------------------------------------------- |
 | `data`           | JSON string | Required; the settings payload below.                                                                     |
-| `danantara_logo` | file        | Optional; PNG, JPG, JPEG, WEBP, or SVG; maximum 2 MiB. Omit to keep the current logo.                     |
+| `danantara_logo` | file        | Optional; PNG, JPG, JPEG, WEBP, or SVG; maximum 5 MiB. Omit to keep the current logo.                     |
 | `pln_logo`       | file        | Optional; same rules as `danantara_logo`.                                                                 |
-| `social_icons`   | file[]      | Optional; PNG, JPG, JPEG, WEBP, or SVG; maximum 1 MiB each; up to 20. Each must be referenced by an item. |
+| `social_icons`   | file[]      | Optional; PNG, JPG, JPEG, WEBP, or SVG; maximum 5 MiB each; up to 20. Each must be referenced by an item. |
 
 The `data` payload:
 
@@ -2281,7 +2281,7 @@ failures return `503 Service Unavailable`.
 | `403 Forbidden`         | A write request has a missing or disallowed `Origin`/`Referer`.                                   |
 | `404 Not Found`         | The requested article, category, media, or document commitment does not exist.                    |
 | `409 Conflict`          | Article slug, category slug, media filename, or document filename is already in use.              |
-| `413 Payload Too Large` | An uploaded file exceeds the limit for its media type or document commitment.                     |
+| `413 Payload Too Large` | An uploaded image exceeds 5 MiB or a PDF exceeds 20 MiB.                                          |
 
 ## Health Check
 

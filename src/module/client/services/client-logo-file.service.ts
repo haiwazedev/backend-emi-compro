@@ -5,13 +5,13 @@ import {
   processImageUpload,
   type ImageMetadata,
 } from '../../../shared/files/image-file.js';
+import { MAX_IMAGE_UPLOAD_SIZE } from '../../../shared/files/upload-limits.js';
 import { logger } from '../../../shared/logging/logger.js';
 import {
   contentTypeForPublicPath,
   s3FileStorage,
 } from '../../../shared/storage/s3-file-storage.js';
 
-export const MAX_LOGO_SIZE = 5 * 1024 * 1024;
 const publicClientPath = '/public/clients/';
 
 export type ClientLogo = {
@@ -24,7 +24,7 @@ export type ClientLogo = {
 
 export class ClientLogoFileService {
   async store(originalName: string, buffer: Buffer): Promise<ClientLogo> {
-    if (buffer.length > MAX_LOGO_SIZE) {
+    if (buffer.length > MAX_IMAGE_UPLOAD_SIZE) {
       throw new ApiError(413, 'Uploaded logo must not exceed 5 MiB.');
     }
 

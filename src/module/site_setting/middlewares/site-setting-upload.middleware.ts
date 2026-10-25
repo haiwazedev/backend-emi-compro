@@ -1,13 +1,13 @@
 import type { RequestHandler } from 'express';
 import multer from 'multer';
 import { ApiError } from '../../../shared/errors/api-error.js';
+import { MAX_IMAGE_UPLOAD_SIZE } from '../../../shared/files/upload-limits.js';
 import { MAX_SOCIAL_MEDIAS } from '../schemas/site-setting.schema.js';
-import { MAX_LOGO_SIZE } from '../services/site-setting-file.service.js';
 
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: MAX_LOGO_SIZE,
+    fileSize: MAX_IMAGE_UPLOAD_SIZE,
     files: MAX_SOCIAL_MEDIAS + 2,
     fields: 1,
     fieldSize: 64 * 1024,

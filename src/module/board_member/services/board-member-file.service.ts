@@ -1,13 +1,13 @@
 import path from 'node:path';
 import { ApiError } from '../../../shared/errors/api-error.js';
 import { processImageUpload } from '../../../shared/files/image-file.js';
+import { MAX_IMAGE_UPLOAD_SIZE } from '../../../shared/files/upload-limits.js';
 import { logger } from '../../../shared/logging/logger.js';
 import {
   contentTypeForPublicPath,
   s3FileStorage,
 } from '../../../shared/storage/s3-file-storage.js';
 
-const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
 export type BoardMemberPhotoDetails = {
   extension: string;
   buffer: Buffer;
@@ -21,7 +21,7 @@ export type BoardMemberPhotoReplacement = {
 
 export class BoardMemberFileService {
   describeUpload(file: Express.Multer.File): BoardMemberPhotoDetails {
-    if (file.size > MAX_PHOTO_SIZE) {
+    if (file.size > MAX_IMAGE_UPLOAD_SIZE) {
       throw new ApiError(413, 'Uploaded photo must not exceed 5 MiB.');
     }
 

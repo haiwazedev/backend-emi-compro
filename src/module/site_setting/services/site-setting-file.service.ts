@@ -5,14 +5,12 @@ import {
   processImageUpload,
   type ImageMetadata,
 } from '../../../shared/files/image-file.js';
+import { MAX_IMAGE_UPLOAD_SIZE } from '../../../shared/files/upload-limits.js';
 import { logger } from '../../../shared/logging/logger.js';
 import {
   contentTypeForPublicPath,
   s3FileStorage,
 } from '../../../shared/storage/s3-file-storage.js';
-
-export const MAX_LOGO_SIZE = 2 * 1024 * 1024;
-export const MAX_ICON_SIZE = 1 * 1024 * 1024;
 
 type FileRule = {
   publicPath: string;
@@ -24,14 +22,14 @@ type FileRule = {
 export const LOGO_FILE_RULE: FileRule = {
   publicPath: '/public/',
   filenamePrefix: 'site-logo-',
-  maxSize: MAX_LOGO_SIZE,
+  maxSize: MAX_IMAGE_UPLOAD_SIZE,
   label: 'Logo',
 };
 
 export const ICON_FILE_RULE: FileRule = {
   publicPath: '/public/site-social-medias/',
   filenamePrefix: 'site-social-media-',
-  maxSize: MAX_ICON_SIZE,
+  maxSize: MAX_IMAGE_UPLOAD_SIZE,
   label: 'Social media icon',
 };
 

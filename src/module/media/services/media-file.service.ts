@@ -2,6 +2,10 @@ import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { ApiError } from '../../../shared/errors/api-error.js';
 import {
+  MAX_IMAGE_UPLOAD_SIZE,
+  MAX_PDF_UPLOAD_SIZE,
+} from '../../../shared/files/upload-limits.js';
+import {
   processImageUpload,
   type ImageMetadata,
 } from '../../../shared/files/image-file.js';
@@ -12,8 +16,6 @@ import {
 } from '../../../shared/storage/s3-file-storage.js';
 import type { MediaType } from '../schemas/media.schema.js';
 
-const MAX_PICTURE_SIZE = 2 * 1024 * 1024;
-const MAX_DOCUMENT_SIZE = 5 * 1024 * 1024;
 export type MediaFileDetails = {
   filename: string;
   extension: string;
@@ -29,8 +31,9 @@ export class MediaFileService {
     const extension = path.extname(originalName).slice(1).toLowerCase();
     // A random suffix keeps stored filenames unique and unguessable.
     const filename = `${toSlug(originalName)}-${randomBytes(8).toString('hex')}.${extension}`;
-    const maxSize = type === 'PICTURE' ? MAX_PICTURE_SIZE : MAX_DOCUMENT_SIZE;
-    const maxSizeLabel = type === 'PICTURE' ? '2 MiB' : '5 MiB';
+    const maxSize =
+      type === 'PICTURE' ? MAX_IMAGE_UPLOAD_SIZE : MAX_PDF_UPLOAD_SIZE;
+    const maxSizeLabel = type === 'PICTURE' ? '5 MiB' : '20 MiB';
 
     if (file.size > maxSize) {
       throw new ApiError(

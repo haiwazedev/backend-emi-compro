@@ -1,13 +1,13 @@
 import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { ApiError } from '../../../shared/errors/api-error.js';
+import { MAX_PDF_UPLOAD_SIZE } from '../../../shared/files/upload-limits.js';
 import { logger } from '../../../shared/logging/logger.js';
 import {
   contentTypeForPublicPath,
   s3FileStorage,
 } from '../../../shared/storage/s3-file-storage.js';
 
-const MAX_DOCUMENT_SIZE = 50 * 1024 * 1024;
 const MAX_FILENAME_BYTES = 255;
 export type DocumentCommitmentFileDetails = {
   filename: string;
@@ -24,8 +24,8 @@ export class DocumentCommitmentFileService {
   describeUpload(file: Express.Multer.File): DocumentCommitmentFileDetails {
     const originalName = validateFilename(file.originalname);
 
-    if (file.size > MAX_DOCUMENT_SIZE) {
-      throw new ApiError(413, 'Uploaded file must not exceed 50 MiB.');
+    if (file.size > MAX_PDF_UPLOAD_SIZE) {
+      throw new ApiError(413, 'Uploaded file must not exceed 20 MiB.');
     }
 
     if (

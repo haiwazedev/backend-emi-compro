@@ -1,10 +1,15 @@
 import { ApiError } from '../../../shared/errors/api-error.js';
 import { ActivityLogService } from '../../activity_log/services/activity-log.service.js';
 import type { AuthenticatedUser } from '../../auth/authenticated-user.js';
+import {
+  DEFAULT_LANGUAGE_ID,
+  LanguageService,
+} from '../../language/services/language.service.js';
 import { DocumentCommitmentCategoryRepository } from '../repositories/document-commitment-category.repository.js';
 import { DocumentCommitmentFileService } from './document-commitment-file.service.js';
 import type {
   CreateDocumentCommitmentCategoryInput,
+  DocumentCommitmentCategoryListQuery,
   UpdateDocumentCommitmentCategoryInput,
 } from '../schemas/document-commitment-category.schema.js';
 
@@ -13,10 +18,27 @@ export class DocumentCommitmentCategoryService {
     private readonly repository = new DocumentCommitmentCategoryRepository(),
     private readonly fileService = new DocumentCommitmentFileService(),
     private readonly activityLogService = new ActivityLogService(),
+    private readonly languageService = new LanguageService(),
   ) {}
 
-  list() {
-    return this.repository.findMany();
+  async list(query: DocumentCommitmentCategoryListQuery) {
+    const categories = await this.repository.findMany(query);
+    const selectedName = (category: (typeof categories)[number]) =>
+      (query.language_id
+        ? category.contents.find(
+            (content) => content.languageId === query.language_id,
+          )?.name
+        : undefined) ??
+      category.contents[0]?.name ??
+      '';
+
+    return categories.sort(
+      (left, right) =>
+        selectedName(left).localeCompare(
+          selectedName(right),
+          query.language_id ?? DEFAULT_LANGUAGE_ID,
+        ) || left.id - right.id,
+    );
   }
 
   async getById(id: number) {
@@ -33,31 +55,25 @@ export class DocumentCommitmentCategoryService {
     input: CreateDocumentCommitmentCategoryInput,
     user: AuthenticatedUser,
   ) {
-    if (await this.repository.findBySlug(input.slug)) {
-      throw new ApiError(
-        409,
-        'Document commitment category slug is already in use.',
-      );
-    }
+    requireDefaultLanguageFirst(input.language_id, []);
+    await this.languageService.requireActive(input.language_id);
+    await this.requireSlugAvailable(input.slug, input.language_id);
 
     try {
-      const category = await this.repository.create(input);
+      const category = await this.repository.create({
+        languageId: input.language_id,
+        name: input.name,
+        slug: input.slug,
+      });
       await this.activityLogService.log(
         user,
         'CREATE',
         'DOCUMENT_COMMITMENT_CATEGORY',
-        category.name,
+        input.name,
       );
       return category;
     } catch (error) {
-      if (isPrismaError(error, 'P2002')) {
-        throw new ApiError(
-          409,
-          'Document commitment category slug is already in use.',
-        );
-      }
-
-      throw error;
+      throw mapCategoryError(error);
     }
   }
 
@@ -66,45 +82,58 @@ export class DocumentCommitmentCategoryService {
     input: UpdateDocumentCommitmentCategoryInput,
     user: AuthenticatedUser,
   ) {
-    await this.getById(id);
+    const current = await this.getById(id);
 
     if (Object.keys(input).length === 0) {
       throw new ApiError(400, 'At least one category field is required.');
     }
 
-    if (input.slug !== undefined) {
-      const existing = await this.repository.findBySlug(input.slug);
+    const languageId = input.language_id;
+    if (!languageId) {
+      throw new ApiError(
+        400,
+        'language_id is required when updating translated fields.',
+      );
+    }
 
-      if (existing && existing.id !== id) {
-        throw new ApiError(
-          409,
-          'Document commitment category slug is already in use.',
-        );
-      }
+    await this.languageService.requireActive(languageId);
+    requireDefaultLanguageFirst(languageId, current.contents);
+
+    const existingContent = current.contents.find(
+      (content) => content.languageId === languageId,
+    );
+    if (
+      !existingContent &&
+      (input.name === undefined || input.slug === undefined)
+    ) {
+      throw new ApiError(
+        400,
+        'name and slug are required when adding a category translation.',
+      );
+    }
+
+    if (input.slug !== undefined) {
+      await this.requireSlugAvailable(input.slug, languageId, id);
     }
 
     try {
-      const category = await this.repository.update(id, input);
+      const category = await this.repository.updateWithContent(id, {
+        languageId,
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(input.slug !== undefined ? { slug: input.slug } : {}),
+      });
       await this.activityLogService.log(
         user,
         'UPDATE',
         'DOCUMENT_COMMITMENT_CATEGORY',
-        category.name,
+        input.name ??
+          existingContent?.name ??
+          current.contents[0]?.name ??
+          `#${id}`,
       );
       return category;
     } catch (error) {
-      if (isPrismaError(error, 'P2002')) {
-        throw new ApiError(
-          409,
-          'Document commitment category slug is already in use.',
-        );
-      }
-
-      if (isPrismaError(error, 'P2025')) {
-        throw new ApiError(404, 'Document commitment category was not found.');
-      }
-
-      throw error;
+      throw mapCategoryError(error);
     }
   }
 
@@ -125,9 +154,55 @@ export class DocumentCommitmentCategoryService {
       user,
       'DELETE',
       'DOCUMENT_COMMITMENT_CATEGORY',
-      category.name,
+      category.contents[0]?.name ?? `#${id}`,
     );
   }
+
+  private async requireSlugAvailable(
+    slug: string,
+    languageId: string,
+    categoryId?: number,
+  ): Promise<void> {
+    const existing = await this.repository.findBySlug(slug, languageId);
+
+    if (existing && existing.documentCommitmentCategoryId !== categoryId) {
+      throw new ApiError(
+        409,
+        'Document commitment category slug is already in use for this language.',
+      );
+    }
+  }
+}
+
+function requireDefaultLanguageFirst(
+  languageId: string,
+  contents: { languageId: string }[],
+): void {
+  const hasDefault = contents.some(
+    (content) => content.languageId === DEFAULT_LANGUAGE_ID,
+  );
+
+  if (languageId !== DEFAULT_LANGUAGE_ID && !hasDefault) {
+    throw new ApiError(
+      400,
+      'Bahasa Indonesia is required before adding another language.',
+    );
+  }
+}
+
+function mapCategoryError(error: unknown): unknown {
+  if (isPrismaError(error, 'P2002')) {
+    return new ApiError(
+      409,
+      'Document commitment category slug is already in use for this language.',
+    );
+  }
+
+  if (isPrismaError(error, 'P2025')) {
+    return new ApiError(404, 'Document commitment category was not found.');
+  }
+
+  return error;
 }
 
 function isPrismaError(error: unknown, code: string): boolean {

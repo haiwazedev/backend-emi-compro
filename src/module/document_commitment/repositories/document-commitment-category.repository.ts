@@ -1,32 +1,81 @@
 import { Prisma } from '../../../generated/prisma/client.js';
 import { prisma } from '../../../shared/db/prisma.js';
+import type { DocumentCommitmentCategoryListQuery } from '../schemas/document-commitment-category.schema.js';
+
+const categoryInclude = {
+  contents: {
+    include: { language: true },
+    orderBy: [{ language: { sortOrder: 'asc' } }, { languageId: 'asc' }],
+  },
+} satisfies Prisma.DocumentCommitmentCategoryInclude;
+
+export type DocumentCommitmentCategoryContentWrite = {
+  languageId: string;
+  name?: string;
+  slug?: string;
+};
 
 export class DocumentCommitmentCategoryRepository {
-  findMany() {
+  findMany(query: DocumentCommitmentCategoryListQuery) {
     return prisma.documentCommitmentCategory.findMany({
-      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+      where: query.language_id
+        ? { contents: { some: { languageId: query.language_id } } }
+        : {},
+      orderBy: { id: 'asc' },
+      include: categoryInclude,
     });
   }
 
   findById(id: number, transaction?: Prisma.TransactionClient) {
     return (transaction ?? prisma).documentCommitmentCategory.findUnique({
       where: { id },
+      include: categoryInclude,
     });
   }
 
-  findBySlug(slug: string) {
-    return prisma.documentCommitmentCategory.findUnique({
-      where: { slug },
-      select: { id: true },
+  findBySlug(slug: string, languageId: string) {
+    return prisma.documentCommitmentCategoryContent.findUnique({
+      where: { languageId_slug: { languageId, slug } },
+      select: { documentCommitmentCategoryId: true },
     });
   }
 
-  create(data: Prisma.DocumentCommitmentCategoryCreateInput) {
-    return prisma.documentCommitmentCategory.create({ data });
+  create(content: Required<DocumentCommitmentCategoryContentWrite>) {
+    return prisma.documentCommitmentCategory.create({
+      data: { contents: { create: content } },
+      include: categoryInclude,
+    });
   }
 
-  update(id: number, data: Prisma.DocumentCommitmentCategoryUpdateInput) {
-    return prisma.documentCommitmentCategory.update({ where: { id }, data });
+  updateWithContent(
+    id: number,
+    content: DocumentCommitmentCategoryContentWrite,
+  ) {
+    return prisma.documentCommitmentCategory.update({
+      where: { id },
+      data: {
+        contents: {
+          upsert: {
+            where: {
+              documentCommitmentCategoryId_languageId: {
+                documentCommitmentCategoryId: id,
+                languageId: content.languageId,
+              },
+            },
+            create: {
+              languageId: content.languageId,
+              name: content.name!,
+              slug: content.slug!,
+            },
+            update: {
+              ...(content.name !== undefined ? { name: content.name } : {}),
+              ...(content.slug !== undefined ? { slug: content.slug } : {}),
+            },
+          },
+        },
+      },
+      include: categoryInclude,
+    });
   }
 
   deleteWithDocuments(id: number) {

@@ -1,10 +1,52 @@
 import { Prisma } from '../../../generated/prisma/client.js';
 import { prisma } from '../../../shared/db/prisma.js';
+import { DEFAULT_LANGUAGE_ID } from '../../language/services/language.service.js';
 import type { DocumentCommitmentListQuery } from '../schemas/document-commitment.schema.js';
 
-const documentInclude = {
-  documentCommitmentCategory: true,
+const documentContentOrderBy: Prisma.DocumentCommitmentContentOrderByWithRelationInput[] =
+  [{ language: { sortOrder: 'asc' } }, { languageId: 'asc' }];
+const categoryContentOrderBy: Prisma.DocumentCommitmentCategoryContentOrderByWithRelationInput[] =
+  [{ language: { sortOrder: 'asc' } }, { languageId: 'asc' }];
+
+const documentCommitmentInclude = {
+  contents: {
+    include: { language: true },
+    orderBy: documentContentOrderBy,
+  },
+  documentCommitmentCategory: {
+    include: {
+      contents: {
+        include: { language: true },
+        orderBy: categoryContentOrderBy,
+      },
+    },
+  },
 } satisfies Prisma.DocumentCommitmentInclude;
+
+const activeLanguageContent = {
+  language: { isActive: true },
+} satisfies Prisma.DocumentCommitmentContentWhereInput;
+
+const publicDocumentCommitmentInclude = {
+  contents: {
+    ...documentCommitmentInclude.contents,
+    where: activeLanguageContent,
+  },
+  documentCommitmentCategory: {
+    include: {
+      contents: {
+        ...documentCommitmentInclude.documentCommitmentCategory.include
+          .contents,
+        where: { language: { isActive: true } },
+      },
+    },
+  },
+} satisfies Prisma.DocumentCommitmentInclude;
+
+type DocumentCommitmentContentWrite = Pick<
+  Prisma.DocumentCommitmentContentUncheckedCreateInput,
+  'languageId' | 'title'
+>;
 
 export class DocumentCommitmentRepository {
   findMany(query: DocumentCommitmentListQuery, includeDrafts: boolean) {
@@ -13,7 +55,9 @@ export class DocumentCommitmentRepository {
       skip: (query.page - 1) * query.limit,
       take: query.limit,
       orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }],
-      include: documentInclude,
+      include: includeDrafts
+        ? documentCommitmentInclude
+        : publicDocumentCommitmentInclude,
     });
   }
 
@@ -26,14 +70,18 @@ export class DocumentCommitmentRepository {
   findById(id: number, transaction?: Prisma.TransactionClient) {
     return (transaction ?? prisma).documentCommitment.findUnique({
       where: { id },
-      include: documentInclude,
+      include: documentCommitmentInclude,
     });
   }
 
   findPublishedById(id: number) {
-    return prisma.documentCommitment.findUnique({
-      where: { id, status: 'PUBLISHED' },
-      include: documentInclude,
+    return prisma.documentCommitment.findFirst({
+      where: {
+        id,
+        status: 'PUBLISHED',
+        contents: { some: activeLanguageContent },
+      },
+      include: publicDocumentCommitmentInclude,
     });
   }
 
@@ -48,23 +96,42 @@ export class DocumentCommitmentRepository {
 
   create(
     data: Prisma.DocumentCommitmentUncheckedCreateInput,
+    content: DocumentCommitmentContentWrite,
     transaction: Prisma.TransactionClient,
   ) {
     return transaction.documentCommitment.create({
-      data,
-      include: documentInclude,
+      data: { ...data, contents: { create: content } },
+      include: documentCommitmentInclude,
     });
   }
 
-  update(
+  updateWithContent(
     id: number,
     data: Prisma.DocumentCommitmentUncheckedUpdateInput,
+    content: DocumentCommitmentContentWrite | undefined,
     transaction?: Prisma.TransactionClient,
   ) {
+    const nestedContent = content
+      ? {
+          contents: {
+            upsert: {
+              where: {
+                documentCommitmentId_languageId: {
+                  documentCommitmentId: id,
+                  languageId: content.languageId,
+                },
+              },
+              create: content,
+              update: { title: content.title },
+            },
+          },
+        }
+      : {};
+
     return (transaction ?? prisma).documentCommitment.update({
       where: { id },
-      data,
-      include: documentInclude,
+      data: { ...data, ...nestedContent },
+      include: documentCommitmentInclude,
     });
   }
 
@@ -100,9 +167,17 @@ export function buildDocumentCommitmentWhere(
   query: DocumentCommitmentListQuery,
   includeDrafts: boolean,
 ): Prisma.DocumentCommitmentWhereInput {
-  return {
+  const contentWhere: Prisma.DocumentCommitmentContentWhereInput = {
+    ...(query.language_id ? { languageId: query.language_id } : {}),
     ...(query.search
       ? { title: { contains: query.search, mode: 'insensitive' } }
+      : {}),
+    ...(includeDrafts ? {} : { language: { isActive: true } }),
+  };
+
+  return {
+    ...(query.search || query.language_id || !includeDrafts
+      ? { contents: { some: contentWhere } }
       : {}),
     ...(query.document_commitment_category_id !== undefined
       ? {
@@ -112,7 +187,13 @@ export function buildDocumentCommitmentWhere(
     ...(query.document_commitment_category_slug
       ? {
           documentCommitmentCategory: {
-            slug: query.document_commitment_category_slug,
+            contents: {
+              some: {
+                languageId: query.language_id ?? DEFAULT_LANGUAGE_ID,
+                slug: query.document_commitment_category_slug,
+                ...(!includeDrafts ? { language: { isActive: true } } : {}),
+              },
+            },
           },
         }
       : {}),

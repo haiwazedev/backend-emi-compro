@@ -1378,9 +1378,16 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/document_commitment_categories",
+              "raw": "{{baseUrl}}/document_commitment_categories?language_id=id",
               "host": ["{{baseUrl}}"],
-              "path": ["document_commitment_categories"]
+              "path": ["document_commitment_categories"],
+              "query": [
+                {
+                  "key": "language_id",
+                  "value": "id",
+                  "disabled": false
+                }
+              ]
             },
             "description": "Public."
           },
@@ -1418,7 +1425,7 @@
             "description": "Requires login session.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Kebijakan\",\n  \"slug\": \"kebijakan\"\n}",
+              "raw": "{\n  \"language_id\": \"id\",\n  \"name\": \"Kebijakan\",\n  \"slug\": \"kebijakan\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1443,10 +1450,10 @@
               "host": ["{{baseUrl}}"],
               "path": ["document_commitment_categories", "{{categoryId}}"]
             },
-            "description": "Requires login session. Partial update; omitted fields stay unchanged.",
+            "description": "Requires login session. Updates one language translation; include language_id with translated fields.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Kebijakan Perusahaan\",\n  \"slug\": \"kebijakan-perusahaan\"\n}",
+              "raw": "{\n  \"language_id\": \"id\",\n  \"name\": \"Kebijakan Perusahaan\",\n  \"slug\": \"kebijakan-perusahaan\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1496,6 +1503,11 @@
                   "disabled": false
                 },
                 {
+                  "key": "language_id",
+                  "value": "id",
+                  "disabled": true
+                },
+                {
                   "key": "search",
                   "value": "",
                   "disabled": true
@@ -1535,6 +1547,11 @@
                   "key": "limit",
                   "value": "20",
                   "disabled": false
+                },
+                {
+                  "key": "language_id",
+                  "value": "id",
+                  "disabled": true
                 },
                 {
                   "key": "search",
@@ -1610,6 +1627,11 @@
                   "type": "text"
                 },
                 {
+                  "key": "language_id",
+                  "value": "id",
+                  "type": "text"
+                },
+                {
                   "key": "title",
                   "value": "Kebijakan Anti Korupsi",
                   "type": "text"
@@ -1639,10 +1661,15 @@
               "host": ["{{baseUrl}}"],
               "path": ["document_commitments", "{{documentId}}"]
             },
-            "description": "Requires login session. Partial update; omitted fields stay unchanged.",
+            "description": "Requires login session. Updates one language title with language_id; shared status and file fields can be updated separately.",
             "body": {
               "mode": "formdata",
               "formdata": [
+                {
+                  "key": "language_id",
+                  "value": "id",
+                  "type": "text"
+                },
                 {
                   "key": "title",
                   "value": "Kebijakan Anti Korupsi 2026",

@@ -37,6 +37,7 @@ import {
 } from '../division/schemas/division.schema.js';
 import {
   createDocumentCommitmentCategoryBodySchema,
+  documentCommitmentCategoryListQuerySchema,
   updateDocumentCommitmentCategoryBodySchema,
 } from '../document_commitment/schemas/document-commitment-category.schema.js';
 import {
@@ -142,11 +143,27 @@ const boardMemberResponseSchema = z
   })
   .strict();
 
+const documentCommitmentCategoryContentResponseSchema = z
+  .object({
+    language_id: z.string(),
+    name: z.string(),
+    slug: z.string(),
+  })
+  .strict();
+
+const documentCommitmentCategoryListItemResponseSchema = z
+  .object({
+    id: z.number().int().positive(),
+    language_id: z.string().nullable(),
+    name: z.string().nullable(),
+    slug: z.string().nullable(),
+  })
+  .strict();
+
 const documentCommitmentCategoryResponseSchema = z
   .object({
     id: z.number().int().positive(),
-    name: z.string(),
-    slug: z.string(),
+    contents: z.array(documentCommitmentCategoryContentResponseSchema),
   })
   .strict();
 
@@ -159,11 +176,15 @@ const paginationResponseSchema = z
   })
   .strict();
 
+const documentCommitmentContentResponseSchema = z
+  .object({ language_id: z.string(), title: z.string() })
+  .strict();
+
 const documentCommitmentResponseSchema = z
   .object({
     id: z.number().int().positive(),
     document_commitment_category_id: z.number().int().positive(),
-    title: z.string(),
+    contents: z.array(documentCommitmentContentResponseSchema),
     file_path: z.string(),
     filename: z.string(),
     size: z.number().int().nonnegative(),
@@ -173,6 +194,74 @@ const documentCommitmentResponseSchema = z
     updated_at: z.string().nullable(),
     updated_by: z.string().nullable(),
     document_commitment_category: documentCommitmentCategoryResponseSchema,
+  })
+  .strict();
+
+const documentCommitmentListItemResponseSchema = z
+  .object({
+    id: z.number().int().positive(),
+    document_commitment_category_id: z.number().int().positive(),
+    language_id: z.string().nullable(),
+    title: z.string().nullable(),
+    file_path: z.string(),
+    filename: z.string(),
+    size: z.number().int().nonnegative(),
+    status: z.enum(['DRAFT', 'PUBLISHED']),
+    uploaded_at: z.string(),
+    uploaded_by: z.string(),
+    updated_at: z.string().nullable(),
+    updated_by: z.string().nullable(),
+    document_commitment_category:
+      documentCommitmentCategoryListItemResponseSchema,
+  })
+  .strict();
+
+const searchResultResponseSchema = z
+  .object({
+    articles: z.array(
+      z.object({
+        id: z.number().int().positive(),
+        language_id: z.string(),
+        title: z.string(),
+      }),
+    ),
+    document_commitments: z.array(
+      z.object({
+        id: z.number().int().positive(),
+        language_id: z.string(),
+        title: z.string(),
+      }),
+    ),
+    divisions: z.array(
+      z.object({
+        id: z.number().int().positive(),
+        language_id: z.string(),
+        title: z.string(),
+      }),
+    ),
+    services: z.array(
+      z.object({
+        id: z.number().int().positive(),
+        language_id: z.string(),
+        title: z.string(),
+      }),
+    ),
+    board_members: z.array(
+      z.object({ id: z.number().int().positive(), title: z.string() }),
+    ),
+    users: z.array(
+      z.object({ id: z.number().int().positive(), title: z.string() }),
+    ),
+    inboxes: z.array(
+      z.object({ id: z.number().int().positive(), title: z.string() }),
+    ),
+    faqs: z.array(
+      z.object({
+        id: z.number().int().positive(),
+        language_id: z.string(),
+        title: z.string(),
+      }),
+    ),
   })
   .strict();
 
@@ -248,6 +337,7 @@ const routes: Routes = {
         'Search content across articles, documents, divisions, services, board members, FAQs, users, and inboxes',
       auth: true,
       query: searchQuerySchema,
+      response: searchResultResponseSchema,
     },
   },
 
@@ -475,9 +565,10 @@ const routes: Routes = {
     get: {
       tag: 'Document commitments',
       summary: 'List document commitment categories',
+      query: documentCommitmentCategoryListQuerySchema,
       response: z.object({
         documentCommitmentCategories: z.array(
-          documentCommitmentCategoryResponseSchema,
+          documentCommitmentCategoryListItemResponseSchema,
         ),
       }),
     },
@@ -492,7 +583,7 @@ const routes: Routes = {
       }),
       errors: {
         400: 'Invalid category fields.',
-        409: 'The category slug is already in use.',
+        409: 'The category slug is already in use for this language.',
       },
     },
   },
@@ -514,7 +605,7 @@ const routes: Routes = {
       }),
       errors: {
         400: 'Invalid category fields.',
-        409: 'The category slug is already in use.',
+        409: 'The category slug is already in use for this language.',
       },
     },
     delete: {
@@ -530,9 +621,9 @@ const routes: Routes = {
       summary: 'List document commitments',
       query: documentCommitmentListQuerySchema,
       description:
-        'Provide at most one of document_commitment_category_id and document_commitment_category_slug. An unknown category slug returns an empty page.',
+        'Provide at most one of document_commitment_category_id and document_commitment_category_slug. Category slugs are resolved in language_id, or Indonesian (id) when omitted. An unknown category slug returns an empty page.',
       response: z.object({
-        documentCommitments: z.array(documentCommitmentResponseSchema),
+        documentCommitments: z.array(documentCommitmentListItemResponseSchema),
         pagination: paginationResponseSchema,
       }),
       errors: {
@@ -592,9 +683,9 @@ const routes: Routes = {
       auth: true,
       query: documentCommitmentListQuerySchema,
       description:
-        'Provide at most one of document_commitment_category_id and document_commitment_category_slug. An unknown category slug returns an empty page.',
+        'Provide at most one of document_commitment_category_id and document_commitment_category_slug. Category slugs are resolved in language_id, or Indonesian (id) when omitted. An unknown category slug returns an empty page.',
       response: z.object({
-        documentCommitments: z.array(documentCommitmentResponseSchema),
+        documentCommitments: z.array(documentCommitmentListItemResponseSchema),
         pagination: paginationResponseSchema,
       }),
       errors: {
@@ -1061,7 +1152,8 @@ const queryParameterDescriptions: Record<string, string> = {
   document_commitment_category_id:
     'Use either this parameter or document_commitment_category_slug, never both.',
   document_commitment_category_slug:
-    'Use either this parameter or document_commitment_category_id, never both. An unknown slug returns an empty page.',
+    'Use either this parameter or document_commitment_category_id, never both. The slug is resolved in language_id, or Indonesian (id) when omitted. An unknown slug returns an empty page.',
+  language_id: 'Language code used to select translated content.',
 };
 
 function buildRequestBody({ body, files, bodyAsDataField }: Operation) {

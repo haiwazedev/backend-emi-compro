@@ -6,7 +6,10 @@ import {
   parseIdParam,
   type BulkDeleteInput,
 } from '../../../shared/schemas/common.schema.js';
-import { presentDocumentCommitment } from '../presenters/document-commitment.presenter.js';
+import {
+  presentDocumentCommitment,
+  presentDocumentCommitmentListItem,
+} from '../presenters/document-commitment.presenter.js';
 import { DocumentCommitmentService } from '../services/document-commitment.service.js';
 import type {
   CreateDocumentCommitmentInput,
@@ -23,7 +26,9 @@ export class DocumentCommitmentController {
     const result = await this.service.list(query, canSeeDrafts(res));
 
     res.status(200).json({
-      documentCommitments: result.documents.map(presentDocumentCommitment),
+      documentCommitments: result.documents.map((document) =>
+        presentDocumentCommitmentListItem(document, query.language_id),
+      ),
       pagination: result.pagination,
     });
   };

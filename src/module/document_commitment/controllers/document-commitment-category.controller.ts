@@ -1,10 +1,14 @@
 import type { Request, Response } from 'express';
 import { getAuthenticatedUser } from '../../auth/authenticated-user.js';
 import { parseIdParam } from '../../../shared/schemas/common.schema.js';
-import { presentDocumentCommitmentCategory } from '../presenters/document-commitment-category.presenter.js';
+import {
+  presentDocumentCommitmentCategory,
+  presentDocumentCommitmentCategoryListItem,
+} from '../presenters/document-commitment-category.presenter.js';
 import { DocumentCommitmentCategoryService } from '../services/document-commitment-category.service.js';
 import type {
   CreateDocumentCommitmentCategoryInput,
+  DocumentCommitmentCategoryListQuery,
   UpdateDocumentCommitmentCategoryInput,
 } from '../schemas/document-commitment-category.schema.js';
 
@@ -14,11 +18,13 @@ export class DocumentCommitmentCategoryController {
   ) {}
 
   list = async (_req: Request, res: Response): Promise<void> => {
-    const categories = await this.service.list();
+    const query = res.locals
+      .documentCommitmentCategoryListQuery as DocumentCommitmentCategoryListQuery;
+    const categories = await this.service.list(query);
 
     res.status(200).json({
-      documentCommitmentCategories: categories.map(
-        presentDocumentCommitmentCategory,
+      documentCommitmentCategories: categories.map((category) =>
+        presentDocumentCommitmentCategoryListItem(category, query.language_id),
       ),
     });
   };

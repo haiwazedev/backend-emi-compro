@@ -19,11 +19,16 @@ export class SearchRepository {
   }
 
   findDocumentCommitments(q: string) {
-    return prisma.documentCommitment.findMany({
+    return prisma.documentCommitmentContent.findMany({
       where: { title: contains(q) },
+      distinct: ['documentCommitmentId'],
       take: RESULT_LIMIT,
-      orderBy: { id: 'desc' },
-      select: { id: true, title: true },
+      orderBy: [{ documentCommitmentId: 'desc' }, { languageId: 'asc' }],
+      select: {
+        documentCommitmentId: true,
+        languageId: true,
+        title: true,
+      },
     });
   }
 

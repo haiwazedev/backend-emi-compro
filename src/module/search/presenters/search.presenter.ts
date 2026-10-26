@@ -10,7 +10,8 @@ export function presentSearchResult(result: SearchResult) {
       title: article.title,
     })),
     document_commitments: result.documentCommitments.map((document) => ({
-      id: document.id,
+      id: document.documentCommitmentId,
+      language_id: document.languageId,
       title: document.title,
     })),
     divisions: result.divisions.map((division) => ({

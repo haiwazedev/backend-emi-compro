@@ -4,6 +4,10 @@ import { ApiError } from '../../../shared/errors/api-error.js';
 import { logger } from '../../../shared/logging/logger.js';
 import { ActivityLogService } from '../../activity_log/services/activity-log.service.js';
 import type { AuthenticatedUser } from '../../auth/authenticated-user.js';
+import {
+  DEFAULT_LANGUAGE_ID,
+  LanguageService,
+} from '../../language/services/language.service.js';
 import { DocumentCommitmentCategoryRepository } from '../repositories/document-commitment-category.repository.js';
 import { DocumentCommitmentRepository } from '../repositories/document-commitment.repository.js';
 import type {
@@ -22,6 +26,7 @@ export class DocumentCommitmentService {
     private readonly categoryRepository = new DocumentCommitmentCategoryRepository(),
     private readonly fileService = new DocumentCommitmentFileService(),
     private readonly activityLogService = new ActivityLogService(),
+    private readonly languageService = new LanguageService(),
   ) {}
 
   async list(query: DocumentCommitmentListQuery, includeDrafts: boolean) {
@@ -66,6 +71,8 @@ export class DocumentCommitmentService {
 
     const details = this.fileService.describeUpload(file);
     await this.requireCategory(input.document_commitment_category_id);
+    requireDefaultLanguageFirst(input.language_id, []);
+    await this.languageService.requireActive(input.language_id);
 
     let fileStored = false;
     try {
@@ -73,13 +80,13 @@ export class DocumentCommitmentService {
         const created = await this.repository.create(
           {
             documentCommitmentCategoryId: input.document_commitment_category_id,
-            title: input.title,
             filePath: details.filePath,
             filename: details.filename,
             size: details.size,
             status: input.status ?? 'DRAFT',
             uploadedBy,
           },
+          { languageId: input.language_id, title: input.title },
           transaction,
         );
 
@@ -93,7 +100,7 @@ export class DocumentCommitmentService {
         user,
         'CREATE',
         'DOCUMENT_COMMITMENT',
-        document.title,
+        input.title,
       );
       return document;
     } catch (error) {
@@ -125,6 +132,11 @@ export class DocumentCommitmentService {
       await this.requireCategory(input.document_commitment_category_id);
     }
 
+    if (input.language_id !== undefined) {
+      requireDefaultLanguageFirst(input.language_id, current.contents);
+      await this.languageService.requireActive(input.language_id);
+    }
+
     const fileDetails = file
       ? this.fileService.describeUpload(file)
       : undefined;
@@ -136,7 +148,6 @@ export class DocumentCommitmentService {
     if (input.document_commitment_category_id !== undefined) {
       data.documentCommitmentCategoryId = input.document_commitment_category_id;
     }
-    if (input.title !== undefined) data.title = input.title;
     if (input.status !== undefined) data.status = input.status;
     if (fileDetails) {
       data.filePath = fileDetails.filePath;
@@ -147,7 +158,14 @@ export class DocumentCommitmentService {
     let replacement: FileReplacement | undefined;
     try {
       const document = await prisma.$transaction(async (transaction) => {
-        const updated = await this.repository.update(id, data, transaction);
+        const updated = await this.repository.updateWithContent(
+          id,
+          data,
+          input.language_id && input.title !== undefined
+            ? { languageId: input.language_id, title: input.title }
+            : undefined,
+          transaction,
+        );
 
         if (file && fileDetails) {
           replacement = await this.fileService.replace(
@@ -168,7 +186,7 @@ export class DocumentCommitmentService {
         user,
         'UPDATE',
         'DOCUMENT_COMMITMENT',
-        document.title,
+        input.title ?? current.contents[0]?.title ?? `#${id}`,
       );
       return document;
     } catch (error) {
@@ -191,7 +209,8 @@ export class DocumentCommitmentService {
   }
 
   async delete(id: number, user: AuthenticatedUser): Promise<void> {
-    const { title } = await this.getById(id);
+    const current = await this.getById(id);
+    const title = current.contents[0]?.title ?? `#${id}`;
     const document = await this.repository.deleteWithFile(id);
 
     if (!document) {
@@ -241,6 +260,22 @@ function getAuditName(name: string): string {
   }
 
   return name;
+}
+
+function requireDefaultLanguageFirst(
+  languageId: string,
+  contents: { languageId: string }[],
+): void {
+  const hasDefault = contents.some(
+    (content) => content.languageId === DEFAULT_LANGUAGE_ID,
+  );
+
+  if (languageId !== DEFAULT_LANGUAGE_ID && !hasDefault) {
+    throw new ApiError(
+      400,
+      'Bahasa Indonesia is required before adding another language.',
+    );
+  }
 }
 
 function mapDocumentCommitmentError(error: unknown): unknown {

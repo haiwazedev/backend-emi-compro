@@ -6,9 +6,11 @@ import {
 } from '../../auth/auth.middleware.js';
 import { AuthService } from '../../auth/auth.service.js';
 import { validateBody } from '../../../shared/middlewares/validate-body.middleware.js';
+import { validateQuery } from '../../../shared/middlewares/validate-query.middleware.js';
 import { DocumentCommitmentCategoryController } from '../controllers/document-commitment-category.controller.js';
 import {
   createDocumentCommitmentCategoryBodySchema,
+  documentCommitmentCategoryListQuerySchema,
   updateDocumentCommitmentCategoryBodySchema,
 } from '../schemas/document-commitment-category.schema.js';
 
@@ -20,6 +22,10 @@ export const documentCommitmentCategoryRouter = Router();
 
 documentCommitmentCategoryRouter.get(
   '/document_commitment_categories',
+  validateQuery(
+    documentCommitmentCategoryListQuerySchema,
+    'documentCommitmentCategoryListQuery',
+  ),
   controller.list,
 );
 documentCommitmentCategoryRouter.get(

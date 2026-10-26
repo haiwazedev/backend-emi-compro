@@ -14,6 +14,13 @@ export class DocumentCommitmentCategoryRepository {
     });
   }
 
+  findBySlug(slug: string) {
+    return prisma.documentCommitmentCategory.findUnique({
+      where: { slug },
+      select: { id: true },
+    });
+  }
+
   create(data: Prisma.DocumentCommitmentCategoryCreateInput) {
     return prisma.documentCommitmentCategory.create({ data });
   }

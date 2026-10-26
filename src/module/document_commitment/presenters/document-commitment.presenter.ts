@@ -31,6 +31,7 @@ export function presentDocumentCommitment(document: DocumentCommitmentView) {
     document_commitment_category: {
       id: document.documentCommitmentCategory.id,
       name: document.documentCommitmentCategory.name,
+      slug: document.documentCommitmentCategory.slug,
     },
   };
 }

@@ -454,6 +454,11 @@
                   "key": "sort_order",
                   "value": "desc",
                   "disabled": true
+                },
+                {
+                  "key": "article_category_slug",
+                  "value": "company-news",
+                  "disabled": true
                 }
               ]
             },
@@ -504,6 +509,11 @@
                 {
                   "key": "sort_order",
                   "value": "desc",
+                  "disabled": true
+                },
+                {
+                  "key": "article_category_slug",
+                  "value": "company-news",
                   "disabled": true
                 }
               ]
@@ -752,7 +762,7 @@
             "description": "Requires login session.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Energy Services\",\n  \"abbr\": \"ES\",\n  \"icon_svg\": null,\n  \"status\": \"DRAFT\"\n}",
+              "raw": "{\n  \"language_id\": \"en\",\n  \"name\": \"Energy Services\",\n  \"slug\": \"energy-services\",\n  \"abbr\": \"ES\",\n  \"icon_svg\": null,\n  \"description\": null,\n  \"status\": \"DRAFT\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -780,7 +790,7 @@
             "description": "Requires login session. Partial update; omitted fields stay unchanged.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"status\": \"PUBLISHED\"\n}",
+              "raw": "{\n  \"language_id\": \"en\",\n  \"name\": \"Energy Services\",\n  \"slug\": \"energy-services\",\n  \"abbr\": \"ES\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1408,7 +1418,7 @@
             "description": "Requires login session.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Kebijakan\"\n}",
+              "raw": "{\n  \"name\": \"Kebijakan\",\n  \"slug\": \"kebijakan\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1436,7 +1446,7 @@
             "description": "Requires login session. Partial update; omitted fields stay unchanged.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Kebijakan Perusahaan\"\n}",
+              "raw": "{\n  \"name\": \"Kebijakan Perusahaan\",\n  \"slug\": \"kebijakan-perusahaan\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1494,6 +1504,11 @@
                   "key": "document_commitment_category_id",
                   "value": "",
                   "disabled": true
+                },
+                {
+                  "key": "document_commitment_category_slug",
+                  "value": "board-decisions",
+                  "disabled": true
                 }
               ]
             },
@@ -1534,6 +1549,11 @@
                 {
                   "key": "status",
                   "value": "DRAFT",
+                  "disabled": true
+                },
+                {
+                  "key": "document_commitment_category_slug",
+                  "value": "board-decisions",
                   "disabled": true
                 }
               ]

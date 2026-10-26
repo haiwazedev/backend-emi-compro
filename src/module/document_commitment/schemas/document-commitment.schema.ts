@@ -28,9 +28,28 @@ export const documentCommitmentListQuerySchema = z
       .int()
       .positive()
       .optional(),
+    document_commitment_category_slug: z
+      .string()
+      .trim()
+      .min(1)
+      .max(100)
+      .optional(),
     status: documentCommitmentStatusSchema.optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((query, context) => {
+    if (
+      query.document_commitment_category_id !== undefined &&
+      query.document_commitment_category_slug !== undefined
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message:
+          'Use either document_commitment_category_id or document_commitment_category_slug, not both.',
+        path: ['document_commitment_category_slug'],
+      });
+    }
+  });
 
 export type CreateDocumentCommitmentInput = z.infer<
   typeof createDocumentCommitmentBodySchema

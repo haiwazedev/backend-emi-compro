@@ -14,6 +14,7 @@ const divisionFieldsSchema = z
   .object({
     language_id: languageIdSchema,
     name: z.string().trim().min(1).max(200),
+    slug: z.string().trim().min(1).max(255),
     abbr: z.string().trim().min(1).max(50),
     icon_svg: z.string().max(20_000).nullable().optional(),
     description: descriptionSchema,
@@ -27,6 +28,7 @@ export const updateDivisionBodySchema = divisionFieldsSchema
   .superRefine((input, context) => {
     const hasContent =
       input.name !== undefined ||
+      input.slug !== undefined ||
       input.abbr !== undefined ||
       input.description !== undefined;
 

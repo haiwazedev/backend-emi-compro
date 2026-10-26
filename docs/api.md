@@ -541,20 +541,22 @@ Results are sorted by `created_at` descending by default, with `id` as a stable
 tie-breaker. `sort_by=issue_date` sorts by `issue_date`, then `updated_at`, then
 `id`, all in `sort_order`; articles without an issue date or update come last.
 
-| Query parameter       | Type   | Rules                                                                                       |
-| --------------------- | ------ | ------------------------------------------------------------------------------------------- |
-| `page`                | number | Optional, 1-based; default `1`.                                                             |
-| `limit`               | number | Optional; default `20`, minimum `1`, maximum `100`.                                         |
-| `search`              | string | Optional, case-insensitive substring search in a content `title`.                           |
-| `article_category_id` | number | Optional positive category ID filter.                                                       |
-| `language_id`         | string | Optional; only articles with content in this language, shown in it.                         |
-| `status`              | string | Optional; `DRAFT` or `PUBLISHED`; matches a content row with this status. Admin route only. |
-| `sort_by`             | string | Optional; `created_at` or `issue_date`, default `created_at`.                               |
-| `sort_order`          | string | Optional; `asc` or `desc`, default `desc`.                                                  |
+| Query parameter         | Type   | Rules                                                                                       |
+| ----------------------- | ------ | ------------------------------------------------------------------------------------------- |
+| `page`                  | number | Optional, 1-based; default `1`.                                                             |
+| `limit`                 | number | Optional; default `20`, minimum `1`, maximum `100`.                                         |
+| `search`                | string | Optional, case-insensitive substring search in a content `title`.                           |
+| `article_category_id`   | number | Optional positive category ID filter.                                                       |
+| `article_category_slug` | string | Optional category slug filter, maximum 100 characters.                                      |
+| `language_id`           | string | Optional; only articles with content in this language, shown in it.                         |
+| `status`                | string | Optional; `DRAFT` or `PUBLISHED`; matches a content row with this status. Admin route only. |
+| `sort_by`               | string | Optional; `created_at` or `issue_date`, default `created_at`.                               |
+| `sort_order`            | string | Optional; `asc` or `desc`, default `desc`.                                                  |
 
 Provided filters are combined using AND. `search`, `language_id`, and `status`
 must all match the same content row. Invalid query values return `400 Bad
-Request`.
+Request`. Provide at most one of `article_category_id` and
+`article_category_slug`. An unknown category slug returns an empty page.
 
 `title`, `slug`, `summary`, `status`, `read_time`, and `language_id` on each item come from
 the `language_id` content when that query is set, otherwise from the content
@@ -764,6 +766,8 @@ language and returned in a `contents` array ordered by the language registry's
 clients choose the language to display and handle a missing translation.
 Create requests and updates to translated fields require an active
 `language_id`; unknown or inactive language IDs return `400 Bad Request`.
+Creating a division or adding a translation requires an explicit `slug`; the
+API does not derive slugs from names.
 
 ### Divisions
 
@@ -787,15 +791,18 @@ Create bodies accept these fields:
 | ------------- | -------------- | --------------------------------------------------------------------- |
 | `language_id` | string         | Required; active language code such as `id`; normalized to lowercase. |
 | `name`        | string         | Required; trimmed; 1–200 characters.                                  |
+| `slug`        | string         | Required; trimmed; 1–255 characters; unique within the language.      |
 | `abbr`        | string         | Required; trimmed; 1–50 characters.                                   |
 | `description` | string or null | Optional; no length limit; blank string becomes `null`.               |
 | `icon_svg`    | string or null | Optional; SVG markup; up to 20,000 characters; sanitized on save.     |
 | `status`      | string         | Optional; `DRAFT` or `PUBLISHED`; defaults to `DRAFT` on create.      |
 
 Update bodies are partial. Updating `icon_svg` or `status` does not require a
-language. Updating `name`, `abbr`, or `description` requires `language_id`.
-Existing translations can be partially updated; adding a translation requires
-both `name` and `abbr`. Send `null` for `icon_svg` or `description` to clear it.
+language. Updating `name`, `slug`, `abbr`, or `description` requires
+`language_id`. Existing translations can be partially updated; adding a
+translation requires `name`, `slug`, and `abbr`. Division slugs are localized
+and unique within each language. Duplicate slugs return `409 Conflict`. Send
+`null` for `icon_svg` or `description` to clear it.
 `icon_svg` is sanitized like social icons: scripts, event handlers,
 `foreignObject`, and `javascript:` links are removed, and the stored value is
 the sanitized markup. Division reads sanitize stored values again, including
@@ -811,6 +818,7 @@ Example create request:
 {
   "language_id": "en",
   "name": "Customer Services",
+  "slug": "customer-services",
   "abbr": "CS",
   "icon_svg": "<svg></svg>",
   "description": "Energy management services for organizations.",
@@ -835,6 +843,7 @@ The response shape is:
       {
         "language_id": "en",
         "name": "Customer Services",
+        "slug": "customer-services",
         "abbr": "CS",
         "description": "Energy management services for organizations."
       }
@@ -850,6 +859,7 @@ For example, add Indonesian content to the same division with
 {
   "language_id": "id",
   "name": "Layanan Pelanggan",
+  "slug": "layanan-pelanggan",
   "abbr": "LP",
   "description": "Layanan manajemen energi untuk organisasi."
 }
@@ -1320,12 +1330,14 @@ frontend `Origin` or `Referer`, as described under [Browser Sessions](#browser-s
   `204 No Content`. Deleting a category also deletes its document records and
   stored PDF files.
 
-Category create and update requests use JSON with a `name` field, trimmed to
-1–100 characters. The name is required on create; omitted fields remain
-unchanged on update.
+Category create and update requests use JSON with `name` and `slug` fields,
+trimmed to 1–100 characters. Both fields are required on create; the API does
+not derive a slug from the name. Omitted fields remain unchanged on update, so
+changing a name does not change its slug. Slugs are unique. Duplicate slugs
+return `409 Conflict`.
 
 ```json
-{ "name": "Board Decisions" }
+{ "name": "Board Decisions", "slug": "board-decisions" }
 ```
 
 ### Documents
@@ -1400,16 +1412,20 @@ if (!response.ok) throw new Error(data.message);
 
 `GET /document_commitments` accepts these optional query parameters:
 
-| Query parameter                   | Type   | Rules                                                   |
-| --------------------------------- | ------ | ------------------------------------------------------- |
-| `page`                            | number | Optional, 1-based; default `1`.                         |
-| `limit`                           | number | Optional; default `20`, minimum `1`, maximum `100`.     |
-| `search`                          | string | Optional, case-insensitive substring search in `title`. |
-| `document_commitment_category_id` | number | Optional positive category ID filter.                   |
-| `status`                          | string | Optional; `DRAFT` or `PUBLISHED`. Admin route only.     |
+| Query parameter                     | Type   | Rules                                                   |
+| ----------------------------------- | ------ | ------------------------------------------------------- |
+| `page`                              | number | Optional, 1-based; default `1`.                         |
+| `limit`                             | number | Optional; default `20`, minimum `1`, maximum `100`.     |
+| `search`                            | string | Optional, case-insensitive substring search in `title`. |
+| `document_commitment_category_id`   | number | Optional positive category ID filter.                   |
+| `document_commitment_category_slug` | string | Optional category slug filter, maximum 100 characters.  |
+| `status`                            | string | Optional; `DRAFT` or `PUBLISHED`. Admin route only.     |
 
-Filters are combined using AND. Results are ordered by `uploaded_at` descending
-with ID as a stable tie-breaker. Invalid query values return `400 Bad Request`.
+Filters are combined using AND. Provide at most one of
+`document_commitment_category_id` and `document_commitment_category_slug`. An
+unknown category slug returns an empty page. Results are ordered by
+`uploaded_at` descending with ID as a stable tie-breaker. Invalid query values
+return `400 Bad Request`.
 
 A document response has this shape:
 
@@ -1429,7 +1445,8 @@ A document response has this shape:
     "updated_by": null,
     "document_commitment_category": {
       "id": 2,
-      "name": "Board Decisions"
+      "name": "Board Decisions",
+      "slug": "board-decisions"
     }
   }
 }
@@ -2274,14 +2291,14 @@ failures return `503 Service Unavailable`.
 
 ## Article, Category, Media, and Document Commitment Errors
 
-| Status                  | Description                                                                                       |
-| ----------------------- | ------------------------------------------------------------------------------------------------- |
-| `400 Bad Request`       | Invalid ID, body or query value, category, media or language reference, or uploaded image or PDF. |
-| `401 Unauthorized`      | A write request does not have a valid session.                                                    |
-| `403 Forbidden`         | A write request has a missing or disallowed `Origin`/`Referer`.                                   |
-| `404 Not Found`         | The requested article, category, media, or document commitment does not exist.                    |
-| `409 Conflict`          | Article slug, category slug, media filename, or document filename is already in use.              |
-| `413 Payload Too Large` | An uploaded image exceeds 5 MiB or a PDF exceeds 20 MiB.                                          |
+| Status                  | Description                                                                                             |
+| ----------------------- | ------------------------------------------------------------------------------------------------------- |
+| `400 Bad Request`       | Invalid ID, body or query value, category, media or language reference, or uploaded image or PDF.       |
+| `401 Unauthorized`      | A write request does not have a valid session.                                                          |
+| `403 Forbidden`         | A write request has a missing or disallowed `Origin`/`Referer`.                                         |
+| `404 Not Found`         | The requested article, category, media, or document commitment does not exist.                          |
+| `409 Conflict`          | Article/category slug, localized division slug, media filename, or document filename is already in use. |
+| `413 Payload Too Large` | An uploaded image exceeds 5 MiB or a PDF exceeds 20 MiB.                                                |
 
 ## Health Check
 

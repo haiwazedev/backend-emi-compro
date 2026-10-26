@@ -18,6 +18,7 @@ export function presentDivision(division: DivisionWithContents) {
     contents: division.contents.map((content) => ({
       language_id: content.languageId,
       name: content.name,
+      slug: content.slug,
       abbr: content.abbr,
       description: content.description,
     })),

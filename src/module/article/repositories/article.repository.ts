@@ -29,7 +29,7 @@ type ArticleContentData = Omit<
 
 export class ArticleRepository {
   findMany(query: ArticleListQuery, includeDrafts: boolean) {
-    const where = this.buildWhere(query, includeDrafts);
+    const where = buildArticleWhere(query, includeDrafts);
     const direction = query.sort_order;
     // Issue date and updated_at are nullable; undated articles go last.
     const orderBy: Prisma.ArticleOrderByWithRelationInput[] =
@@ -52,7 +52,7 @@ export class ArticleRepository {
 
   count(query: ArticleListQuery, includeDrafts: boolean) {
     return prisma.article.count({
-      where: this.buildWhere(query, includeDrafts),
+      where: buildArticleWhere(query, includeDrafts),
     });
   }
 
@@ -143,29 +143,32 @@ export class ArticleRepository {
   deleteMany(ids: number[]) {
     return prisma.article.deleteMany({ where: { id: { in: ids } } });
   }
+}
 
-  private buildWhere(
-    query: ArticleListQuery,
-    includeDrafts: boolean,
-  ): Prisma.ArticleWhereInput {
-    // One content row must match every content filter together.
-    const contentWhere: Prisma.ArticleContentWhereInput = {
-      ...(query.language_id ? { languageId: query.language_id } : {}),
-      ...(query.search
-        ? { title: { contains: query.search, mode: 'insensitive' } }
-        : {}),
-      ...(query.status ? { status: query.status } : {}),
-      // Last, so the public view overrides any requested status.
-      ...(includeDrafts ? {} : publicContent),
-    };
+export function buildArticleWhere(
+  query: ArticleListQuery,
+  includeDrafts: boolean,
+): Prisma.ArticleWhereInput {
+  // One content row must match every content filter together.
+  const contentWhere: Prisma.ArticleContentWhereInput = {
+    ...(query.language_id ? { languageId: query.language_id } : {}),
+    ...(query.search
+      ? { title: { contains: query.search, mode: 'insensitive' } }
+      : {}),
+    ...(query.status ? { status: query.status } : {}),
+    // Last, so the public view overrides any requested status.
+    ...(includeDrafts ? {} : publicContent),
+  };
 
-    return {
-      ...(query.article_category_id
-        ? { articleCategoryId: query.article_category_id }
-        : {}),
-      ...(Object.keys(contentWhere).length > 0
-        ? { contents: { some: contentWhere } }
-        : {}),
-    };
-  }
+  return {
+    ...(query.article_category_id !== undefined
+      ? { articleCategoryId: query.article_category_id }
+      : {}),
+    ...(query.article_category_slug
+      ? { articleCategory: { slug: query.article_category_slug } }
+      : {}),
+    ...(Object.keys(contentWhere).length > 0
+      ? { contents: { some: contentWhere } }
+      : {}),
+  };
 }

@@ -1,6 +1,7 @@
 export type DocumentCommitmentCategoryView = {
   id: number;
   name: string;
+  slug: string;
 };
 
 export function presentDocumentCommitmentCategory(
@@ -9,5 +10,6 @@ export function presentDocumentCommitmentCategory(
   return {
     id: category.id,
     name: category.name,
+    slug: category.slug,
   };
 }

@@ -60,6 +60,7 @@ export class DivisionService {
         {
           languageId: input.language_id,
           name: input.name,
+          slug: input.slug,
           abbr: input.abbr,
           description: input.description ?? null,
         },
@@ -76,7 +77,7 @@ export class DivisionService {
     input: UpdateDivisionInput,
     user: AuthenticatedUser,
   ) {
-    await this.getById(id);
+    const existingDivision = await this.getById(id);
 
     if (Object.keys(input).length === 0) {
       throw new ApiError(400, 'At least one division field is required.');
@@ -94,11 +95,26 @@ export class DivisionService {
     if (input.icon_svg !== undefined) data.iconSvg = toIconSvg(input.icon_svg);
     if (input.status !== undefined) data.status = input.status;
 
+    const hasTranslation = existingDivision.contents.some(
+      (item) => item.languageId === input.language_id,
+    );
+    if (
+      input.language_id !== undefined &&
+      !hasTranslation &&
+      input.slug === undefined
+    ) {
+      throw new ApiError(
+        400,
+        'slug is required when adding a division translation.',
+      );
+    }
+
     const content =
       input.language_id !== undefined
         ? {
             languageId: input.language_id,
             ...(input.name !== undefined ? { name: input.name } : {}),
+            ...(input.slug !== undefined ? { slug: input.slug } : {}),
             ...(input.abbr !== undefined ? { abbr: input.abbr } : {}),
             ...(input.description !== undefined
               ? { description: input.description }
@@ -112,7 +128,7 @@ export class DivisionService {
       if (!division) {
         throw new ApiError(
           400,
-          'name and abbr are required when adding a division translation.',
+          'name, slug, and abbr are required when adding a division translation.',
         );
       }
 
@@ -165,6 +181,13 @@ function getAuditName(name: string): string {
 }
 
 function mapDivisionError(error: unknown): unknown {
+  if (isPrismaError(error, 'P2002')) {
+    return new ApiError(
+      409,
+      'Division slug is already in use for this language.',
+    );
+  }
+
   if (isPrismaError(error, 'P2003')) {
     return new ApiError(400, 'Language does not exist or is inactive.');
   }

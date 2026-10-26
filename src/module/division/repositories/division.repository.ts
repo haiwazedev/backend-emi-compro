@@ -11,6 +11,7 @@ const divisionInclude = {
 type DivisionContentWrite = {
   languageId: string;
   name?: string;
+  slug?: string;
   abbr?: string;
   description?: string | null;
 };
@@ -38,7 +39,7 @@ export class DivisionRepository {
   create(
     data: Prisma.DivisionUncheckedCreateInput,
     content: Required<
-      Pick<DivisionContentWrite, 'languageId' | 'name' | 'abbr'>
+      Pick<DivisionContentWrite, 'languageId' | 'name' | 'slug' | 'abbr'>
     > &
       Pick<DivisionContentWrite, 'description'>,
   ) {
@@ -57,6 +58,7 @@ export class DivisionRepository {
           divisionId: division.id,
           languageId: content.languageId,
           name: content.name,
+          slug: content.slug,
           abbr: content.abbr,
           description: content.description ?? null,
         },
@@ -89,7 +91,9 @@ export class DivisionRepository {
       if (
         content &&
         !existingContent &&
-        (content.name === undefined || content.abbr === undefined)
+        (content.name === undefined ||
+          content.slug === undefined ||
+          content.abbr === undefined)
       ) {
         return null;
       }
@@ -109,6 +113,7 @@ export class DivisionRepository {
             where,
             data: {
               ...(content.name !== undefined ? { name: content.name } : {}),
+              ...(content.slug !== undefined ? { slug: content.slug } : {}),
               ...(content.abbr !== undefined ? { abbr: content.abbr } : {}),
               ...(content.description !== undefined
                 ? { description: content.description }
@@ -121,6 +126,7 @@ export class DivisionRepository {
               divisionId: id,
               languageId: content.languageId,
               name: content.name!,
+              slug: content.slug!,
               abbr: content.abbr!,
               description: content.description ?? null,
             },

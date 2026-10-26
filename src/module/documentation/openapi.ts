@@ -95,6 +95,8 @@ type Operation = {
   query?: z.ZodType;
   body?: z.ZodType;
   response?: z.ZodType;
+  description?: string;
+  errors?: Partial<Record<400 | 409, string>>;
   // Multipart routes: form fields come from `body`, files are listed here.
   files?: Record<string, 'single' | 'multiple'>;
   // Site settings sends its JSON payload as a single "data" form field.
@@ -137,6 +139,64 @@ const boardMemberResponseSchema = z
         })
         .strict(),
     ),
+  })
+  .strict();
+
+const documentCommitmentCategoryResponseSchema = z
+  .object({
+    id: z.number().int().positive(),
+    name: z.string(),
+    slug: z.string(),
+  })
+  .strict();
+
+const paginationResponseSchema = z
+  .object({
+    page: z.number().int().positive(),
+    limit: z.number().int().positive(),
+    totalItems: z.number().int().nonnegative(),
+    totalPages: z.number().int().nonnegative(),
+  })
+  .strict();
+
+const documentCommitmentResponseSchema = z
+  .object({
+    id: z.number().int().positive(),
+    document_commitment_category_id: z.number().int().positive(),
+    title: z.string(),
+    file_path: z.string(),
+    filename: z.string(),
+    size: z.number().int().nonnegative(),
+    status: z.enum(['DRAFT', 'PUBLISHED']),
+    uploaded_at: z.string(),
+    uploaded_by: z.string(),
+    updated_at: z.string().nullable(),
+    updated_by: z.string().nullable(),
+    document_commitment_category: documentCommitmentCategoryResponseSchema,
+  })
+  .strict();
+
+const divisionContentResponseSchema = z
+  .object({
+    language_id: z.string(),
+    name: z.string(),
+    slug: z.string(),
+    abbr: z.string(),
+    description: z.string().nullable(),
+  })
+  .strict();
+
+const divisionResponseSchema = z
+  .object({
+    id: z.number().int().positive(),
+    icon_svg: z.string().nullable(),
+    status: z.enum(['DRAFT', 'PUBLISHED']),
+    sort_order: z.number().int().positive(),
+    created_at: z.string(),
+    created_by: z.string(),
+    updated_at: z.string().nullable(),
+    updated_by: z.string().nullable(),
+    contents: z.array(divisionContentResponseSchema),
   })
   .strict();
 
@@ -238,6 +298,11 @@ const routes: Routes = {
       tag: 'Articles',
       summary: 'List articles',
       query: articleListQuerySchema,
+      description:
+        'Provide at most one of article_category_id and article_category_slug. An unknown category slug returns an empty page.',
+      errors: {
+        400: 'Invalid query values, including providing both category filters.',
+      },
     },
     post: {
       tag: 'Articles',
@@ -263,6 +328,11 @@ const routes: Routes = {
       summary: 'List articles, drafts included',
       auth: true,
       query: articleListQuerySchema,
+      description:
+        'Provide at most one of article_category_id and article_category_slug. An unknown category slug returns an empty page.',
+      errors: {
+        400: 'Invalid query values, including providing both category filters.',
+      },
     },
   },
   '/admin/articles/{articleId}': {
@@ -405,6 +475,11 @@ const routes: Routes = {
     get: {
       tag: 'Document commitments',
       summary: 'List document commitment categories',
+      response: z.object({
+        documentCommitmentCategories: z.array(
+          documentCommitmentCategoryResponseSchema,
+        ),
+      }),
     },
     post: {
       tag: 'Document commitments',
@@ -412,18 +487,35 @@ const routes: Routes = {
       auth: true,
       status: 201,
       body: createDocumentCommitmentCategoryBodySchema,
+      response: z.object({
+        documentCommitmentCategory: documentCommitmentCategoryResponseSchema,
+      }),
+      errors: {
+        400: 'Invalid category fields.',
+        409: 'The category slug is already in use.',
+      },
     },
   },
   '/document_commitment_categories/{categoryId}': {
     get: {
       tag: 'Document commitments',
       summary: 'Get a document commitment category',
+      response: z.object({
+        documentCommitmentCategory: documentCommitmentCategoryResponseSchema,
+      }),
     },
     put: {
       tag: 'Document commitments',
       summary: 'Update a document commitment category',
       auth: true,
       body: updateDocumentCommitmentCategoryBodySchema,
+      response: z.object({
+        documentCommitmentCategory: documentCommitmentCategoryResponseSchema,
+      }),
+      errors: {
+        400: 'Invalid category fields.',
+        409: 'The category slug is already in use.',
+      },
     },
     delete: {
       tag: 'Document commitments',
@@ -437,6 +529,15 @@ const routes: Routes = {
       tag: 'Document commitments',
       summary: 'List document commitments',
       query: documentCommitmentListQuerySchema,
+      description:
+        'Provide at most one of document_commitment_category_id and document_commitment_category_slug. An unknown category slug returns an empty page.',
+      response: z.object({
+        documentCommitments: z.array(documentCommitmentResponseSchema),
+        pagination: paginationResponseSchema,
+      }),
+      errors: {
+        400: 'Invalid query values, including providing both category filters.',
+      },
     },
     post: {
       tag: 'Document commitments',
@@ -445,16 +546,28 @@ const routes: Routes = {
       status: 201,
       body: createDocumentCommitmentBodySchema,
       files: { file: 'single' },
+      response: z.object({
+        documentCommitment: documentCommitmentResponseSchema,
+      }),
     },
   },
   '/document_commitments/{documentId}': {
-    get: { tag: 'Document commitments', summary: 'Get a document commitment' },
+    get: {
+      tag: 'Document commitments',
+      summary: 'Get a document commitment',
+      response: z.object({
+        documentCommitment: documentCommitmentResponseSchema,
+      }),
+    },
     put: {
       tag: 'Document commitments',
       summary: 'Update a document commitment',
       auth: true,
       body: updateDocumentCommitmentBodySchema,
       files: { file: 'single' },
+      response: z.object({
+        documentCommitment: documentCommitmentResponseSchema,
+      }),
     },
     delete: {
       tag: 'Document commitments',
@@ -478,6 +591,15 @@ const routes: Routes = {
       summary: 'List document commitments, drafts included',
       auth: true,
       query: documentCommitmentListQuerySchema,
+      description:
+        'Provide at most one of document_commitment_category_id and document_commitment_category_slug. An unknown category slug returns an empty page.',
+      response: z.object({
+        documentCommitments: z.array(documentCommitmentResponseSchema),
+        pagination: paginationResponseSchema,
+      }),
+      errors: {
+        400: 'Invalid query values, including providing both category filters.',
+      },
     },
   },
   '/admin/document_commitments/{documentId}': {
@@ -485,6 +607,9 @@ const routes: Routes = {
       tag: 'Document commitments',
       summary: 'Get a document commitment, drafts included',
       auth: true,
+      response: z.object({
+        documentCommitment: documentCommitmentResponseSchema,
+      }),
     },
   },
   '/admin/document_commitments/{documentId}/file': {
@@ -500,6 +625,7 @@ const routes: Routes = {
       tag: 'Divisions',
       summary: 'List divisions',
       query: divisionListQuerySchema,
+      response: z.object({ divisions: z.array(divisionResponseSchema) }),
     },
     post: {
       tag: 'Divisions',
@@ -507,6 +633,11 @@ const routes: Routes = {
       auth: true,
       status: 201,
       body: createDivisionBodySchema,
+      response: z.object({ division: divisionResponseSchema }),
+      errors: {
+        400: 'Invalid division or translation fields.',
+        409: 'A division slug is already in use for this language.',
+      },
     },
   },
   '/divisions/reorder': {
@@ -515,15 +646,25 @@ const routes: Routes = {
       summary: 'Reorder divisions',
       auth: true,
       body: reorderDivisionsBodySchema,
+      response: z.object({ divisions: z.array(divisionResponseSchema) }),
     },
   },
   '/divisions/{divisionId}': {
-    get: { tag: 'Divisions', summary: 'Get a division' },
+    get: {
+      tag: 'Divisions',
+      summary: 'Get a division',
+      response: z.object({ division: divisionResponseSchema }),
+    },
     put: {
       tag: 'Divisions',
       summary: 'Update a division',
       auth: true,
       body: updateDivisionBodySchema,
+      response: z.object({ division: divisionResponseSchema }),
+      errors: {
+        400: 'Invalid division or translation fields.',
+        409: 'A division slug is already in use for this language.',
+      },
     },
     delete: {
       tag: 'Divisions',
@@ -539,6 +680,7 @@ const routes: Routes = {
       summary: 'List divisions, drafts included',
       auth: true,
       query: divisionListQuerySchema,
+      response: z.object({ divisions: z.array(divisionResponseSchema) }),
     },
   },
   '/admin/divisions/{divisionId}': {
@@ -546,6 +688,7 @@ const routes: Routes = {
       tag: 'Divisions',
       summary: 'Get a division, drafts included',
       auth: true,
+      response: z.object({ division: divisionResponseSchema }),
     },
   },
 
@@ -844,34 +987,49 @@ function buildOperation(path: string, operation: Operation) {
   }));
   const status = operation.status ?? 200;
 
+  const responses: Record<string, object> = {
+    [status]: {
+      description: status === 204 ? 'No content' : 'Success',
+      ...(status !== 204 && {
+        content: {
+          'application/json': {
+            schema: operation.response
+              ? toSchema(operation.response)
+              : { type: 'object' },
+          },
+        },
+      }),
+    },
+  };
+
+  for (const [code, description] of Object.entries(operation.errors ?? {})) {
+    responses[code] = {
+      description,
+      content: {
+        'application/json': {
+          schema: { $ref: '#/components/schemas/Error' },
+        },
+      },
+    };
+  }
+
+  responses.default = {
+    description: 'Error',
+    content: {
+      'application/json': {
+        schema: { $ref: '#/components/schemas/Error' },
+      },
+    },
+  };
+
   return {
     tags: [operation.tag],
     summary: operation.summary,
+    ...(operation.description && { description: operation.description }),
     ...(operation.auth && { security: [{ sessionCookie: [] }] }),
     parameters: [...pathParameters, ...buildQueryParameters(operation.query)],
     ...(operation.body && { requestBody: buildRequestBody(operation) }),
-    responses: {
-      [status]: {
-        description: status === 204 ? 'No content' : 'Success',
-        ...(status !== 204 && {
-          content: {
-            'application/json': {
-              schema: operation.response
-                ? toSchema(operation.response)
-                : { type: 'object' },
-            },
-          },
-        }),
-      },
-      default: {
-        description: 'Error',
-        content: {
-          'application/json': {
-            schema: { $ref: '#/components/schemas/Error' },
-          },
-        },
-      },
-    },
+    responses,
   };
 }
 
@@ -889,8 +1047,22 @@ function buildQueryParameters(query: z.ZodType | undefined) {
     // Defaulted fields are listed as required in input mode, but may be omitted.
     required: required.includes(name) && !('default' in schema),
     schema,
+    ...(queryParameterDescriptions[name]
+      ? { description: queryParameterDescriptions[name] }
+      : {}),
   }));
 }
+
+const queryParameterDescriptions: Record<string, string> = {
+  article_category_id:
+    'Use either this parameter or article_category_slug, never both.',
+  article_category_slug:
+    'Use either this parameter or article_category_id, never both. An unknown slug returns an empty page.',
+  document_commitment_category_id:
+    'Use either this parameter or document_commitment_category_slug, never both.',
+  document_commitment_category_slug:
+    'Use either this parameter or document_commitment_category_id, never both. An unknown slug returns an empty page.',
+};
 
 function buildRequestBody({ body, files, bodyAsDataField }: Operation) {
   const schema = toSchema(body!);

@@ -63,12 +63,26 @@ export const articleListQuerySchema = z
       z.string().trim().max(255).optional(),
     ),
     article_category_id: z.coerce.number().int().positive().optional(),
+    article_category_slug: z.string().trim().min(1).max(100).optional(),
     language_id: languageIdSchema.optional(),
     status: articleStatusSchema.optional(),
     sort_by: z.enum(['created_at', 'issue_date']).default('created_at'),
     sort_order: z.enum(['asc', 'desc']).default('desc'),
   })
-  .strict();
+  .strict()
+  .superRefine((query, context) => {
+    if (
+      query.article_category_id !== undefined &&
+      query.article_category_slug !== undefined
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message:
+          'Use either article_category_id or article_category_slug, not both.',
+        path: ['article_category_slug'],
+      });
+    }
+  });
 
 export type CreateArticleInput = z.infer<typeof createArticleBodySchema>;
 export type UpdateArticleInput = z.infer<typeof updateArticleBodySchema>;

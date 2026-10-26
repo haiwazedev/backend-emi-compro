@@ -3,6 +3,7 @@ import { z } from 'zod';
 const documentCommitmentCategoryFieldsSchema = z
   .object({
     name: z.string().trim().min(1).max(100),
+    slug: z.string().trim().min(1).max(100),
   })
   .strict();
 

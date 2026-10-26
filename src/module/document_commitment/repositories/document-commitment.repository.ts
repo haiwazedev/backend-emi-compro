@@ -9,7 +9,7 @@ const documentInclude = {
 export class DocumentCommitmentRepository {
   findMany(query: DocumentCommitmentListQuery, includeDrafts: boolean) {
     return prisma.documentCommitment.findMany({
-      where: this.buildWhere(query, includeDrafts),
+      where: buildDocumentCommitmentWhere(query, includeDrafts),
       skip: (query.page - 1) * query.limit,
       take: query.limit,
       orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }],
@@ -19,7 +19,7 @@ export class DocumentCommitmentRepository {
 
   count(query: DocumentCommitmentListQuery, includeDrafts: boolean) {
     return prisma.documentCommitment.count({
-      where: this.buildWhere(query, includeDrafts),
+      where: buildDocumentCommitmentWhere(query, includeDrafts),
     });
   }
 
@@ -94,23 +94,30 @@ export class DocumentCommitmentRepository {
       return documents;
     });
   }
+}
 
-  private buildWhere(
-    query: DocumentCommitmentListQuery,
-    includeDrafts: boolean,
-  ): Prisma.DocumentCommitmentWhereInput {
-    return {
-      ...(query.search
-        ? { title: { contains: query.search, mode: 'insensitive' } }
-        : {}),
-      ...(query.document_commitment_category_id
-        ? {
-            documentCommitmentCategoryId: query.document_commitment_category_id,
-          }
-        : {}),
-      ...(query.status ? { status: query.status } : {}),
-      // Last, so the public view overrides any requested status.
-      ...(includeDrafts ? {} : { status: 'PUBLISHED' }),
-    };
-  }
+export function buildDocumentCommitmentWhere(
+  query: DocumentCommitmentListQuery,
+  includeDrafts: boolean,
+): Prisma.DocumentCommitmentWhereInput {
+  return {
+    ...(query.search
+      ? { title: { contains: query.search, mode: 'insensitive' } }
+      : {}),
+    ...(query.document_commitment_category_id !== undefined
+      ? {
+          documentCommitmentCategoryId: query.document_commitment_category_id,
+        }
+      : {}),
+    ...(query.document_commitment_category_slug
+      ? {
+          documentCommitmentCategory: {
+            slug: query.document_commitment_category_slug,
+          },
+        }
+      : {}),
+    ...(query.status ? { status: query.status } : {}),
+    // Last, so the public view overrides any requested status.
+    ...(includeDrafts ? {} : { status: 'PUBLISHED' }),
+  };
 }

@@ -33,14 +33,32 @@ export class DocumentCommitmentCategoryService {
     input: CreateDocumentCommitmentCategoryInput,
     user: AuthenticatedUser,
   ) {
-    const category = await this.repository.create({ name: input.name });
-    await this.activityLogService.log(
-      user,
-      'CREATE',
-      'DOCUMENT_COMMITMENT_CATEGORY',
-      category.name,
-    );
-    return category;
+    if (await this.repository.findBySlug(input.slug)) {
+      throw new ApiError(
+        409,
+        'Document commitment category slug is already in use.',
+      );
+    }
+
+    try {
+      const category = await this.repository.create(input);
+      await this.activityLogService.log(
+        user,
+        'CREATE',
+        'DOCUMENT_COMMITMENT_CATEGORY',
+        category.name,
+      );
+      return category;
+    } catch (error) {
+      if (isPrismaError(error, 'P2002')) {
+        throw new ApiError(
+          409,
+          'Document commitment category slug is already in use.',
+        );
+      }
+
+      throw error;
+    }
   }
 
   async update(
@@ -54,6 +72,17 @@ export class DocumentCommitmentCategoryService {
       throw new ApiError(400, 'At least one category field is required.');
     }
 
+    if (input.slug !== undefined) {
+      const existing = await this.repository.findBySlug(input.slug);
+
+      if (existing && existing.id !== id) {
+        throw new ApiError(
+          409,
+          'Document commitment category slug is already in use.',
+        );
+      }
+    }
+
     try {
       const category = await this.repository.update(id, input);
       await this.activityLogService.log(
@@ -64,6 +93,13 @@ export class DocumentCommitmentCategoryService {
       );
       return category;
     } catch (error) {
+      if (isPrismaError(error, 'P2002')) {
+        throw new ApiError(
+          409,
+          'Document commitment category slug is already in use.',
+        );
+      }
+
       if (isPrismaError(error, 'P2025')) {
         throw new ApiError(404, 'Document commitment category was not found.');
       }

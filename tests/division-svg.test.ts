@@ -52,6 +52,7 @@ test('division create and update save sanitized SVG markup', async () => {
   const createInput: CreateDivisionInput = {
     language_id: 'id',
     name: 'Test Division',
+    slug: 'test-division',
     abbr: 'TD',
     icon_svg: unsafeSvg,
   };
@@ -105,6 +106,7 @@ function makeDivision(iconSvg: string | null): DivisionWithContents {
         divisionId: 1,
         languageId: 'id',
         name: 'Test Division',
+        slug: 'test-division',
         abbr: 'TD',
         description: null,
       },

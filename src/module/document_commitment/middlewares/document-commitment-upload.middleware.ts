@@ -6,7 +6,7 @@ const upload = multer({
   limits: {
     fileSize: MAX_PDF_UPLOAD_SIZE,
     files: 1,
-    fields: 3,
+    fields: 4,
     fieldSize: 1024,
   },
 });

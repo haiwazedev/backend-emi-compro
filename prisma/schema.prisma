@@ -324,28 +324,41 @@ model Service {
 }
 
 model ServiceContent {
-  serviceId   Int      @map("service_id")
-  languageId  String   @map("language_id") @db.VarChar(10)
-  name        String   @db.VarChar(200)
-  description String?  @db.Text
-  service     Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  language    Language @relation(fields: [languageId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  serviceId  Int      @map("service_id")
+  languageId String   @map("language_id") @db.VarChar(10)
+  name       String   @db.VarChar(200)
+  service    Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  language   Language @relation(fields: [languageId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@id([serviceId, languageId])
   @@map("service_contents")
 }
 
 model ServiceMedia {
-  serviceId Int     @map("service_id")
-  mediaId   Int     @map("media_id")
-  sortOrder Int     @map("sort_order")
-  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  media     Media   @relation(fields: [mediaId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  serviceId Int                   @map("service_id")
+  mediaId   Int                   @map("media_id")
+  sortOrder Int                   @map("sort_order")
+  service   Service               @relation(fields: [serviceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  media     Media                 @relation(fields: [mediaId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  contents  ServiceMediaContent[]
 
   @@id([serviceId, mediaId])
   @@unique([serviceId, sortOrder])
   @@index([mediaId])
   @@map("service_media")
+}
+
+model ServiceMediaContent {
+  serviceId    Int          @map("service_id")
+  mediaId      Int          @map("media_id")
+  languageId   String       @map("language_id") @db.VarChar(10)
+  description  String?      @db.Text
+  serviceMedia ServiceMedia @relation(fields: [serviceId, mediaId], references: [serviceId, mediaId], onDelete: Cascade, onUpdate: Cascade)
+  language     Language     @relation(fields: [languageId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([serviceId, mediaId, languageId])
+  @@index([languageId])
+  @@map("service_media_contents")
 }
 
 model BoardMemberType {
@@ -450,6 +463,7 @@ model Language {
   siteContentItems                   SiteContentItem[]
   divisionContents                   DivisionContent[]
   serviceContents                    ServiceContent[]
+  serviceMediaContents               ServiceMediaContent[]
   boardMemberTypes                   BoardMemberType[]
   boardMemberContents                BoardMemberContent[]
   faqContents                        FaqContent[]

@@ -1,6 +1,7 @@
 import { Prisma } from '../../../generated/prisma/client.js';
 import { prisma } from '../../../shared/db/prisma.js';
 import type { ServiceWithRelations } from '../presenters/service.presenter.js';
+import type { ServiceMediaInput } from '../schemas/service.schema.js';
 
 const serviceInclude = {
   contents: {
@@ -15,14 +16,23 @@ const serviceInclude = {
   },
   mediaLinks: {
     orderBy: [{ sortOrder: 'asc' }, { mediaId: 'asc' }],
-    include: { media: true },
+    include: {
+      media: true,
+      contents: {
+        orderBy: [{ language: { sortOrder: 'asc' } }, { languageId: 'asc' }],
+      },
+    },
   },
 } satisfies Prisma.ServiceInclude;
 
 type ServiceContentWrite = {
   languageId: string;
-  name?: string;
-  description?: string | null;
+  name: string;
+};
+
+type ServiceMediaWrite = {
+  languageId: string;
+  items: ServiceMediaInput[];
 };
 
 export type ReorderServicesResult =
@@ -49,9 +59,8 @@ export class ServiceRepository {
 
   create(
     data: Prisma.ServiceUncheckedCreateInput,
-    content: Required<Pick<ServiceContentWrite, 'languageId' | 'name'>> &
-      Pick<ServiceContentWrite, 'description'>,
-    mediaIds: number[],
+    content: ServiceContentWrite,
+    media: ServiceMediaInput[],
   ) {
     return prisma.$transaction(async (transaction) => {
       const current = await transaction.service.aggregate({
@@ -72,11 +81,15 @@ export class ServiceRepository {
           serviceId: service.id,
           languageId: content.languageId,
           name: content.name,
-          description: content.description ?? null,
         },
       });
 
-      await replaceServiceMedia(transaction, service.id, mediaIds);
+      await replaceServiceMedia(
+        transaction,
+        service.id,
+        content.languageId,
+        media,
+      );
 
       return transaction.service.findUniqueOrThrow({
         where: { id: service.id },
@@ -90,7 +103,7 @@ export class ServiceRepository {
     data: Prisma.ServiceUncheckedUpdateInput,
     content: ServiceContentWrite | undefined,
     targetDivisionId?: number,
-    mediaIds?: number[],
+    media?: ServiceMediaWrite,
   ) {
     return prisma.$transaction(async (transaction) => {
       const current = await transaction.service.findUnique({
@@ -110,10 +123,6 @@ export class ServiceRepository {
             },
           })
         : null;
-
-      if (content && !existingContent && content.name === undefined) {
-        return null;
-      }
 
       if (
         current &&
@@ -149,27 +158,26 @@ export class ServiceRepository {
         if (existingContent) {
           await transaction.serviceContent.update({
             where,
-            data: {
-              ...(content.name !== undefined ? { name: content.name } : {}),
-              ...(content.description !== undefined
-                ? { description: content.description }
-                : {}),
-            },
+            data: { name: content.name },
           });
         } else {
           await transaction.serviceContent.create({
             data: {
               serviceId: id,
               languageId: content.languageId,
-              name: content.name!,
-              description: content.description ?? null,
+              name: content.name,
             },
           });
         }
       }
 
-      if (mediaIds !== undefined) {
-        await replaceServiceMedia(transaction, id, mediaIds);
+      if (media !== undefined) {
+        await replaceServiceMedia(
+          transaction,
+          id,
+          media.languageId,
+          media.items,
+        );
       }
 
       if (previousDivisionId !== undefined) {
@@ -240,22 +248,66 @@ export class ServiceRepository {
   }
 }
 
-async function replaceServiceMedia(
+export async function replaceServiceMedia(
   transaction: Prisma.TransactionClient,
   serviceId: number,
-  mediaIds: number[],
+  languageId: string,
+  mediaItems: ServiceMediaInput[],
 ): Promise<void> {
-  await transaction.serviceMedia.deleteMany({ where: { serviceId } });
-
-  if (mediaIds.length === 0) return;
-
-  await transaction.serviceMedia.createMany({
-    data: mediaIds.map((mediaId, index) => ({
-      serviceId,
-      mediaId,
-      sortOrder: index + 1,
-    })),
+  const existingLinks = await transaction.serviceMedia.findMany({
+    where: { serviceId },
+    select: { mediaId: true, sortOrder: true },
   });
+
+  const lowestSortOrder = Math.min(
+    0,
+    ...existingLinks.map(({ sortOrder }) => sortOrder),
+  );
+
+  for (const [index, link] of existingLinks.entries()) {
+    await transaction.serviceMedia.update({
+      where: {
+        serviceId_mediaId: { serviceId, mediaId: link.mediaId },
+      },
+      data: { sortOrder: lowestSortOrder - index - 1 },
+    });
+  }
+
+  const mediaIds = mediaItems.map(({ media_id }) => media_id);
+
+  await transaction.serviceMedia.deleteMany({
+    where: {
+      serviceId,
+      ...(mediaIds.length > 0 ? { mediaId: { notIn: mediaIds } } : {}),
+    },
+  });
+
+  for (const [index, item] of mediaItems.entries()) {
+    const mediaId = item.media_id;
+    const where = {
+      serviceId_mediaId: { serviceId, mediaId },
+    };
+
+    await transaction.serviceMedia.upsert({
+      where,
+      create: { serviceId, mediaId, sortOrder: index + 1 },
+      update: { sortOrder: index + 1 },
+    });
+
+    await transaction.serviceMediaContent.upsert({
+      where: {
+        serviceId_mediaId_languageId: { serviceId, mediaId, languageId },
+      },
+      create: {
+        serviceId,
+        mediaId,
+        languageId,
+        description: item.description ?? null,
+      },
+      update:
+        item.description === undefined ? {} : { description: item.description },
+    });
+  }
 }
 
 async function compactServices(

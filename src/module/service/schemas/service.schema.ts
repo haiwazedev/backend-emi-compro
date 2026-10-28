@@ -9,19 +9,28 @@ const descriptionSchema = z
   .transform((value) =>
     typeof value === 'string' && value.trim() === '' ? null : value,
   );
-const mediaIdsSchema = z
-  .array(positiveIdSchema)
-  .refine((ids) => new Set(ids).size === ids.length, {
-    message: 'media_ids must contain unique IDs.',
-  });
+const serviceMediaItemSchema = z
+  .object({
+    media_id: positiveIdSchema,
+    description: descriptionSchema,
+  })
+  .strict();
+const mediaSchema = z
+  .array(serviceMediaItemSchema)
+  .refine(
+    (media) =>
+      new Set(media.map((item) => item.media_id)).size === media.length,
+    {
+      message: 'media must contain unique media_id values.',
+    },
+  );
 
 const serviceFieldsSchema = z
   .object({
     language_id: languageIdSchema,
     division_id: positiveIdSchema,
     name: z.string().trim().min(1).max(200),
-    description: descriptionSchema,
-    media_ids: mediaIdsSchema.optional(),
+    media: mediaSchema.optional(),
   })
   .strict();
 
@@ -29,21 +38,21 @@ export const createServiceBodySchema = serviceFieldsSchema;
 export const updateServiceBodySchema = serviceFieldsSchema
   .partial()
   .superRefine((input, context) => {
-    const hasContent =
-      input.name !== undefined || input.description !== undefined;
+    const hasTranslatedFields =
+      input.name !== undefined || input.media !== undefined;
 
-    if (hasContent && input.language_id === undefined) {
+    if (hasTranslatedFields && input.language_id === undefined) {
       context.addIssue({
         code: 'custom',
-        message: 'language_id is required when updating translated fields.',
+        message: 'language_id is required when updating name or media.',
         path: ['language_id'],
       });
     }
 
-    if (input.language_id !== undefined && !hasContent) {
+    if (input.language_id !== undefined && !hasTranslatedFields) {
       context.addIssue({
         code: 'custom',
-        message: 'At least one translated field is required with language_id.',
+        message: 'At least one of name or media is required with language_id.',
         path: ['language_id'],
       });
     }
@@ -58,4 +67,5 @@ export const reorderServicesBodySchema = z
 
 export type CreateServiceInput = z.infer<typeof createServiceBodySchema>;
 export type UpdateServiceInput = z.infer<typeof updateServiceBodySchema>;
+export type ServiceMediaInput = z.infer<typeof serviceMediaItemSchema>;
 export type ReorderServicesInput = z.infer<typeof reorderServicesBodySchema>;

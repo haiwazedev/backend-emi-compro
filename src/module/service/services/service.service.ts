@@ -9,6 +9,7 @@ import { ServiceRepository } from '../repositories/service.repository.js';
 import type {
   CreateServiceInput,
   ReorderServicesInput,
+  ServiceMediaInput,
   UpdateServiceInput,
 } from '../schemas/service.schema.js';
 
@@ -38,8 +39,8 @@ export class ServiceService {
   async create(input: CreateServiceInput, user: AuthenticatedUser) {
     await this.requireDivision(input.division_id);
     await this.languageService.requireActive(input.language_id);
-    const mediaIds = input.media_ids ?? [];
-    await this.requirePictureMedia(mediaIds);
+    const media = input.media ?? [];
+    await this.requirePictureMedia(media);
 
     try {
       const service = await this.repository.create(
@@ -50,9 +51,8 @@ export class ServiceService {
         {
           languageId: input.language_id,
           name: input.name,
-          description: input.description ?? null,
         },
-        mediaIds,
+        media,
       );
       await this.activityLogService.log(user, 'CREATE', 'SERVICE', input.name);
       return service;
@@ -62,7 +62,7 @@ export class ServiceService {
   }
 
   async update(id: number, input: UpdateServiceInput, user: AuthenticatedUser) {
-    await this.getById(id);
+    const currentService = await this.getById(id);
 
     if (Object.keys(input).length === 0) {
       throw new ApiError(400, 'At least one service field is required.');
@@ -74,8 +74,21 @@ export class ServiceService {
     if (input.language_id !== undefined) {
       await this.languageService.requireActive(input.language_id);
     }
-    if (input.media_ids !== undefined) {
-      await this.requirePictureMedia(input.media_ids);
+    if (input.media !== undefined) {
+      await this.requirePictureMedia(input.media);
+
+      if (
+        input.language_id !== undefined &&
+        input.name === undefined &&
+        !currentService.contents.some(
+          (content) => content.languageId === input.language_id,
+        )
+      ) {
+        throw new ApiError(
+          400,
+          'name is required when adding a service translation.',
+        );
+      }
     }
 
     const data: Prisma.ServiceUncheckedUpdateInput = {
@@ -86,14 +99,15 @@ export class ServiceService {
     if (input.division_id !== undefined) data.divisionId = input.division_id;
 
     const content =
-      input.language_id !== undefined
+      input.language_id !== undefined && input.name !== undefined
         ? {
             languageId: input.language_id,
-            ...(input.name !== undefined ? { name: input.name } : {}),
-            ...(input.description !== undefined
-              ? { description: input.description }
-              : {}),
+            name: input.name,
           }
+        : undefined;
+    const media =
+      input.language_id !== undefined && input.media !== undefined
+        ? { languageId: input.language_id, items: input.media }
         : undefined;
 
     try {
@@ -102,15 +116,8 @@ export class ServiceService {
         data,
         content,
         input.division_id,
-        input.media_ids,
+        media,
       );
-
-      if (!service) {
-        throw new ApiError(
-          400,
-          'name is required when adding a service translation.',
-        );
-      }
 
       await this.activityLogService.log(
         user,
@@ -168,22 +175,24 @@ export class ServiceService {
     }
   }
 
-  private async requirePictureMedia(ids: number[]): Promise<void> {
+  private async requirePictureMedia(media: ServiceMediaInput[]): Promise<void> {
+    const ids = media.map((item) => item.media_id);
+
     if (new Set(ids).size !== ids.length) {
-      throw new ApiError(400, 'media_ids must contain unique IDs.');
+      throw new ApiError(400, 'media must contain unique media_id values.');
     }
 
     if (ids.length === 0) return;
 
-    const media = await this.mediaRepository.findManyByIds(ids);
+    const mediaRecords = await this.mediaRepository.findManyByIds(ids);
 
     if (
-      media.length !== ids.length ||
-      media.some((item) => item.type !== 'PICTURE')
+      mediaRecords.length !== ids.length ||
+      mediaRecords.some((item) => item.type !== 'PICTURE')
     ) {
       throw new ApiError(
         400,
-        'media_ids must reference existing picture media items.',
+        'media.media_id must reference existing picture media items.',
       );
     }
   }

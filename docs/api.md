@@ -761,10 +761,12 @@ the CMS reads drafts through `/admin/divisions` and `/admin/services` (see
 [Public and Admin Reads](#public-and-admin-reads)). Creating, updating, deleting, and
 reordering require an authenticated session and the configured frontend
 `Origin` or `Referer`, as described under [Browser Sessions](#browser-sessions).
-Requests use JSON. Names, abbreviations, and descriptions are stored per
-language and returned in a `contents` array ordered by the language registry's
-`sort_order` and language ID. Responses include only translations that exist;
-clients choose the language to display and handle a missing translation.
+Requests use JSON. Division names, abbreviations, and descriptions, along with
+service names, are localized in their `contents` arrays. Service media
+descriptions are localized under each media item's `contents`. These arrays
+are ordered by the language registry's `sort_order` and language ID. Responses
+include only translations that exist; clients choose the language to display
+and handle a missing translation.
 Create requests and updates to translated fields require an active
 `language_id`; unknown or inactive language IDs return `400 Bad Request`.
 Creating a division or adding a translation requires an explicit `slug`; the
@@ -897,23 +899,26 @@ divisions. Invalid status values and unknown query parameters return
 
 Service create and update bodies accept these fields:
 
-| Field         | Type              | Rules                                                                        |
-| ------------- | ----------------- | ---------------------------------------------------------------------------- |
-| `language_id` | string            | Required on create; active language code.                                    |
-| `division_id` | integer           | Positive ID of an existing division; required on create.                     |
-| `name`        | string            | Required on create; trimmed; 1–200 characters.                               |
-| `description` | string or null    | Optional; no length limit; blank string becomes `null`.                      |
-| `media_ids`   | array of integers | Optional; unique positive IDs of existing `PICTURE` media, in display order. |
+| Field         | Type                              | Rules                                                                 |
+| ------------- | --------------------------------- | --------------------------------------------------------------------- |
+| `language_id` | string                            | Required on create; active language code.                             |
+| `division_id` | integer                           | Positive ID of an existing division; required on create.              |
+| `name`        | string                            | Required on create; trimmed; 1–200 characters.                        |
+| `media`       | array of media objects            | Optional; replaces gallery membership and order when sent.            |
+| `media_id`    | integer, inside each `media` item | Positive ID of an existing `PICTURE` media item; unique in the array. |
+| `description` | string or null, inside each item  | Optional localized description; blank string becomes `null`.          |
 
 Updates are partial; omitted fields remain unchanged. Updating `name` or
-`description` requires `language_id`. Existing translations can be partially
-updated; adding a translation requires `name`. On create, an omitted
-`media_ids` creates an empty gallery. On update, an omitted `media_ids` keeps
-the current gallery; sending an array replaces it, and `[]` clears it. Invalid,
-duplicate, missing, or non-picture media IDs return `400 Bad Request`. New
-services append after the division's current maximum `sort_order`. The
-authenticated user's name is stored in `created_by`; updates set `updated_by`
-and `updated_at` on the service.
+`media` requires `language_id`; adding a service translation requires `name`.
+Each media description is stored for the request's `language_id`. On create, an
+omitted `media` creates an empty gallery. On update, an omitted `media` keeps
+the current gallery; sending an array replaces it, and `[]` clears it. For
+retained media, an omitted description preserves its current translation and
+`null` clears it. New media without a description receive a `null` description
+for that language. Invalid, duplicate, missing, or non-picture media IDs return
+`400 Bad Request`. New services append after the division's current maximum
+`sort_order`. The authenticated user's name is stored in `created_by`; updates
+set `updated_by` and `updated_at` on the service.
 
 Example create request:
 
@@ -922,8 +927,16 @@ Example create request:
   "language_id": "en",
   "division_id": 1,
   "name": "Customer Support",
-  "description": "Support for energy management initiatives.",
-  "media_ids": [24, 31]
+  "media": [
+    {
+      "media_id": 24,
+      "description": "On-site support for energy management initiatives."
+    },
+    {
+      "media_id": 31,
+      "description": "Remote support and consultation."
+    }
+  ]
 }
 ```
 
@@ -942,8 +955,7 @@ For example, `GET /services/:serviceId` returns:
     "contents": [
       {
         "language_id": "en",
-        "name": "Customer Support",
-        "description": "Support for energy management initiatives."
+        "name": "Customer Support"
       }
     ],
     "media": [
@@ -956,7 +968,17 @@ For example, `GET /services/:serviceId` returns:
         "size": 245760,
         "metadata": { "width": 1600, "height": 900 },
         "created_by": "Ari Putra",
-        "created_at": "2026-10-11T10:20:00.000Z"
+        "created_at": "2026-10-11T10:20:00.000Z",
+        "contents": [
+          {
+            "language_id": "en",
+            "description": "On-site support for energy management initiatives."
+          },
+          {
+            "language_id": "id",
+            "description": "Dukungan langsung untuk inisiatif manajemen energi."
+          }
+        ]
       }
     ],
     "division": {
@@ -2308,7 +2330,7 @@ language of the matching content.
 | `articles`             | `title`, `summary`                                  |
 | `document_commitments` | translated `title`                                  |
 | `divisions`            | `name`, `abbr`, `description`                       |
-| `services`             | `name`, `description`                               |
+| `services`             | `name`; translated media `description`              |
 | `board_members`        | `name`, `company_name`, `role`, `description`       |
 | `faqs`                 | `question`, `answer`                                |
 | `users`                | `name`, `email`                                     |

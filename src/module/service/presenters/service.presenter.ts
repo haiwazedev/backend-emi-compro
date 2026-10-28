@@ -6,7 +6,7 @@ export type ServiceWithRelations = Prisma.ServiceGetPayload<{
   include: {
     contents: true;
     division: { include: { contents: true } };
-    mediaLinks: { include: { media: true } };
+    mediaLinks: { include: { media: true; contents: true } };
   };
 }>;
 
@@ -22,9 +22,14 @@ export function presentService(service: ServiceWithRelations) {
     contents: service.contents.map((content) => ({
       language_id: content.languageId,
       name: content.name,
-      description: content.description,
     })),
-    media: service.mediaLinks.map(({ media }) => presentMedia(media)),
+    media: service.mediaLinks.map(({ media, contents }) => ({
+      ...presentMedia(media),
+      contents: contents.map((content) => ({
+        language_id: content.languageId,
+        description: content.description,
+      })),
+    })),
     division: presentDivision(service.division),
   };
 }

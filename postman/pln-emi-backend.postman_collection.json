@@ -921,7 +921,7 @@
             "description": "Requires login session.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"division_id\": 1,\n  \"name\": \"Energy Audit\"\n}",
+              "raw": "{\n  \"language_id\": \"en\",\n  \"division_id\": 1,\n  \"name\": \"Energy Audit\",\n  \"media\": [\n    {\n      \"media_id\": 24,\n      \"description\": \"Review of energy use and efficiency.\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -949,7 +949,7 @@
             "description": "Requires login session. Partial update; omitted fields stay unchanged.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Energy Audit & Consulting\"\n}",
+              "raw": "{\n  \"language_id\": \"en\",\n  \"name\": \"Energy Audit & Consulting\"\n}",
               "options": {
                 "raw": {
                   "language": "json"

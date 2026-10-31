@@ -6,6 +6,13 @@ const documentCommitmentCategoryFieldsSchema = z
     language_id: languageIdSchema,
     name: z.string().trim().min(1).max(100),
     slug: z.string().trim().min(1).max(100),
+    description: z
+      .string()
+      .nullable()
+      .optional()
+      .transform((value) =>
+        typeof value === 'string' && value.trim() === '' ? null : value,
+      ),
   })
   .strict();
 
@@ -15,7 +22,10 @@ export const updateDocumentCommitmentCategoryBodySchema =
   documentCommitmentCategoryFieldsSchema
     .partial()
     .superRefine((input, context) => {
-      const hasContent = input.name !== undefined || input.slug !== undefined;
+      const hasContent =
+        input.name !== undefined ||
+        input.slug !== undefined ||
+        input.description !== undefined;
 
       if (hasContent && input.language_id === undefined) {
         context.addIssue({

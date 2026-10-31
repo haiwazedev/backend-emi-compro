@@ -128,8 +128,18 @@ test('document list presenter selects title and category content by language', (
     documentCommitmentCategory: {
       id: 2,
       contents: [
-        { languageId: 'id', name: 'Laporan', slug: 'laporan' },
-        { languageId: 'en', name: 'Reports', slug: 'reports' },
+        {
+          languageId: 'id',
+          name: 'Laporan',
+          slug: 'laporan',
+          description: null,
+        },
+        {
+          languageId: 'en',
+          name: 'Reports',
+          slug: 'reports',
+          description: 'Company reports',
+        },
       ],
     },
   };
@@ -143,6 +153,7 @@ test('document list presenter selects title and category content by language', (
     language_id: 'en',
     name: 'Reports',
     slug: 'reports',
+    description: 'Company reports',
   });
 
   const defaultLanguageResult = presentDocumentCommitmentListItem(document);

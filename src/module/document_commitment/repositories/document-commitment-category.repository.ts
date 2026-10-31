@@ -13,6 +13,7 @@ export type DocumentCommitmentCategoryContentWrite = {
   languageId: string;
   name?: string;
   slug?: string;
+  description?: string | null;
 };
 
 export class DocumentCommitmentCategoryRepository {
@@ -40,7 +41,12 @@ export class DocumentCommitmentCategoryRepository {
     });
   }
 
-  create(content: Required<DocumentCommitmentCategoryContentWrite>) {
+  create(
+    content: Required<
+      Omit<DocumentCommitmentCategoryContentWrite, 'description'>
+    > &
+      Pick<DocumentCommitmentCategoryContentWrite, 'description'>,
+  ) {
     return prisma.documentCommitmentCategory.create({
       data: { contents: { create: content } },
       include: categoryInclude,
@@ -66,10 +72,14 @@ export class DocumentCommitmentCategoryRepository {
               languageId: content.languageId,
               name: content.name!,
               slug: content.slug!,
+              description: content.description ?? null,
             },
             update: {
               ...(content.name !== undefined ? { name: content.name } : {}),
               ...(content.slug !== undefined ? { slug: content.slug } : {}),
+              ...(content.description !== undefined
+                ? { description: content.description }
+                : {}),
             },
           },
         },

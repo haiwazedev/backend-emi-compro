@@ -64,6 +64,7 @@ export class DocumentCommitmentCategoryService {
         languageId: input.language_id,
         name: input.name,
         slug: input.slug,
+        description: input.description,
       });
       await this.activityLogService.log(
         user,
@@ -121,6 +122,9 @@ export class DocumentCommitmentCategoryService {
         languageId,
         ...(input.name !== undefined ? { name: input.name } : {}),
         ...(input.slug !== undefined ? { slug: input.slug } : {}),
+        ...(input.description !== undefined
+          ? { description: input.description }
+          : {}),
       });
       await this.activityLogService.log(
         user,

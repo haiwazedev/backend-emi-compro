@@ -1352,16 +1352,23 @@ frontend `Origin` or `Referer`, as described under [Browser Sessions](#browser-s
   translation must use `language_id: "id"`.
 - `PUT /document_commitment_categories/:categoryId` partially updates a
   translation and returns `{ "documentCommitmentCategory": ... }` with
-  `200 OK`. The selected translation is created or replaced; other languages
+  `200 OK`. The selected translation is created or partially updated; other languages
   are unchanged.
 - `DELETE /document_commitment_categories/:categoryId` returns
   `204 No Content`. Deleting a category also deletes its document records and
   stored PDF files.
 
-Category create and update requests use JSON with `language_id`, `name`, and
-`slug`. Names and slugs are trimmed to 1–100 characters. Both translated fields
-are required on create. A translation update requires `language_id` and at
-least one of `name` or `slug`; adding a new language requires both fields.
+Category create and update requests use JSON with `language_id`, `name`,
+`slug`, and optional `description`. Names and slugs are trimmed to 1–100
+characters and are required on create. A translation update requires
+`language_id` and at least one of `name`, `slug`, or `description`; adding a new
+language still requires both `name` and `slug`.
+
+`description` is optional plain text for each language, with no additional
+length limit. Omission stores `null` on create and preserves the existing value
+on update. Send `null`, an empty string, or a whitespace-only string to clear
+it. Other strings are preserved as provided. Existing category translations
+have `description: null`.
 Slugs are unique within a language, so the same slug can be used in another
 language. A duplicate slug in the same language returns `409 Conflict`.
 
@@ -1369,7 +1376,8 @@ language. A duplicate slug in the same language returns `409 Conflict`.
 {
   "language_id": "id",
   "name": "Keputusan Direksi",
-  "slug": "keputusan-direksi"
+  "slug": "keputusan-direksi",
+  "description": "Kumpulan keputusan direksi perusahaan."
 }
 ```
 
@@ -1383,17 +1391,47 @@ Category detail responses contain all translations:
       {
         "language_id": "id",
         "name": "Keputusan Direksi",
-        "slug": "keputusan-direksi"
+        "slug": "keputusan-direksi",
+        "description": "Kumpulan keputusan direksi perusahaan."
       },
       {
         "language_id": "en",
         "name": "Board Decisions",
-        "slug": "board-decisions"
+        "slug": "board-decisions",
+        "description": null
       }
     ]
   }
 }
 ```
+
+Category list items include the selected translation's `description`:
+
+```json
+{
+  "documentCommitmentCategories": [
+    {
+      "id": 2,
+      "language_id": "id",
+      "name": "Keputusan Direksi",
+      "slug": "keputusan-direksi",
+      "description": "Kumpulan keputusan direksi perusahaan."
+    }
+  ]
+}
+```
+
+For a description-only update or to clear a description, send:
+
+```json
+{
+  "language_id": "id",
+  "description": null
+}
+```
+
+Categories embedded in document list and detail responses also include
+`description` in the selected translation or each `contents` entry respectively.
 
 ### Documents
 

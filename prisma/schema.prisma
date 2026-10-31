@@ -208,6 +208,7 @@ model DocumentCommitmentCategoryContent {
   languageId                   String                     @map("language_id") @db.VarChar(10)
   name                         String                     @db.VarChar(100)
   slug                         String                     @db.VarChar(100)
+  description                  String?                    @db.Text
   documentCommitmentCategory   DocumentCommitmentCategory @relation(fields: [documentCommitmentCategoryId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   language                     Language                   @relation(fields: [languageId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 

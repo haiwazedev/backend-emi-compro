@@ -148,6 +148,7 @@ const documentCommitmentCategoryContentResponseSchema = z
     language_id: z.string(),
     name: z.string(),
     slug: z.string(),
+    description: z.string().nullable(),
   })
   .strict();
 
@@ -157,6 +158,7 @@ const documentCommitmentCategoryListItemResponseSchema = z
     language_id: z.string().nullable(),
     name: z.string().nullable(),
     slug: z.string().nullable(),
+    description: z.string().nullable(),
   })
   .strict();
 

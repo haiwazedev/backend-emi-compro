@@ -1,5 +1,7 @@
 import {
   selectContent,
+  presentDocumentCommitmentCategory,
+  presentDocumentCommitmentCategoryListItem,
   type DocumentCommitmentCategoryView,
 } from './document-commitment-category.presenter.js';
 
@@ -34,14 +36,9 @@ export function presentDocumentCommitment(document: DocumentCommitmentView) {
     uploaded_by: document.uploadedBy,
     updated_at: document.updatedAt?.toISOString() ?? null,
     updated_by: document.updatedBy,
-    document_commitment_category: {
-      id: document.documentCommitmentCategory.id,
-      contents: document.documentCommitmentCategory.contents.map((content) => ({
-        language_id: content.languageId,
-        name: content.name,
-        slug: content.slug,
-      })),
-    },
+    document_commitment_category: presentDocumentCommitmentCategory(
+      document.documentCommitmentCategory,
+    ),
   };
 }
 
@@ -50,10 +47,6 @@ export function presentDocumentCommitmentListItem(
   languageId?: string,
 ) {
   const content = selectContent(document.contents, languageId);
-  const categoryContent = selectContent(
-    document.documentCommitmentCategory.contents,
-    languageId,
-  );
 
   return {
     id: document.id,
@@ -68,11 +61,9 @@ export function presentDocumentCommitmentListItem(
     uploaded_by: document.uploadedBy,
     updated_at: document.updatedAt?.toISOString() ?? null,
     updated_by: document.updatedBy,
-    document_commitment_category: {
-      id: document.documentCommitmentCategory.id,
-      language_id: categoryContent?.languageId ?? null,
-      name: categoryContent?.name ?? null,
-      slug: categoryContent?.slug ?? null,
-    },
+    document_commitment_category: presentDocumentCommitmentCategoryListItem(
+      document.documentCommitmentCategory,
+      languageId,
+    ),
   };
 }

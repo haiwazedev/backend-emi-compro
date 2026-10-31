@@ -4,6 +4,7 @@ export type DocumentCommitmentCategoryView = {
     languageId: string;
     name: string;
     slug: string;
+    description: string | null;
   }[];
 };
 
@@ -16,6 +17,7 @@ export function presentDocumentCommitmentCategory(
       language_id: content.languageId,
       name: content.name,
       slug: content.slug,
+      description: content.description,
     })),
   };
 }
@@ -31,6 +33,7 @@ export function presentDocumentCommitmentCategoryListItem(
     language_id: content?.languageId ?? null,
     name: content?.name ?? null,
     slug: content?.slug ?? null,
+    description: content?.description ?? null,
   };
 }
 

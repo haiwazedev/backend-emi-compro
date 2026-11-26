@@ -51,6 +51,9 @@ OpenAPI 3.1 document at `GET /documentation/openapi.json`. Request bodies and
 query parameters are generated from the server validation schemas. Response
 shapes and examples are documented in this file.
 
+Both routes are disabled when `NODE_ENV=production` and return `404`. Use a
+local or staging server to browse the docs.
+
 "Try it out" works for public `GET` routes. Write routes reject requests whose
 origin is not `FRONTEND_ORIGIN`, except for the public `POST /inboxes` contact
 form endpoint, which accepts requests from any origin.

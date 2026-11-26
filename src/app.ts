@@ -45,7 +45,10 @@ app.use(securityHeaders);
 app.use('/public/document_commitment', requirePublishedDocumentFile);
 app.use('/public', cors(), publicFileMiddleware);
 // Before session middleware so browsing the docs does not create sessions.
-app.use(documentationRouter);
+// Not exposed in production to avoid publishing the full API surface.
+if (process.env.NODE_ENV !== 'production') {
+  app.use(documentationRouter);
+}
 const frontendCors = cors({ origin: frontendOrigin, credentials: true });
 const publicInboxCors = cors({ origin: '*' });
 app.use((req, res, next) => {

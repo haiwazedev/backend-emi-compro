@@ -1106,9 +1106,12 @@ Requests without a photo use JSON. To upload or replace a photo, send
 `photo`. Photos may be PNG, JPG, JPEG, WEBP, or SVG files up to 5 MiB. The
 server checks raster content against the extension, sanitizes SVG files, and
 stores the file in the SeaweedFS bucket under
-`board_member/{memberId}.{extension}`. The `photo` response field contains the
-public path `/public/board_member/{memberId}.{extension}`. Omitting `photo`
-during an update keeps the current photo.
+`board_member/{memberId}-{uniqueId}.{extension}`, where `uniqueId` is a random
+16-character hex string. The `photo` response field contains the public path
+`/public/board_member/{memberId}-{uniqueId}.{extension}`. Every upload gets a
+new path and the previous photo is removed, so always use the `photo` value
+from the latest response; this keeps browsers from showing a cached old photo.
+Omitting `photo` during an update keeps the current photo.
 
 A member response includes every available translation:
 
@@ -1118,7 +1121,7 @@ A member response includes every available translation:
     "id": 12,
     "name": "Ari Putra",
     "company_name": "PLN Energi Primer Indonesia",
-    "photo": "/public/board_member/12.jpg",
+    "photo": "/public/board_member/12-3f9a1c2b7d4e8f60.jpg",
     "sort_order": 1,
     "created_at": "2026-10-11T10:30:00.000Z",
     "created_by": "Ari Putra",

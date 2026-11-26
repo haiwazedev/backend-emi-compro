@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { ApiError } from '../../../shared/errors/api-error.js';
 import { processImageUpload } from '../../../shared/files/image-file.js';
@@ -37,21 +38,17 @@ export class BoardMemberFileService {
     details: BoardMemberPhotoDetails,
   ): Promise<BoardMemberPhotoReplacement> {
     const photoPath = buildPublicPath(memberId, details.extension);
-    const replacement = await s3FileStorage.replace(
+    await s3FileStorage.store(
       photoPath,
       details.buffer,
       contentTypeForPublicPath(photoPath),
+      'A photo with this filename already exists.',
     );
 
     return {
       photoPath,
-      commitAfterTransaction: async () => {
-        await replacement.commitAfterTransaction();
-        if (previousPhotoPath !== photoPath) {
-          await this.removeAfterCommit(previousPhotoPath);
-        }
-      },
-      rollbackAfterFailure: () => replacement.rollbackAfterFailure(),
+      commitAfterTransaction: () => this.removeAfterCommit(previousPhotoPath),
+      rollbackAfterFailure: () => this.removeAfterCommit(photoPath),
     };
   }
 
@@ -75,16 +72,20 @@ export class BoardMemberFileService {
   }
 }
 
+// A random suffix gives every upload a new URL, so clients never see a cached photo.
 function buildPublicPath(memberId: number, extension: string): string {
-  return `/public/board_member/${memberId}.${extension}`;
+  const uniqueId = randomBytes(8).toString('hex');
+  return `/public/board_member/${memberId}-${uniqueId}.${extension}`;
 }
 
+// Matches new `{id}-{uniqueId}.{ext}` names and legacy `{id}.{ext}` names.
 function getPhotoFilename(photoPath: string | null): string | null {
   if (!photoPath) return null;
 
-  const match = /^\/public\/board_member\/(\d+)\.(png|jpe?g|webp|svg)$/.exec(
-    photoPath,
-  );
+  const match =
+    /^\/public\/board_member\/(\d+(?:-[a-f0-9]{16})?\.(?:png|jpe?g|webp|svg))$/.exec(
+      photoPath,
+    );
 
-  return match ? `${match[1]}.${match[2]}` : null;
+  return match ? match[1] : null;
 }
